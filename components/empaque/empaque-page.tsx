@@ -1,14 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Button } from "@/ui/button"
+import { Input } from "@/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { EmpaqueFormModal } from "./empaque-form-modal"
-import { empaqueApi } from "@/lib/api"
-import { authService } from "@/lib/auth"
-import type { RegistroEmpaque } from "@/lib/mocks"
+import { empaqueApi } from "../../lib/api"
+import { authService } from "../../lib/auth"
+import type { RegistroEmpaque } from "../../lib/mocks"
 import { Plus, Search, Download, Package, AlertTriangle } from "lucide-react"
 
 export function EmpaquePage() {
