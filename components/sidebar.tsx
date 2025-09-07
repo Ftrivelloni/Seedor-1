@@ -3,9 +3,9 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-import type { AuthUser } from "@/lib/auth"
+import { Button } from "./ui/button"
+import { cn } from "../lib/utils"
+import type { AuthUser } from "../lib/auth"
 import {
   LayoutDashboard,
   Sprout,
