@@ -3,6 +3,11 @@ import { DashboardStats } from "../../components/dashboard-stats"
 import { Sidebar } from "../../components/sidebar"
 import { useState } from "react"
 import { authService } from "../../lib/auth"
+import { CampoPage } from "../../components/campo/campo-page"
+import { EmpaquePage } from "../../components/empaque/empaque-page"
+import { InventarioPage } from "../../components/inventario/inventario-page"
+import { FinanzasPage } from "../../components/finanzas/finanzas-page"
+import { AjustesPage } from "../../components/ajustes/ajustes-page"
 
 export default function HomePage() {
   const user = authService.getCurrentUser()
@@ -16,6 +21,26 @@ export default function HomePage() {
     return null
   }
 
+  // Renderiza el componente correspondiente según currentPage
+  const renderPageContent = () => {
+    switch (currentPage) {
+      case "dashboard":
+        return <DashboardStats />
+      case "campo":
+        return <CampoPage />
+      case "empaque":
+        return <EmpaquePage />
+      case "inventario":
+        return <InventarioPage />
+      case "finanzas":
+        return <FinanzasPage />
+      case "ajustes":
+        return <AjustesPage />
+      default:
+        return <DashboardStats />
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar user={user} onLogout={() => { window.location.href = "/login" }} onNavigate={setCurrentPage} currentPage={currentPage} />
@@ -23,7 +48,7 @@ export default function HomePage() {
         <header className="border-b bg-card">
           <div className="flex h-16 items-center justify-between px-6">
             <div>
-              <h1 className="text-xl font-semibold">Dashboard</h1>
+              <h1 className="text-xl font-semibold">{currentPage.charAt(0).toUpperCase() + currentPage.slice(1)}</h1>
               <p className="text-sm text-muted-foreground">Resumen general de {user.tenant.nombre}</p>
             </div>
             <div className="flex items-center space-x-4">
@@ -36,7 +61,7 @@ export default function HomePage() {
         </header>
         <main className="flex-1 p-6 overflow-auto">
           <div className="max-w-7xl mx-auto">
-            <DashboardStats />
+            {renderPageContent()}
           </div>
         </main>
       </div>
