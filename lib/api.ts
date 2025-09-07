@@ -8,6 +8,7 @@ import {
   type ItemInventario,
   type MovimientoCaja,
 } from "./mocks"
+import { supabase } from './supabaseClient'
 
 // Simulate API delay
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -15,36 +16,121 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 // Campo API
 export const campoApi = {
   async getTareas(tenantId: string): Promise<TareaCampo[]> {
-    await delay(500)
-    return tareasCampo.filter((t) => t.tenantId === tenantId)
+    try {
+      const { data, error } = await supabase
+        .from('tareas_campo')
+        .select('*')
+        .eq('tenantId', tenantId);
+      
+      if (error) {
+        console.error('Error fetching tareas:', error);
+        // Fallback to mock data if there's an error
+        await delay(500);
+        return tareasCampo.filter((t) => t.tenantId === tenantId);
+      }
+      
+      return data as TareaCampo[];
+    } catch (error) {
+      console.error('Error connecting to Supabase:', error);
+      // Fallback to mock data
+      await delay(500);
+      return tareasCampo.filter((t) => t.tenantId === tenantId);
+    }
   },
 
   async createTarea(tarea: Omit<TareaCampo, "id" | "fechaCreacion">): Promise<TareaCampo> {
-    await delay(800)
-    const newTarea: TareaCampo = {
-      ...tarea,
-      id: `tc${Date.now()}`,
-      fechaCreacion: new Date().toISOString().split("T")[0],
+    try {
+      const newTarea: TareaCampo = {
+        ...tarea,
+        id: `tc${Date.now()}`,
+        fechaCreacion: new Date().toISOString().split("T")[0],
+      }
+      
+      const { data, error } = await supabase
+        .from('tareas_campo')
+        .insert(newTarea)
+        .select();
+      
+      if (error) {
+        console.error('Error creating tarea:', error);
+        // Fallback to mock data
+        await delay(800);
+        tareasCampo.push(newTarea);
+        return newTarea;
+      }
+      
+      return data[0] as TareaCampo;
+    } catch (error) {
+      console.error('Error connecting to Supabase:', error);
+      // Fallback to mock data
+      const newTarea: TareaCampo = {
+        ...tarea,
+        id: `tc${Date.now()}`,
+        fechaCreacion: new Date().toISOString().split("T")[0],
+      }
+      await delay(800);
+      tareasCampo.push(newTarea);
+      return newTarea;
     }
-    tareasCampo.push(newTarea)
-    return newTarea
   },
 
   async updateTarea(id: string, updates: Partial<TareaCampo>): Promise<TareaCampo> {
-    await delay(600)
-    const index = tareasCampo.findIndex((t) => t.id === id)
-    if (index === -1) throw new Error("Tarea no encontrada")
-
-    tareasCampo[index] = { ...tareasCampo[index], ...updates }
-    return tareasCampo[index]
+    try {
+      const { data, error } = await supabase
+        .from('tareas_campo')
+        .update(updates)
+        .eq('id', id)
+        .select();
+      
+      if (error) {
+        console.error('Error updating tarea:', error);
+        // Fallback to mock data
+        await delay(600);
+        const index = tareasCampo.findIndex((t) => t.id === id);
+        if (index === -1) throw new Error("Tarea no encontrada");
+        
+        tareasCampo[index] = { ...tareasCampo[index], ...updates };
+        return tareasCampo[index];
+      }
+      
+      return data[0] as TareaCampo;
+    } catch (error) {
+      console.error('Error connecting to Supabase:', error);
+      // Fallback to mock data
+      await delay(600);
+      const index = tareasCampo.findIndex((t) => t.id === id);
+      if (index === -1) throw new Error("Tarea no encontrada");
+      
+      tareasCampo[index] = { ...tareasCampo[index], ...updates };
+      return tareasCampo[index];
+    }
   },
 
   async deleteTarea(id: string): Promise<void> {
-    await delay(400)
-    const index = tareasCampo.findIndex((t) => t.id === id)
-    if (index === -1) throw new Error("Tarea no encontrada")
-
-    tareasCampo.splice(index, 1)
+    try {
+      const { error } = await supabase
+        .from('tareas_campo')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error deleting tarea:', error);
+        // Fallback to mock data
+        await delay(400);
+        const index = tareasCampo.findIndex((t) => t.id === id);
+        if (index === -1) throw new Error("Tarea no encontrada");
+        
+        tareasCampo.splice(index, 1);
+      }
+    } catch (error) {
+      console.error('Error connecting to Supabase:', error);
+      // Fallback to mock data
+      await delay(400);
+      const index = tareasCampo.findIndex((t) => t.id === id);
+      if (index === -1) throw new Error("Tarea no encontrada");
+      
+      tareasCampo.splice(index, 1);
+    }
   },
 }
 
