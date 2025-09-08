@@ -11,9 +11,19 @@ export default function LandingPage() {
         <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
         {/* Colorful accent blobs for welcome section only */}
         <div className="pointer-events-none absolute inset-0 z-0">
-          <div className="absolute left-1/2 top-24 h-72 w-72 -translate-x-1/2 rounded-full bg-gradient-to-tr from-secondary to-primary opacity-35 blur-3xl" />
-          <div className="absolute left-[20%] top-40 h-56 w-56 -translate-x-1/2 rounded-full bg-secondary/70 opacity-30 blur-3xl" />
-          <div className="absolute right-[18%] top-56 h-56 w-56 translate-x-1/2 rounded-full bg-primary/80 opacity-30 blur-3xl" />
+              <div className="absolute left-1/2 top-24 h-72 w-72 -translate-x-1/2 rounded-full bg-gradient-to-tr from-secondary to-primary opacity-60 blur-3xl" />
+              <div className="absolute left-[20%] top-40 h-56 w-56 -translate-x-1/2 rounded-full bg-secondary/90 opacity-50 blur-3xl" />
+              <div className="absolute right-[18%] top-56 h-56 w-56 translate-x-1/2 rounded-full bg-primary/90 opacity-50 blur-3xl" />
+              {/* Nuevos blobs */}
+              <div className="absolute left-10 top-10 h-40 w-40 rounded-full bg-accent/70 opacity-40 blur-3xl" />
+              <div className="absolute right-10 top-1/3 h-52 w-52 rounded-full bg-muted/80 opacity-40 blur-3xl" />
+              <div className="absolute left-1/4 bottom-10 h-64 w-64 rounded-full bg-destructive/60 opacity-40 blur-3xl" />
+              {/* Más blobs con los mismos colores */}
+              <div className="absolute right-1/4 top-10 h-44 w-44 rounded-full bg-primary/80 opacity-40 blur-3xl" />
+              <div className="absolute left-1/3 bottom-1/4 h-48 w-48 rounded-full bg-secondary/80 opacity-40 blur-3xl" />
+              <div className="absolute right-1/3 bottom-1/4 h-40 w-40 rounded-full bg-accent/60 opacity-40 blur-3xl" />
+              <div className="absolute left-1/5 top-1/2 h-36 w-36 rounded-full bg-muted/70 opacity-40 blur-3xl" />
+              <div className="absolute right-1/5 bottom-1/2 h-36 w-36 rounded-full bg-destructive/50 opacity-40 blur-3xl" />
         </div>
         <div className="relative z-10 mx-auto max-w-6xl px-6 text-center">
           <div className="relative mx-auto mb-8 h-24 w-48 animate-slide-in-up sm:mb-10 sm:h-32 w-64 sm:h-36 sm:w-72 md:h-40 md:w-80">
