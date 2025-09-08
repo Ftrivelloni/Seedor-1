@@ -8,8 +8,14 @@ export default function LandingPage() {
     <main className="min-h-screen bg-background">
       {/* Welcome Intro */}
       <section className="relative flex min-h-[100svh] items-center justify-center overflow-hidden py-20 md:py-28">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
-        <div className="mx-auto max-w-6xl px-6 text-center">
+        <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
+        {/* Colorful accent blobs for welcome section only */}
+        <div className="pointer-events-none absolute inset-0 z-0">
+          <div className="absolute left-1/2 top-24 h-72 w-72 -translate-x-1/2 rounded-full bg-gradient-to-tr from-secondary to-primary opacity-35 blur-3xl" />
+          <div className="absolute left-[20%] top-40 h-56 w-56 -translate-x-1/2 rounded-full bg-secondary/70 opacity-30 blur-3xl" />
+          <div className="absolute right-[18%] top-56 h-56 w-56 translate-x-1/2 rounded-full bg-primary/80 opacity-30 blur-3xl" />
+        </div>
+        <div className="relative z-10 mx-auto max-w-6xl px-6 text-center">
           <div className="relative mx-auto mb-8 h-24 w-48 animate-slide-in-up sm:mb-10 sm:h-32 w-64 sm:h-36 sm:w-72 md:h-40 md:w-80">
             <Image
               src="/seedor-logo.png"
@@ -19,7 +25,7 @@ export default function LandingPage() {
               priority
             />
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl animate-slide-in-up">
+          <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl animate-slide-in-up-slow">
             ¡Bienvenido a Seedor!
           </h1>
           <p className="mt-4 text-base text-muted-foreground sm:text-lg animate-slide-in-up">

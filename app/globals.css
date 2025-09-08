@@ -143,15 +143,20 @@
 }
 
 .animate-slide-in-up {
-  animation: slide-in-up 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: slide-in-up 1100ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .animate-slide-in-left {
-  animation: slide-in-left 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: slide-in-left 1100ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .animate-slide-in-right {
-  animation: slide-in-right 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: slide-in-right 1100ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Slower variant for prominent headings */
+.animate-slide-in-up-slow {
+  animation: slide-in-up 1600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -164,7 +169,7 @@
 
 /* Utility to stagger child animations */
 .stagger > * {
-  --stagger-step: 60ms;
+  --stagger-step: 100ms;
 }
 .stagger > *:nth-child(1) { animation-delay: calc(var(--stagger-step) * 1); }
 .stagger > *:nth-child(2) { animation-delay: calc(var(--stagger-step) * 2); }
