@@ -16,6 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Users,
+  Contact2,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -62,6 +64,18 @@ const navItems: NavItem[] = [
     icon: DollarSign,
     page: "finanzas",
     roles: ["Admin", "Finanzas"],
+  },
+  {
+    title: "Trabajadores",
+    icon: Users,
+    page: "trabajadores",
+    roles: ["Admin", "Campo"],
+  },
+  {
+    title: "Contactos",
+    icon: Contact2,
+    page: "contactos",
+    roles: ["Admin", "Campo", "Empaque", "Finanzas"],
   },
   {
     title: "Ajustes",

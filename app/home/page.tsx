@@ -8,6 +8,8 @@ import { EmpaquePage } from "../../components/empaque/empaque-page"
 import { InventarioPage } from "../../components/inventario/inventario-page"
 import { FinanzasPage } from "../../components/finanzas/finanzas-page"
 import { AjustesPage } from "../../components/ajustes/ajustes-page"
+import TrabajadoresPage from "../../components/trabajadores/trabajadores-page"
+import ContactosPage from "../../components/contactos/contactos-page"
 
 export default function HomePage() {
   const user = authService.getCurrentUser()
@@ -36,6 +38,10 @@ export default function HomePage() {
         return <FinanzasPage />
       case "ajustes":
         return <AjustesPage />
+      case "trabajadores":
+        return <TrabajadoresPage />
+      case "contactos":
+        return <ContactosPage />
       default:
         return <DashboardStats />
     }
