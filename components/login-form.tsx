@@ -76,6 +76,13 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
               </Button>
             </form>
+            <Button
+              variant="outline"
+              className="w-full mt-4"
+              onClick={() => window.location.href = "/"}
+            >
+              Volver a la página principal
+            </Button>
             <div className="mt-8 text-sm text-muted-foreground w-full">
               <p className="font-medium mb-2">Usuarios de prueba:</p>
               <div className="space-y-1 text-xs">
