@@ -36,63 +36,66 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <img src="/seedor-logo.png" alt="Seedor" className="h-16 w-auto" />
-          </div>
-          <CardTitle className="text-2xl font-bold">Iniciar Sesión</CardTitle>
-          <CardDescription>Ingresa a tu plataforma de gestión agropecuaria</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo electrónico</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="tu@email.com"
-                required
-              />
+      <div className="w-full max-w-2xl flex justify-center">
+        <Card className="w-full shadow-lg rounded-2xl border border-muted bg-white/90 px-16 py-12 flex flex-col justify-center" style={{ minWidth: 400, maxWidth: 600 }}>
+          <CardHeader className="pb-6">
+            <div className="mb-6 w-full flex justify-center">
+              <img src="/seedor-logo.png" alt="Seedor" className="h-20 w-auto drop-shadow" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
+            <CardTitle className="text-3xl font-bold mb-2 w-full text-center">Iniciar sesión</CardTitle>
+            <CardDescription className="mb-2 w-full text-center">Ingresa a tu plataforma de gestión agropecuaria</CardDescription>
+          </CardHeader>
+          <CardContent className="w-full p-0">
+            <form onSubmit={handleSubmit} className="space-y-6 w-full">
+              <div className="space-y-4 w-full">
+                <Label htmlFor="email" className="w-full">Correo electrónico</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@email.com"
+                  required
+                  className="h-12 text-base px-4 w-full"
+                />
+              </div>
+              <div className="space-y-4 w-full">
+                <Label htmlFor="password" className="w-full">Contraseña</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  className="h-12 text-base px-4 w-full"
+                />
+              </div>
+              {error && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md w-full">{error}</div>}
+              <Button type="submit" className="w-full h-12 text-base font-semibold" disabled={isLoading}>
+                {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
+              </Button>
+            </form>
+            <div className="mt-8 text-sm text-muted-foreground w-full">
+              <p className="font-medium mb-2">Usuarios de prueba:</p>
+              <div className="space-y-1 text-xs">
+                <p>
+                  <strong>Admin:</strong> admin@latoma.com
+                </p>
+                <p>
+                  <strong>Campo:</strong> campo@latoma.com
+                </p>
+                <p>
+                  <strong>Empaque:</strong> empaque@latoma.com
+                </p>
+                <p>
+                  <strong>Finanzas:</strong> finanzas@latoma.com
+                </p>
+              </div>
             </div>
-            {error && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">{error}</div>}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
-            </Button>
-          </form>
-          <div className="mt-6 text-sm text-muted-foreground">
-            <p className="font-medium mb-2">Usuarios de prueba:</p>
-            <div className="space-y-1 text-xs">
-              <p>
-                <strong>Admin:</strong> admin@latoma.com
-              </p>
-              <p>
-                <strong>Campo:</strong> campo@latoma.com
-              </p>
-              <p>
-                <strong>Empaque:</strong> empaque@latoma.com
-              </p>
-              <p>
-                <strong>Finanzas:</strong> finanzas@latoma.com
-              </p>
-              <p className="text-muted-foreground/70">Cualquier contraseña funciona</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
