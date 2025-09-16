@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
@@ -9,7 +10,7 @@ import { EmpaqueFormModal } from "./empaque-form-modal"
 import { empaqueApi } from "../../lib/api"
 import { authService } from "../../lib/auth"
 import type { RegistroEmpaque } from "../../lib/mocks"
-import { Plus, Search, Download, Package, AlertTriangle } from "lucide-react"
+import { Plus, Search, Download, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
 
 export function EmpaquePage() {
   const [registros, setRegistros] = useState<RegistroEmpaque[]>([])
@@ -19,6 +20,7 @@ export function EmpaquePage() {
   const [searchTerm, setSearchTerm] = useState("")
 
   const user = authService.getCurrentUser()
+  const router = useRouter()
 
   useEffect(() => {
     loadRegistros()
@@ -65,6 +67,10 @@ export function EmpaquePage() {
     await loadRegistros()
   }
 
+  const navigateToSubpage = (subpage: string) => {
+    router.push(`/empaque/${subpage}`)
+  }
+
   const exportToCSV = () => {
     const headers = ["Fecha", "Cultivo", "Kg Entraron", "Kg Salieron", "Kg Descartados", "% Descarte", "Notas"]
     const csvData = [
@@ -87,7 +93,8 @@ export function EmpaquePage() {
     const link = document.createElement("a")
     const url = URL.createObjectURL(blob)
     link.setAttribute("href", url)
-    link.setAttribute("download", `registros-empaque-${new Date().toISOString().split("T")[0]}.csv`)
+    const today = new Date().toISOString().split("T")[0]
+    link.setAttribute("download", `registros-empaque-${today}.csv`)
     link.style.visibility = "hidden"
     document.body.appendChild(link)
     link.click()
@@ -126,6 +133,45 @@ export function EmpaquePage() {
             Nuevo Registro
           </Button>
         </div>
+      </div>
+
+      {/* Navigation Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('ingreso-fruta')}>
+          <CardContent className="p-4 text-center">
+            <ArrowDown className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+            <h3 className="font-medium">Ingreso Fruta</h3>
+            <p className="text-xs text-muted-foreground">Recepción de materia prima</p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('preproceso')}>
+          <CardContent className="p-4 text-center">
+            <Cog className="h-8 w-8 mx-auto mb-2 text-orange-600" />
+            <h3 className="font-medium">Preproceso</h3>
+            <p className="text-xs text-muted-foreground">Preparación y limpieza</p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('pallets')}>
+          <CardContent className="p-4 text-center">
+            <Archive className="h-8 w-8 mx-auto mb-2 text-green-600" />
+            <h3 className="font-medium">Pallets</h3>
+            <p className="text-xs text-muted-foreground">Gestión de pallets</p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('despacho')}>
+          <CardContent className="p-4 text-center">
+            <Truck className="h-8 w-8 mx-auto mb-2 text-purple-600" />
+            <h3 className="font-medium">Despacho</h3>
+            <p className="text-xs text-muted-foreground">Envío a clientes</p>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('egreso-fruta')}>
+          <CardContent className="p-4 text-center">
+            <ArrowUp className="h-8 w-8 mx-auto mb-2 text-red-600" />
+            <h3 className="font-medium">Egreso Fruta</h3>
+            <p className="text-xs text-muted-foreground">Salida de productos</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Stats Cards */}

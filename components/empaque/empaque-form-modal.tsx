@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
@@ -26,13 +26,21 @@ interface EmpaqueFormModalProps {
 
 export function EmpaqueFormModal({ isOpen, onClose, onSubmit, tenantId }: EmpaqueFormModalProps) {
   const [formData, setFormData] = useState({
-    fecha: new Date().toISOString().split("T")[0],
+    fecha: "",
     cultivo: "",
     kgEntraron: "",
     kgSalieron: "",
     notas: "",
   })
   const [isLoading, setIsLoading] = useState(false)
+
+  // Set initial date on client side only
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      fecha: new Date().toISOString().split("T")[0]
+    }))
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

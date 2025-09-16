@@ -1,8 +1,9 @@
 "use client"
 import { DashboardStats } from "../../components/dashboard-stats"
 import { Sidebar } from "../../components/sidebar"
-import { useState } from "react"
-import { authService } from "../../lib/auth"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { authService, type AuthUser } from "../../lib/auth"
 import { CampoPage } from "../../components/campo/campo-page"
 import { EmpaquePage } from "../../components/empaque/empaque-page"
 import { InventarioPage } from "../../components/inventario/inventario-page"
@@ -12,14 +13,30 @@ import TrabajadoresPage from "../../components/trabajadores/trabajadores-page"
 import ContactosPage from "../../components/contactos/contactos-page"
 
 export default function HomePage() {
-  const user = authService.getCurrentUser()
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [currentPage, setCurrentPage] = useState("dashboard")
+  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
+
+  useEffect(() => {
+    const currentUser = authService.getCurrentUser()
+    if (!currentUser) {
+      router.push("/login")
+      return
+    }
+    setUser(currentUser)
+    setIsLoading(false)
+  }, [router])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
 
   if (!user) {
-    // Si no está autenticado, redirigir al login
-    if (typeof window !== "undefined") {
-      window.location.href = "/login"
-    }
     return null
   }
 
@@ -49,7 +66,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <Sidebar user={user} onLogout={() => { window.location.href = "/login" }} onNavigate={setCurrentPage} currentPage={currentPage} />
+      <Sidebar user={user} onLogout={() => { router.push("/login") }} onNavigate={setCurrentPage} currentPage={currentPage} />
       <div className="flex-1 flex flex-col">
         <header className="border-b bg-card">
           <div className="flex h-16 items-center justify-between px-6">

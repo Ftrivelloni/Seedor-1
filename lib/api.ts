@@ -9,6 +9,7 @@ import {
   type MovimientoCaja,
 } from "./mocks"
 import { supabase } from './supabaseClient'
+import type { IngresoFruta, Preproceso, Pallet, Despacho, EgresoFruta } from './types'
 
 // Simulate API delay
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -185,5 +186,151 @@ export const finanzasApi = {
     }
     movimientosCaja.push(newMovimiento)
     return newMovimiento
+  },
+}
+
+// Ingreso Fruta API
+export const ingresoFrutaApi = {
+  async getIngresos(tenantId: string): Promise<IngresoFruta[]> {
+    await delay(500)
+    // TODO: Implement actual Supabase integration
+    // For now, return mock data
+    return []
+  },
+
+  async createIngreso(ingreso: Omit<IngresoFruta, "id">): Promise<IngresoFruta> {
+    await delay(800)
+    const newIngreso: IngresoFruta = {
+      ...ingreso,
+      id: `if${Date.now()}`,
+    }
+    return newIngreso
+  },
+
+  async updateIngreso(id: string, updates: Partial<IngresoFruta>): Promise<IngresoFruta> {
+    await delay(600)
+    // TODO: Implement actual update logic
+    throw new Error("Ingreso no encontrado")
+  },
+
+  async deleteIngreso(id: string): Promise<void> {
+    await delay(400)
+    // TODO: Implement actual delete logic
+  },
+}
+
+// Preproceso API
+export const preprocesoApi = {
+  async getPreprocesos(tenantId: string): Promise<Preproceso[]> {
+    await delay(500)
+    // TODO: Implement actual Supabase integration
+    return []
+  },
+
+  async createPreproceso(preproceso: Omit<Preproceso, "id">): Promise<Preproceso> {
+    await delay(800)
+    const newPreproceso: Preproceso = {
+      ...preproceso,
+      id: `pp${Date.now()}`,
+    }
+    return newPreproceso
+  },
+
+  async updatePreproceso(id: string, updates: Partial<Preproceso>): Promise<Preproceso> {
+    await delay(600)
+    // TODO: Implement actual update logic
+    throw new Error("Preproceso no encontrado")
+  },
+
+  async deletePreproceso(id: string): Promise<void> {
+    await delay(400)
+    // TODO: Implement actual delete logic
+  },
+}
+
+// Pallets API
+export const palletsApi = {
+  async getPallets(tenantId: string): Promise<Pallet[]> {
+    await delay(500)
+    // TODO: Implement actual Supabase integration
+    return []
+  },
+
+  async createPallet(pallet: Omit<Pallet, "id">): Promise<Pallet> {
+    await delay(800)
+    const newPallet: Pallet = {
+      ...pallet,
+      id: `plt${Date.now()}`,
+    }
+    return newPallet
+  },
+
+  async updatePallet(id: string, updates: Partial<Pallet>): Promise<Pallet> {
+    await delay(600)
+    // TODO: Implement actual update logic
+    throw new Error("Pallet no encontrado")
+  },
+
+  async deletePallet(id: string): Promise<void> {
+    await delay(400)
+    // TODO: Implement actual delete logic
+  },
+}
+
+// Despacho API
+export const despachoApi = {
+  async getDespachos(tenantId: string): Promise<Despacho[]> {
+    await delay(500)
+    // TODO: Implement actual Supabase integration
+    return []
+  },
+
+  async createDespacho(despacho: Omit<Despacho, "id">): Promise<Despacho> {
+    await delay(800)
+    const newDespacho: Despacho = {
+      ...despacho,
+      id: `dsp${Date.now()}`,
+    }
+    return newDespacho
+  },
+
+  async updateDespacho(id: string, updates: Partial<Despacho>): Promise<Despacho> {
+    await delay(600)
+    // TODO: Implement actual update logic
+    throw new Error("Despacho no encontrado")
+  },
+
+  async deleteDespacho(id: string): Promise<void> {
+    await delay(400)
+    // TODO: Implement actual delete logic
+  },
+}
+
+// Egreso Fruta API
+export const egresoFrutaApi = {
+  async getEgresos(tenantId: string): Promise<EgresoFruta[]> {
+    await delay(500)
+    // TODO: Implement actual Supabase integration
+    return []
+  },
+
+  async createEgreso(egreso: Omit<EgresoFruta, "id">): Promise<EgresoFruta> {
+    await delay(800)
+    const newEgreso: EgresoFruta = {
+      ...egreso,
+      id: `ef${Date.now()}`,
+    }
+    return newEgreso
+  },
+
+  async updateEgreso(id: string, updates: Partial<EgresoFruta>): Promise<EgresoFruta> {
+    await delay(600)
+    // TODO: Implement actual update logic
+    throw new Error("Egreso no encontrado")
+  },
+
+  async deleteEgreso(id: string): Promise<void> {
+    await delay(400)
+    // TODO: Implement actual delete logic
   },
 }
