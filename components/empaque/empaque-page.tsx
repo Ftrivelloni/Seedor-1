@@ -7,7 +7,7 @@ import { Input } from "@/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { EmpaqueFormModal } from "./empaque-form-modal"
-import { empaqueApi } from "../../lib/api"
+import { empaqueApi, ingresoFrutaApi } from "../../lib/api"
 import { authService } from "../../lib/auth"
 import type { RegistroEmpaque } from "../../lib/mocks"
 import { Plus, Search, Download, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
@@ -19,15 +19,30 @@ export function EmpaquePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
-  // Filtro de fecha para la tabla de ingreso de fruta
+  // Filtro y datos para la tabla de ingreso de fruta
   const [filtroFecha, setFiltroFecha] = useState("");
+  const [ingresosFruta, setIngresosFruta] = useState<any[]>([]);
+  const [isLoadingIngresos, setIsLoadingIngresos] = useState(true);
 
   const user = authService.getCurrentUser()
   const router = useRouter()
 
   useEffect(() => {
-    loadRegistros()
+    loadRegistros();
+    loadIngresosFruta();
   }, [])
+  const loadIngresosFruta = async () => {
+    if (!user) return;
+    try {
+      setIsLoadingIngresos(true);
+      const data = await ingresoFrutaApi.getIngresos(user.tenantId);
+      setIngresosFruta(data);
+    } catch (e) {
+      setIngresosFruta([]);
+    } finally {
+      setIsLoadingIngresos(false);
+    }
+  };
 
   useEffect(() => {
     applyFilters()
@@ -183,7 +198,7 @@ export function EmpaquePage() {
   <h2 className="text-xl font-bold mt-10 mb-4">Resumen</h2>
   {/* Resúmenes informativos de cada módulo */}
   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Ingreso de Fruta - tabla filtrable por fecha */}
+        {/* Ingreso de Fruta - tabla filtrable por fecha (Supabase) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
@@ -212,23 +227,33 @@ export function EmpaquePage() {
                 <thead>
                   <tr className="bg-gray-50 text-muted-foreground">
                     <th className="text-left px-4 py-2 border-b font-semibold">Fecha</th>
-                    <th className="text-left px-4 py-2 border-b font-semibold">Cultivo</th>
-                    <th className="text-right px-4 py-2 border-b font-semibold">Kg Entraron</th>
+                    <th className="text-left px-4 py-2 border-b font-semibold">Productor</th>
+                    <th className="text-left px-4 py-2 border-b font-semibold">Producto</th>
+                    <th className="text-left px-4 py-2 border-b font-semibold">Lote</th>
+                    <th className="text-right px-4 py-2 border-b font-semibold">Cantidad Bins</th>
+                    <th className="text-right px-4 py-2 border-b font-semibold">Peso Neto</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {registros
-                    .filter(r => !filtroFecha || r.fecha.startsWith(filtroFecha))
-                    .slice(0, 10)
-                    .map((r, idx) => (
-                      <tr key={r.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                        <td className="px-4 py-2 border-b">{new Date(r.fecha).toLocaleDateString()}</td>
-                        <td className="px-4 py-2 border-b">{r.cultivo}</td>
-                        <td className="px-4 py-2 border-b text-right">{r.kgEntraron.toLocaleString()} kg</td>
-                      </tr>
-                    ))}
-                  {registros.filter(r => !filtroFecha || r.fecha.startsWith(filtroFecha)).length === 0 && (
-                    <tr><td colSpan={3} className="text-center text-muted-foreground px-4 py-4">Sin registros</td></tr>
+                  {isLoadingIngresos ? (
+                    <tr><td colSpan={6} className="text-center text-muted-foreground px-4 py-4">Cargando...</td></tr>
+                  ) : (
+                    ingresosFruta
+                      .filter(r => !filtroFecha || (r.fecha && r.fecha.startsWith(filtroFecha)))
+                      .slice(0, 10)
+                      .map((r, idx) => (
+                        <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                          <td className="px-4 py-2 border-b">{r.fecha ? new Date(r.fecha).toLocaleDateString() : "-"}</td>
+                          <td className="px-4 py-2 border-b">{r.productor ?? "-"}</td>
+                          <td className="px-4 py-2 border-b">{r.producto ?? "-"}</td>
+                          <td className="px-4 py-2 border-b">{r.lote ?? "-"}</td>
+                          <td className="px-4 py-2 border-b text-right">{r.cant_bin ?? "-"}</td>
+                          <td className="px-4 py-2 border-b text-right">{r.peso_neto ? `${r.peso_neto} kg` : "-"}</td>
+                        </tr>
+                      ))
+                  )}
+                  {!isLoadingIngresos && ingresosFruta.filter(r => !filtroFecha || (r.fecha && r.fecha.startsWith(filtroFecha))).length === 0 && (
+                    <tr><td colSpan={6} className="text-center text-muted-foreground px-4 py-4">Sin registros</td></tr>
                   )}
                 </tbody>
               </table>

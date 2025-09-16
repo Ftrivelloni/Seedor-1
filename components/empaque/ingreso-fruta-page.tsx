@@ -1,150 +1,57 @@
 "use client"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
-import { Badge } from "../ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
+import { Plus, Search, ArrowLeft } from "lucide-react"
 import { authService } from "../../lib/auth"
-import type { IngresoFruta } from "../../lib/types"
-import { Plus, Search, Download, ArrowDown, Truck, CheckCircle, XCircle, Clock, ArrowLeft } from "lucide-react"
+import { IngresoFrutaFormModal } from "./ingreso-fruta-form-modal"
 
 export function IngresoFrutaPage() {
-  const [registros, setRegistros] = useState<IngresoFruta[]>([])
-  const [filteredRegistros, setFilteredRegistros] = useState<IngresoFruta[]>([])
+  const [registros, setRegistros] = useState<any[]>([])
+  const [filteredRegistros, setFilteredRegistros] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [estadoFilter, setEstadoFilter] = useState<string>("all")
+  const [modalOpen, setModalOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const user = authService.getCurrentUser()
   const router = useRouter()
 
   useEffect(() => {
+    const loadRegistros = async () => {
+      if (!user) return
+      try {
+        setIsLoading(true)
+        const { ingresoFrutaApi } = await import("../../lib/api")
+        const data = await ingresoFrutaApi.getIngresos(user.tenantId)
+        setRegistros(data)
+      } catch (error) {
+        console.error("Error al cargar registros:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
     loadRegistros()
-  }, [])
+  }, [user])
 
   useEffect(() => {
-    applyFilters()
-  }, [registros, searchTerm, estadoFilter])
-
-  const loadRegistros = async () => {
-    if (!user) return
-
-    try {
-      setIsLoading(true)
-      // TODO: Replace with actual API call
-      const mockData: IngresoFruta[] = [
-        {
-          id: "if001",
-          tenantId: user.tenantId,
-          fecha: "2024-03-15",
-          proveedor: "Finca San José",
-          tipoFruta: "Naranjas",
-          cantidad: 1500,
-          unidad: "kg",
-          calidad: "A",
-          precioUnitario: 2.5,
-          total: 3750,
-          numeroLote: "LSJ-2024-001",
-          transportista: "Transportes del Valle",
-          observaciones: "Fruta en excelente estado",
-          estado: "recibido"
-        },
-        {
-          id: "if002",
-          tenantId: user.tenantId,
-          fecha: "2024-03-15",
-          proveedor: "Agrícola Los Pinos",
-          tipoFruta: "Limones",
-          cantidad: 800,
-          unidad: "kg",
-          calidad: "B",
-          precioUnitario: 2.0,
-          total: 1600,
-          numeroLote: "LP-2024-015",
-          estado: "en_revision"
-        }
-      ]
-      setRegistros(mockData)
-    } catch (error) {
-      console.error("Error al cargar registros:", error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const applyFilters = () => {
     let filtered = registros
-
     if (searchTerm) {
       filtered = filtered.filter(
         (registro) =>
-          registro.proveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          registro.tipoFruta.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          registro.numeroLote.toLowerCase().includes(searchTerm.toLowerCase())
+          (registro.productor || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (registro.producto || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (registro.lote?.toString() || "").toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
-
-    if (estadoFilter !== "all") {
-      filtered = filtered.filter((registro) => registro.estado === estadoFilter)
-    }
-
-    // Sort by date (most recent first)
     filtered = filtered.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
-
     setFilteredRegistros(filtered)
-  }
+  }, [registros, searchTerm])
 
-  const exportToCSV = () => {
-    const headers = ["Fecha", "Proveedor", "Tipo Fruta", "Cantidad", "Calidad", "Precio Unit.", "Total", "Lote", "Estado"]
-    const csvData = [
-      headers.join(","),
-      ...filteredRegistros.map((registro) => [
-        registro.fecha,
-        `"${registro.proveedor}"`,
-        `"${registro.tipoFruta}"`,
-        `${registro.cantidad} ${registro.unidad}`,
-        registro.calidad,
-        `$${registro.precioUnitario}`,
-        `$${registro.total}`,
-        registro.numeroLote,
-        registro.estado
-      ].join(","))
-    ].join("\n")
-
-    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    const url = URL.createObjectURL(blob)
-    link.setAttribute("href", url)
-    const today = new Date().toISOString().split("T")[0]
-    link.setAttribute("download", `ingreso-fruta-${today}.csv`)
-    link.style.visibility = "hidden"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
-
-  const getEstadoBadge = (estado: IngresoFruta["estado"]) => {
-    switch (estado) {
-      case "recibido":
-        return <Badge variant="default" className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" />Recibido</Badge>
-      case "rechazado":
-        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Rechazado</Badge>
-      case "en_revision":
-        return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />En Revisión</Badge>
-      default:
-        return <Badge variant="outline">{estado}</Badge>
-    }
-  }
-
-  // Calculate statistics
-  const totalCantidad = registros.reduce((sum, r) => sum + r.cantidad, 0)
-  const totalValor = registros.reduce((sum, r) => sum + r.total, 0)
-  const recibidos = registros.filter(r => r.estado === "recibido").length
-  const enRevision = registros.filter(r => r.estado === "en_revision").length
+  const totalBins = registros.reduce((sum, r) => sum + (r.cant_bin || 0), 0)
+  const totalPeso = registros.reduce((sum, r) => sum + (r.peso_neto || 0), 0)
 
   if (!user || !["Admin", "Empaque"].includes(user.rol)) {
     return (
@@ -155,7 +62,7 @@ export function IngresoFrutaPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
@@ -169,168 +76,160 @@ export function IngresoFrutaPage() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={exportToCSV} disabled={filteredRegistros.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            Exportar CSV
-          </Button>
-          <Button>
+          <Button onClick={() => setModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Ingreso
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Recibido</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalCantidad.toLocaleString()} kg</div>
-            <p className="text-xs text-muted-foreground">{registros.length} ingresos</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">${totalValor.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Valor de compras</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Recibidos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{recibidos}</div>
-            <p className="text-xs text-muted-foreground">Lotes aprobados</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">En Revisión</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{enRevision}</div>
-            <p className="text-xs text-muted-foreground">Pendientes de aprobación</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search and Filters */}
+      {/* Search */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Search className="h-5 w-5" />
-            <span>Buscar y Filtrar</span>
+            <span>Buscar</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por proveedor, tipo de fruta o lote..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={estadoFilter} onValueChange={setEstadoFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value="recibido">Recibido</SelectItem>
-                <SelectItem value="en_revision">En Revisión</SelectItem>
-                <SelectItem value="rechazado">Rechazado</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por productor, producto o lote..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Records Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <ArrowDown className="h-5 w-5" />
-            <span>Registros de Ingreso</span>
-          </CardTitle>
-          <CardDescription>
-            {filteredRegistros.length} de {registros.length} registros
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Proveedor</TableHead>
-                  <TableHead>Tipo Fruta</TableHead>
-                  <TableHead className="text-right">Cantidad</TableHead>
-                  <TableHead>Calidad</TableHead>
-                  <TableHead className="text-right">Precio Unit.</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead>Lote</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Transportista</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRegistros.map((registro) => (
-                  <TableRow key={registro.id}>
-                    <TableCell className="font-medium">
-                      {new Date(registro.fecha).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Truck className="h-4 w-4 text-muted-foreground" />
-                        <span>{registro.proveedor}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{registro.tipoFruta}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {registro.cantidad.toLocaleString()} {registro.unidad}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={registro.calidad === "A" ? "default" : registro.calidad === "B" ? "secondary" : "outline"}>
-                        {registro.calidad}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">${registro.precioUnitario}</TableCell>
-                    <TableCell className="text-right font-medium text-green-600">
-                      ${registro.total.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{registro.numeroLote}</TableCell>
-                    <TableCell>{getEstadoBadge(registro.estado)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {registro.transportista || "N/A"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+      {/* Modal de nuevo ingreso */}
+      <IngresoFrutaFormModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmit={async (data) => {
+          if (!user) return
+          setSaving(true)
+          try {
+            const { ingresoFrutaApi } = await import("../../lib/api")
+            await ingresoFrutaApi.createIngreso({ ...data, tenant_id: user.tenantId })
+            // Recargar registros
+            const nuevos = await ingresoFrutaApi.getIngresos(user.tenantId)
+            setRegistros(nuevos)
+          } catch (e) {
+            alert("Error al guardar el ingreso")
+          } finally {
+            setSaving(false)
+          }
+        }}
+      />
 
-          {!isLoading && filteredRegistros.length === 0 && (
-            <div className="text-center py-8">
-              <ArrowDown className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No se encontraron registros de ingreso</p>
-              <p className="text-sm text-muted-foreground">Registra el primer ingreso de fruta</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Visualización en tablas separadas pero linkeadas */}
+      <div className="space-y-10">
+        {/* Tabla: Datos Generales */}
+        <div>
+          <h4 className="font-semibold mb-2">Datos Generales</h4>
+          <table className="w-full text-sm border border-gray-200 rounded-lg bg-white mb-2">
+            <thead>
+              <tr className="bg-gray-50 text-muted-foreground">
+                <th className="text-left px-4 py-2 border-b font-semibold">Fecha</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Ticket</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Remito</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Productor</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Finca</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Producto</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Lote</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Contratista</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Tipo de cosecha</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Liquidación</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={10} className="text-center text-muted-foreground px-4 py-4">Cargando...</td></tr>
+              ) : filteredRegistros.length === 0 ? (
+                <tr><td colSpan={10} className="text-center text-muted-foreground px-4 py-4">No se encontraron registros de ingreso</td></tr>
+              ) : (
+                filteredRegistros.map((registro, idx) => (
+                  <tr key={idx}>
+                    <td className="px-4 py-2 border-b">{registro.fecha ? new Date(registro.fecha).toLocaleDateString() : "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.num_ticket ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.num_remito ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.productor ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.finca ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.producto ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.lote ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.contratista ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.tipo_cosecha ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.estado_liquidacion ? "Sí" : "No"}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {/* Tabla: Transporte */}
+        <div>
+          <h4 className="font-semibold mb-2">Transporte</h4>
+          <table className="w-full text-sm border border-gray-200 rounded-lg bg-white mb-2">
+            <thead>
+              <tr className="bg-gray-50 text-muted-foreground">
+                <th className="text-left px-4 py-2 border-b font-semibold">Transporte</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Chofer</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Chasis</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Acoplado</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Operario</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={5} className="text-center text-muted-foreground px-4 py-4">Cargando...</td></tr>
+              ) : filteredRegistros.length === 0 ? (
+                <tr><td colSpan={5} className="text-center text-muted-foreground px-4 py-4">No se encontraron registros de ingreso</td></tr>
+              ) : (
+                filteredRegistros.map((registro, idx) => (
+                  <tr key={idx}>
+                    <td className="px-4 py-2 border-b">{registro.transporte ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.chofer ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.chasis ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.acoplado ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.operario ?? "-"}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {/* Tabla: Bins y Peso */}
+        <div>
+          <h4 className="font-semibold mb-2">Bins y Peso</h4>
+          <table className="w-full text-sm border border-gray-200 rounded-lg bg-white">
+            <thead>
+              <tr className="bg-gray-50 text-muted-foreground">
+                <th className="text-left px-4 py-2 border-b font-semibold">Cantidad de bins</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Tipo bin</th>
+                <th className="text-left px-4 py-2 border-b font-semibold">Peso Neto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={3} className="text-center text-muted-foreground px-4 py-4">Cargando...</td></tr>
+              ) : filteredRegistros.length === 0 ? (
+                <tr><td colSpan={3} className="text-center text-muted-foreground px-4 py-4">No se encontraron registros de ingreso</td></tr>
+              ) : (
+                filteredRegistros.map((registro, idx) => (
+                  <tr key={idx}>
+                    <td className="px-4 py-2 border-b">{registro.cant_bin ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.tipo_bin ?? "-"}</td>
+                    <td className="px-4 py-2 border-b">{registro.peso_neto ? `${registro.peso_neto} kg` : "-"}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

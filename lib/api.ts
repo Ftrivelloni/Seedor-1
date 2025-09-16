@@ -191,11 +191,43 @@ export const finanzasApi = {
 
 // Ingreso Fruta API
 export const ingresoFrutaApi = {
-  async getIngresos(tenantId: string): Promise<IngresoFruta[]> {
-    await delay(500)
-    // TODO: Implement actual Supabase integration
-    // For now, return mock data
-    return []
+  async getIngresos(tenantId: string): Promise<any[]> {
+    // Traer todos los ingresos de fruta para el tenant, omitiendo campos técnicos
+    try {
+      const { data, error } = await supabase
+        .from('ingreso_fruta')
+        .select(`
+          fecha,
+          estado_liquidacion,
+          num_ticket,
+          num_remito,
+          productor,
+          finca,
+          producto,
+          lote,
+          contratista,
+          tipo_cosecha,
+          cant_bin,
+          tipo_bin,
+          peso_neto,
+          transporte,
+          chofer,
+          chasis,
+          acoplado,
+          operario
+        `)
+        .eq('tennant_id', tenantId)
+        .order('fecha', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching ingresos_fruta:', error);
+        return [];
+      }
+      return data || [];
+    } catch (error) {
+      console.error('Error connecting to Supabase:', error);
+      return [];
+    }
   },
 
   async createIngreso(ingreso: Omit<IngresoFruta, "id">): Promise<IngresoFruta> {
