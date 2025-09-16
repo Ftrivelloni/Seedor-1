@@ -159,7 +159,7 @@ export function IngresoFrutaPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
+          <Button variant="outline" size="sm" onClick={() => router.push('/empaque')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Volver
           </Button>
