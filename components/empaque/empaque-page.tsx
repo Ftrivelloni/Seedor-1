@@ -12,12 +12,15 @@ import { authService } from "../../lib/auth"
 import type { RegistroEmpaque } from "../../lib/mocks"
 import { Plus, Search, Download, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
 
+
 export function EmpaquePage() {
   const [registros, setRegistros] = useState<RegistroEmpaque[]>([])
   const [filteredRegistros, setFilteredRegistros] = useState<RegistroEmpaque[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+  // Filtro de fecha para la tabla de ingreso de fruta
+  const [filtroFecha, setFiltroFecha] = useState("");
 
   const user = authService.getCurrentUser()
   const router = useRouter()
@@ -116,9 +119,10 @@ export function EmpaquePage() {
   }
 
   return (
-    <div className="space-y-6">
+  <div className="space-y-10">
+
       {/* Header */}
-      <div className="flex items-center justify-between">
+  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-0">
         <div>
           <h1 className="text-2xl font-bold">Gestión de Empaque</h1>
           <p className="text-muted-foreground">Registros de procesamiento de fruta</p>
@@ -135,8 +139,8 @@ export function EmpaquePage() {
         </div>
       </div>
 
-      {/* Navigation Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+      {/* Botones de navegación de módulos */}
+  <div className="grid grid-cols-1 md:grid-cols-5 gap-6 my-8">
         <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('ingreso-fruta')}>
           <CardContent className="p-4 text-center">
             <ArrowDown className="h-8 w-8 mx-auto mb-2 text-blue-600" />
@@ -174,148 +178,132 @@ export function EmpaquePage() {
         </Card>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+  {/* Header de resumen */}
+  <h2 className="text-xl font-bold mt-10 mb-4">Resumen</h2>
+  {/* Resúmenes informativos de cada módulo */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Ingreso de Fruta - tabla filtrable por fecha */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Procesado</CardTitle>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <ArrowDown className="h-5 w-5 text-blue-600" />
+              <span>Ingreso de Fruta</span>
+            </CardTitle>
+            <CardDescription>Filtrar ingresos por fecha</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalKgEntraron.toLocaleString()} kg</div>
-            <p className="text-xs text-muted-foreground">{registros.length} registros</p>
+            <div className="mb-6 flex items-center gap-2">
+              <label htmlFor="filtro-fecha" className="text-sm">Fecha:</label>
+              <input
+                id="filtro-fecha"
+                type="date"
+                className="border rounded px-2 py-1 text-sm"
+                value={filtroFecha}
+                onChange={e => setFiltroFecha(e.target.value)}
+                max={new Date().toISOString().split("T")[0]}
+              />
+              {filtroFecha && (
+                <Button size="sm" variant="ghost" onClick={() => setFiltroFecha("")}>Limpiar</Button>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border border-gray-200 rounded-lg bg-white">
+                <thead>
+                  <tr className="bg-gray-50 text-muted-foreground">
+                    <th className="text-left px-4 py-2 border-b font-semibold">Fecha</th>
+                    <th className="text-left px-4 py-2 border-b font-semibold">Cultivo</th>
+                    <th className="text-right px-4 py-2 border-b font-semibold">Kg Entraron</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {registros
+                    .filter(r => !filtroFecha || r.fecha.startsWith(filtroFecha))
+                    .slice(0, 10)
+                    .map((r, idx) => (
+                      <tr key={r.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                        <td className="px-4 py-2 border-b">{new Date(r.fecha).toLocaleDateString()}</td>
+                        <td className="px-4 py-2 border-b">{r.cultivo}</td>
+                        <td className="px-4 py-2 border-b text-right">{r.kgEntraron.toLocaleString()} kg</td>
+                      </tr>
+                    ))}
+                  {registros.filter(r => !filtroFecha || r.fecha.startsWith(filtroFecha)).length === 0 && (
+                    <tr><td colSpan={3} className="text-center text-muted-foreground px-4 py-4">Sin registros</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Preproceso */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Empacado</CardTitle>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Cog className="h-5 w-5 text-orange-600" />
+              <span>Preproceso</span>
+            </CardTitle>
+            <CardDescription>Resumen de preparación y limpieza</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{totalKgSalieron.toLocaleString()} kg</div>
-            <p className="text-xs text-muted-foreground">Producto final</p>
+            <div className="flex flex-col gap-2">
+              <div><span className="font-medium">Total procesado:</span> {totalKgEntraron.toLocaleString()} kg</div>
+              <div><span className="font-medium">Última fecha:</span> {registros.length > 0 ? new Date(registros[0].fecha).toLocaleDateString() : '-'}</div>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Pallets */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Descartado</CardTitle>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Archive className="h-5 w-5 text-green-600" />
+              <span>Pallets</span>
+            </CardTitle>
+            <CardDescription>Resumen de pallets</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">{totalKgDescartados.toLocaleString()} kg</div>
-            <p className="text-xs text-muted-foreground">Material no aprovechable</p>
+            <div className="flex flex-col gap-2">
+              <div><span className="font-medium">Total empacado:</span> {totalKgSalieron.toLocaleString()} kg</div>
+              <div><span className="font-medium">Última fecha:</span> {registros.length > 0 ? new Date(registros[0].fecha).toLocaleDateString() : '-'}</div>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Despacho */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">% Descarte Promedio</CardTitle>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Truck className="h-5 w-5 text-purple-600" />
+              <span>Despacho</span>
+            </CardTitle>
+            <CardDescription>Resumen de envíos recientes</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{porcentajeDescartePromedio.toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground">Eficiencia del proceso</p>
+            <div className="flex flex-col gap-2">
+              <div><span className="font-medium">Total despachado:</span> {totalKgDescartados.toLocaleString()} kg</div>
+              <div><span className="font-medium">Última fecha:</span> {registros.length > 0 ? new Date(registros[0].fecha).toLocaleDateString() : '-'}</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Egreso de Fruta */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <ArrowUp className="h-5 w-5 text-red-600" />
+              <span>Egreso de Fruta</span>
+            </CardTitle>
+            <CardDescription>Resumen de salidas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-2">
+              <div><span className="font-medium">% descarte promedio:</span> {porcentajeDescartePromedio.toFixed(1)}%</div>
+              <div><span className="font-medium">Última fecha:</span> {registros.length > 0 ? new Date(registros[0].fecha).toLocaleDateString() : '-'}</div>
+            </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Search and Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Search className="h-5 w-5" />
-            <span>Buscar Registros</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por cultivo, fecha o notas..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Records Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Package className="h-5 w-5" />
-            <span>Registros de Empaque</span>
-          </CardTitle>
-          <CardDescription>
-            {filteredRegistros.length} de {registros.length} registros
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Cultivo</TableHead>
-                  <TableHead className="text-right">Kg Entraron</TableHead>
-                  <TableHead className="text-right">Kg Salieron</TableHead>
-                  <TableHead className="text-right">Kg Descartados</TableHead>
-                  <TableHead className="text-right">% Descarte</TableHead>
-                  <TableHead>Notas</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRegistros.map((registro) => {
-                  const porcentajeDescarte = (registro.kgDescartados / registro.kgEntraron) * 100
-                  const isHighWaste = porcentajeDescarte > 15
-
-                  return (
-                    <TableRow key={registro.id}>
-                      <TableCell className="font-medium">{new Date(registro.fecha).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Package className="h-4 w-4 text-muted-foreground" />
-                          <span>{registro.cultivo}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {registro.kgEntraron.toLocaleString()} kg
-                      </TableCell>
-                      <TableCell className="text-right font-medium text-green-600">
-                        {registro.kgSalieron.toLocaleString()} kg
-                      </TableCell>
-                      <TableCell className="text-right font-medium text-destructive">
-                        {registro.kgDescartados.toLocaleString()} kg
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end space-x-1">
-                          {isHighWaste && <AlertTriangle className="h-4 w-4 text-destructive" />}
-                          <span className={isHighWaste ? "text-destructive font-medium" : ""}>
-                            {porcentajeDescarte.toFixed(1)}%
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="max-w-xs">
-                          <p className="text-sm text-muted-foreground truncate">{registro.notas || "Sin notas"}</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          )}
-
-          {!isLoading && filteredRegistros.length === 0 && (
-            <div className="text-center py-8">
-              <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No se encontraron registros de empaque</p>
-              <p className="text-sm text-muted-foreground">Crea el primer registro para comenzar</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Form Modal */}
       <EmpaqueFormModal
