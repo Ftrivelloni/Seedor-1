@@ -2,7 +2,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "../components/ui/button"
 import { ArrowRight, Leaf, Warehouse, LineChart, ChevronDown } from "lucide-react"
-import Header from "../components/header"   // 👈 Importamos el header
+import Header from "../components/header"
 
 export default function LandingPage() {
     return (

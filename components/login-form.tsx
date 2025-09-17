@@ -63,7 +63,8 @@ export default function LoginForm() {
         throw new Error((data?.message as string) || "No se pudo iniciar sesión");
       }
 
-      router.replace(next);
+        const next = params.get("next") || "/home";
+
     } catch (err: any) {
       setError(err.message || "Error inesperado");
     } finally {
@@ -74,9 +75,6 @@ export default function LoginForm() {
   return (
     <Card className="mx-auto w-full max-w-md rounded-2xl border bg-card/90 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <CardHeader className="pb-4 text-center">
-        <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-xl border bg-background shadow-sm">
-          <Image src="/seedor-logo.png" alt="Seedor" width={28} height={28} className="rounded" />
-        </div>
         <CardTitle className="text-2xl">Iniciar sesión</CardTitle>
         <CardDescription>Accedé con tu email y contraseña</CardDescription>
       </CardHeader>

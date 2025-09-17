@@ -2,13 +2,29 @@
 ├── app
 │   ├── ajustes
 │   │   └── page.tsx
+│   ├── api
+│   │   └── auth
+│   │       ├── forgot-password
+│   │       │   └── route.ts
+│   │       ├── login
+│   │       │   └── route.ts
+│   │       ├── logout
+│   │       │   └── route.ts
+│   │       └── reset-password
+│   │           └── route.ts
 │   ├── campo
+│   │   └── page.tsx
+│   ├── contactenos
+│   │   └── page.tsx
+│   ├── contacto
 │   │   └── page.tsx
 │   ├── contactos
 │   │   └── page.tsx
 │   ├── empaque
 │   │   └── page.tsx
 │   ├── finanzas
+│   │   └── page.tsx
+│   ├── forgot-password
 │   │   └── page.tsx
 │   ├── funcionalidades
 │   │   └── page.tsx
@@ -23,14 +39,21 @@
 │   ├── page.tsx
 │   ├── register-tenant
 │   │   └── page.tsx
+│   ├── reset-password
+│   │   └── page.tsx
 │   └── trabajadores
 │       └── page.tsx
 ├── components
 │   ├── ajustes
 │   │   └── ajustes-page.tsx
+│   ├── auth
+│   │   ├── forgot-password-form.tsx
+│   │   └── reset-password-form.tsx
 │   ├── campo
 │   │   ├── campo-page.tsx
 │   │   └── task-form-modal.tsx
+│   ├── contact
+│   │   └── contact-form.tsx
 │   ├── contactos
 │   │   └── contactos-page.tsx
 │   ├── dashboard-stats.tsx
@@ -40,6 +63,7 @@
 │   ├── finanzas
 │   │   ├── finanzas-form-modal.tsx
 │   │   └── finanzas-page.tsx
+│   ├── header.tsx
 │   ├── inventario
 │   │   └── inventario-page.tsx
 │   ├── login-form.tsx
@@ -32496,16 +32520,20 @@
 ├── pnpm-lock.yaml
 ├── postcss.config.mjs
 ├── public
+│   ├── Campo_panoramica.jpg
+│   ├── DroneView.mp4
+│   ├── DroneView.webm
 │   ├── placeholder-logo.png
 │   ├── placeholder-logo.svg
 │   ├── placeholder-user.jpg
 │   ├── placeholder.jpg
 │   ├── placeholder.svg
 │   ├── seedor-logo-fondoblanco.png
+│   ├── seedor-logo-no-bg.png
 │   └── seedor-logo.png
 ├── styles
 │   └── globals.css
 ├── tree.txt
 └── tsconfig.json
 
-2260 directories, 30249 files
+2272 directories, 30265 files
