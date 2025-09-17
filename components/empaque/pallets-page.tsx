@@ -1,5 +1,7 @@
 "use client"
 
+import { supabase } from "../../lib/supabaseClient";
+import PalletsFormModal from "./pallets-form-modal";
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/ui/button"
@@ -19,6 +21,7 @@ export function PalletsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [estadoFilter, setEstadoFilter] = useState<string>("all")
   const [ubicacionFilter, setUbicacionFilter] = useState<string>("all")
+  const [modalOpen, setModalOpen] = useState(false);
 
   const user = authService.getCurrentUser()
   const router = useRouter()
@@ -32,78 +35,25 @@ export function PalletsPage() {
   }, [pallets, searchTerm, estadoFilter, ubicacionFilter])
 
   const loadPallets = async () => {
-    if (!user) return
-
+    if (!user) return;
     try {
-      setIsLoading(true)
-      // TODO: Replace with actual API call
-      const mockData: Pallet[] = [
-        {
-          id: "plt001",
-          tenantId: user.tenantId,
-          codigo: "PAL-2024-001",
-          fechaCreacion: "2024-03-15",
-          tipoFruta: "Naranjas",
-          cantidadCajas: 48,
-          pesoTotal: 1152,
-          loteOrigen: "LSJ-2024-001",
-          destino: "Supermercado Central",
-          ubicacion: "Cámara Fría A-1",
-          estado: "listo_despacho",
-          temperaturaAlmacen: 4.2,
-          fechaVencimiento: "2024-03-25",
-          observaciones: "Producto premium, manejo cuidadoso"
-        },
-        {
-          id: "plt002",
-          tenantId: user.tenantId,
-          codigo: "PAL-2024-002",
-          fechaCreacion: "2024-03-15",
-          tipoFruta: "Limones",
-          cantidadCajas: 36,
-          pesoTotal: 720,
-          loteOrigen: "LP-2024-015",
-          ubicacion: "Cámara Fría B-2",
-          estado: "en_camara",
-          temperaturaAlmacen: 3.8,
-          fechaVencimiento: "2024-03-30"
-        },
-        {
-          id: "plt003",
-          tenantId: user.tenantId,
-          codigo: "PAL-2024-003",
-          fechaCreacion: "2024-03-16",
-          tipoFruta: "Mandarinas",
-          cantidadCajas: 40,
-          pesoTotal: 800,
-          loteOrigen: "FSJ-2024-002",
-          ubicacion: "Zona de Armado",
-          estado: "armado",
-          observaciones: "Pendiente control de calidad final"
-        },
-        {
-          id: "plt004",
-          tenantId: user.tenantId,
-          codigo: "PAL-2024-004",
-          fechaCreacion: "2024-03-14",
-          tipoFruta: "Naranjas",
-          cantidadCajas: 50,
-          pesoTotal: 1200,
-          loteOrigen: "LSJ-2024-001",
-          destino: "Exportación Brasil",
-          ubicacion: "Muelle de Carga",
-          estado: "despachado",
-          temperaturaAlmacen: 4.0,
-          fechaVencimiento: "2024-03-28"
-        }
-      ]
-      setPallets(mockData)
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("pallets")
+        .select("*")
+        .eq("tenant_id", user.tenantId);
+      if (error) {
+        console.error("Error al cargar pallets:", error);
+        setPallets([]);
+      } else {
+        setPallets(data || []);
+      }
     } catch (error) {
-      console.error("Error al cargar pallets:", error)
+      console.error("Error al cargar pallets:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const applyFilters = () => {
     let filtered = pallets
@@ -216,10 +166,15 @@ export function PalletsPage() {
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
           </Button>
-          <Button>
+          <Button onClick={() => setModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Pallet
           </Button>
+          <PalletsFormModal
+            open={modalOpen}
+            onClose={() => setModalOpen(false)}
+            onCreated={loadPallets}
+          />
         </div>
       </div>
 
