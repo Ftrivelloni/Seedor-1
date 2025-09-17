@@ -196,27 +196,7 @@ export const ingresoFrutaApi = {
     try {
       const { data, error } = await supabase
         .from('ingreso_fruta')
-        .select(`
-          fecha,
-          estado_liquidacion,
-          num_ticket,
-          num_remito,
-          productor,
-          finca,
-          producto,
-          lote,
-          contratista,
-          tipo_cosecha,
-          cant_bin,
-          tipo_bin,
-          peso_neto,
-          transporte,
-          chofer,
-          chasis,
-          acoplado,
-          operario
-        `)
-        .eq('tennant_id', tenantId)
+  .select('id,tenant_id,created_at,updated_at,estado_liquidacion,fecha,num_ticket,num_remito,productor,finca,producto,lote,contratista,tipo_cosecha,cant_bin,tipo_bin,peso_neto,transporte,chofer,chasis,acoplado,operario')
         .order('fecha', { ascending: false });
 
       if (error) {
@@ -230,13 +210,14 @@ export const ingresoFrutaApi = {
     }
   },
 
-  async createIngreso(ingreso: Omit<IngresoFruta, "id">): Promise<IngresoFruta> {
-    await delay(800)
-    const newIngreso: IngresoFruta = {
-      ...ingreso,
-      id: `if${Date.now()}`,
-    }
-    return newIngreso
+  async createIngreso(ingreso: Omit<IngresoFruta, "id" | "created_at" | "updated_at">): Promise<IngresoFruta> {
+    // Asegurarse de que los campos coincidan con la tabla y los tipos
+    const { data, error } = await supabase
+      .from('ingreso_fruta')
+      .insert([{ ...ingreso }])
+      .select();
+    if (error) throw error;
+    return data[0];
   },
 
   async updateIngreso(id: string, updates: Partial<IngresoFruta>): Promise<IngresoFruta> {

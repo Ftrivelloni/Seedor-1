@@ -9,15 +9,40 @@ import { authService } from "../../lib/auth"
 import { IngresoFrutaFormModal } from "./ingreso-fruta-form-modal"
 
 export function IngresoFrutaPage() {
+
   const [registros, setRegistros] = useState<any[]>([])
   const [filteredRegistros, setFilteredRegistros] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [modalOpen, setModalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [tenantUuid, setTenantUuid] = useState<string | null>(null)
 
   const user = authService.getCurrentUser()
   const router = useRouter()
+
+  // Obtener el UUID real del tenant al cargar la página
+  useEffect(() => {
+    const fetchTenantUuid = async () => {
+      if (!user?.tenantId) return;
+      try {
+        const { supabase } = await import("../../lib/supabaseClient");
+        // Buscar el UUID usando el campo slug
+        const { data, error } = await supabase
+          .from('tenants')
+          .select('id')
+          .eq('slug', user.tenantId)
+          .limit(1)
+          .single();
+        if (error) throw error;
+        setTenantUuid(data?.id || null);
+      } catch (e) {
+        setTenantUuid(null);
+        console.error("No se pudo obtener el UUID del tenant:", e);
+      }
+    };
+    fetchTenantUuid();
+  }, [user]);
 
   useEffect(() => {
     const loadRegistros = async () => {
@@ -109,16 +134,20 @@ export function IngresoFrutaPage() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onSubmit={async (data) => {
-          if (!user) return
+          if (!user || !tenantUuid) {
+            alert("No se pudo obtener el UUID del tenant. Contacte a soporte.");
+            return;
+          }
           setSaving(true)
           try {
             const { ingresoFrutaApi } = await import("../../lib/api")
-            await ingresoFrutaApi.createIngreso({ ...data, tenant_id: user.tenantId })
+            await ingresoFrutaApi.createIngreso({ ...data, tenant_id: tenantUuid })
             // Recargar registros
-            const nuevos = await ingresoFrutaApi.getIngresos(user.tenantId)
+            const nuevos = await ingresoFrutaApi.getIngresos(tenantUuid)
             setRegistros(nuevos)
-          } catch (e) {
-            alert("Error al guardar el ingreso")
+          } catch (e: any) {
+            alert("Error al guardar el ingreso: " + (e?.message || JSON.stringify(e)))
+            console.error(e)
           } finally {
             setSaving(false)
           }
@@ -129,7 +158,7 @@ export function IngresoFrutaPage() {
       <div className="space-y-10">
         {/* Tabla: Datos Generales */}
         <div>
-          <h4 className="font-semibold mb-2">Datos Generales</h4>
+          <h4 className="font-semibold mb-2">Datos generales</h4>
           <table className="w-full text-sm border border-gray-200 rounded-lg bg-white mb-2">
             <thead>
               <tr className="bg-gray-50 text-muted-foreground">
@@ -203,7 +232,7 @@ export function IngresoFrutaPage() {
         </div>
         {/* Tabla: Bins y Peso */}
         <div>
-          <h4 className="font-semibold mb-2">Bins y Peso</h4>
+          <h4 className="font-semibold mb-2">Bins y peso</h4>
           <table className="w-full text-sm border border-gray-200 rounded-lg bg-white">
             <thead>
               <tr className="bg-gray-50 text-muted-foreground">

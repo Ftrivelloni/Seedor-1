@@ -51,20 +51,28 @@ export interface ItemInventario {
 // Nuevos tipos para el módulo de empaque
 
 export interface IngresoFruta {
-  id: string
-  tenantId: string
-  fecha: string
-  proveedor: string
-  tipoFruta: string
-  cantidad: number
-  unidad: string
-  calidad: "A" | "B" | "C"
-  precioUnitario: number
-  total: number
-  numeroLote: string
-  transportista?: string
-  observaciones?: string
-  estado: "recibido" | "rechazado" | "en_revision"
+  id: string;
+  tenant_id: string;
+  created_at: string;
+  updated_at: string;
+  estado_liquidacion: boolean;
+  fecha: string;
+  num_ticket: number | null;
+  num_remito: number | null;
+  productor: string;
+  finca: string;
+  producto: string;
+  lote: number | null;
+  contratista: string;
+  tipo_cosecha: string;
+  cant_bin: number | null;
+  tipo_bin: string;
+  peso_neto: number | null;
+  transporte: string;
+  chofer: string;
+  chasis: string;
+  acoplado: string;
+  operario: string;
 }
 
 export interface Preproceso {
