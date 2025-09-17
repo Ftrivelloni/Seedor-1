@@ -1,108 +1,177 @@
-"use client"
+"use client";
 
-import type React from "react"
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
+import { Eye, EyeOff, Loader2, Mail, Lock } from "lucide-react";
 
-import { useState } from "react"
-import { Button } from "./ui/button"
-import { Input } from "./ui/input"
-import { Label } from "./ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
-import { authService } from "../lib/auth"
+import { Button } from "./ui/button";
+import {
+  Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle,
+} from "./ui/card";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Checkbox } from "./ui/checkbox";
 
-interface LoginFormProps {
-  onLoginSuccess: () => void
-}
+export default function LoginForm() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const next = params.get("next") || "/home";
 
-export function LoginForm({ onLoginSuccess }: LoginFormProps) {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
+  // chips de demo
+  const demoUsers = [
+    { label: "Admin", email: "admin@latoma.com" },
+    { label: "Campo", email: "campo@latoma.com" },
+    { label: "Empaque", email: "empaque@latoma.com" },
+    { label: "Finanzas", email: "finanzas@latoma.com" },
+  ];
+  function quickFill(u: string) {
+    setEmail(u);
+    setPassword("demo123");
+  }
 
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Ingresá un email válido");
+      return;
+    }
+    if (!password || password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+
+    setLoading(true);
     try {
-      await authService.login(email, password)
-      onLoginSuccess()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al iniciar sesión")
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, remember }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data?.message as string) || "No se pudo iniciar sesión");
+      }
+
+      router.replace(next);
+    } catch (err: any) {
+      setError(err.message || "Error inesperado");
     } finally {
-      setIsLoading(false)
+      setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-2xl flex justify-center">
-        <Card className="w-full shadow-lg rounded-2xl border border-muted bg-white/90 px-16 py-12 flex flex-col justify-center" style={{ minWidth: 400, maxWidth: 600 }}>
-          <CardHeader className="pb-6">
-            <div className="mb-6 w-full flex justify-center">
-              <img src="/seedor-logo.png" alt="Seedor" className="h-20 w-auto drop-shadow" />
+    <Card className="mx-auto w-full max-w-md rounded-2xl border bg-card/90 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <CardHeader className="pb-4 text-center">
+        <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-xl border bg-background shadow-sm">
+          <Image src="/seedor-logo.png" alt="Seedor" width={28} height={28} className="rounded" />
+        </div>
+        <CardTitle className="text-2xl">Iniciar sesión</CardTitle>
+        <CardDescription>Accedé con tu email y contraseña</CardDescription>
+      </CardHeader>
+
+      <CardContent>
+        <form onSubmit={onSubmit} className="space-y-4" aria-describedby={error ? "login-error" : undefined}>
+          <div className="grid gap-2">
+            <Label htmlFor="email">Email</Label>
+            <div className="relative">
+              <Input
+                id="email"
+                type="email"
+                placeholder="nombre@seedor.com"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+                className="h-11 pl-10 focus-visible:ring-2 focus-visible:ring-primary/30"
+              />
+              <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             </div>
-            <CardTitle className="text-3xl font-bold mb-2 w-full text-center">Iniciar sesión</CardTitle>
-            <CardDescription className="mb-2 w-full text-center">Ingresa a tu plataforma de gestión agropecuaria</CardDescription>
-          </CardHeader>
-          <CardContent className="w-full p-0">
-            <form onSubmit={handleSubmit} className="space-y-6 w-full">
-              <div className="space-y-4 w-full">
-                <Label htmlFor="email" className="w-full">Correo electrónico</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@email.com"
-                  required
-                  className="h-12 text-base px-4 w-full"
-                />
-              </div>
-              <div className="space-y-4 w-full">
-                <Label htmlFor="password" className="w-full">Contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  className="h-12 text-base px-4 w-full"
-                />
-              </div>
-              {error && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md w-full">{error}</div>}
-              <Button type="submit" className="w-full h-12 text-base font-semibold" disabled={isLoading}>
-                {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
-              </Button>
-            </form>
-            <Button
-              variant="outline"
-              className="w-full mt-4"
-              onClick={() => window.location.href = "/"}
-            >
-              Volver a la página principal
-            </Button>
-            <div className="mt-8 text-sm text-muted-foreground w-full">
-              <p className="font-medium mb-2">Usuarios de prueba:</p>
-              <div className="space-y-1 text-xs">
-                <p>
-                  <strong>Admin:</strong> admin@latoma.com
-                </p>
-                <p>
-                  <strong>Campo:</strong> campo@latoma.com
-                </p>
-                <p>
-                  <strong>Empaque:</strong> empaque@latoma.com
-                </p>
-                <p>
-                  <strong>Finanzas:</strong> finanzas@latoma.com
-                </p>
-              </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="password">Contraseña</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={show ? "text" : "password"}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+                className="h-11 pl-10 pr-10 focus-visible:ring-2 focus-visible:ring-primary/30"
+              />
+              <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <button
+                type="button"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-accent"
+                onClick={() => setShow((s) => !s)}
+                aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  )
+          </div>
+
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox checked={remember} onCheckedChange={(v) => setRemember(Boolean(v))} />
+              Recordarme
+            </label>
+            <a href="/forgot-password" className="text-sm text-primary hover:underline">
+  ¿Olvidaste tu contraseña?
+</a>
+
+          </div>
+
+          {error && (
+            <div id="login-error" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          <Button type="submit" className="h-11 w-full text-base" disabled={loading}>
+            {loading && <Loader2 className="mr-2 size-4 animate-spin" />} Ingresar
+          </Button>
+
+          {/* Chips de demo */}
+          <div className="pt-3">
+            <p className="mb-2 text-xs text-muted-foreground">Usuarios de prueba rápidos:</p>
+            <div className="flex flex-wrap gap-2">
+              {demoUsers.map((d) => (
+                <button
+                  key={d.email}
+                  type="button"
+                  onClick={() => quickFill(d.email)}
+                  className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:bg-accent"
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </form>
+      </CardContent>
+
+      <CardFooter className="justify-center text-sm text-muted-foreground">
+        ¿No tenés cuenta?{" "}
+        <a className="ml-1 text-primary hover:underline" href="/register-tenant">
+          Creá tu cuenta
+        </a>
+      </CardFooter>
+    </Card>
+  );
 }
