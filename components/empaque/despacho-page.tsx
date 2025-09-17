@@ -1,5 +1,7 @@
 "use client"
 
+import { supabase } from "../../lib/supabaseClient";
+import DespachoFormModal from "./despacho-form-modal";
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/ui/button"
@@ -18,6 +20,7 @@ export function DespachoPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [estadoFilter, setEstadoFilter] = useState<string>("all")
+  const [modalOpen, setModalOpen] = useState(false);
 
   const user = authService.getCurrentUser()
   const router = useRouter()
@@ -31,77 +34,25 @@ export function DespachoPage() {
   }, [despachos, searchTerm, estadoFilter])
 
   const loadDespachos = async () => {
-    if (!user) return
-
+    if (!user) return;
     try {
-      setIsLoading(true)
-      // TODO: Replace with actual API call
-      const mockData: Despacho[] = [
-        {
-          id: "dsp001",
-          tenantId: user.tenantId,
-          fecha: "2024-03-15",
-          numeroGuia: "GD-2024-001",
-          cliente: "Supermercado Central",
-          transportista: "Transportes del Valle",
-          pallets: ["PAL-2024-001", "PAL-2024-003"],
-          destino: "Centro de Distribución Norte",
-          fechaEntregaEstimada: "2024-03-16",
-          responsable: "Carlos Ruiz",
-          estado: "en_transito",
-          observaciones: "Entrega matutina, producto premium",
-          documentos: ["Factura", "Guía de remisión", "Certificado de calidad"]
-        },
-        {
-          id: "dsp002",
-          tenantId: user.tenantId,
-          fecha: "2024-03-14",
-          numeroGuia: "GD-2024-002",
-          cliente: "Exportación Brasil",
-          transportista: "Logística Internacional",
-          pallets: ["PAL-2024-004"],
-          destino: "Puerto de Santos",
-          fechaEntregaEstimada: "2024-03-20",
-          responsable: "María González",
-          estado: "entregado",
-          observaciones: "Exportación exitosa, cliente satisfecho"
-        },
-        {
-          id: "dsp003",
-          tenantId: user.tenantId,
-          fecha: "2024-03-16",
-          numeroGuia: "GD-2024-003",
-          cliente: "Mercado Municipal",
-          transportista: "Distribuidora Local",
-          pallets: ["PAL-2024-002"],
-          destino: "Mercado Central",
-          fechaEntregaEstimada: "2024-03-17",
-          responsable: "Ana López",
-          estado: "preparando",
-          observaciones: "Verificar documentación antes del envío"
-        },
-        {
-          id: "dsp004",
-          tenantId: user.tenantId,
-          fecha: "2024-03-13",
-          numeroGuia: "GD-2024-004",
-          cliente: "Cadena de Restaurantes",
-          transportista: "Express Delivery",
-          pallets: ["PAL-2024-005"],
-          destino: "Almacén Central",
-          fechaEntregaEstimada: "2024-03-14",
-          responsable: "Carlos Ruiz",
-          estado: "devuelto",
-          observaciones: "Cliente rechazó por retraso en entrega"
-        }
-      ]
-      setDespachos(mockData)
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("despacho")
+        .select("*")
+        .eq("tenant_id", user.tenantId);
+      if (error) {
+        console.error("Error al cargar despachos:", error);
+        setDespachos([]);
+      } else {
+        setDespachos(data || []);
+      }
     } catch (error) {
-      console.error("Error al cargar despachos:", error)
+      console.error("Error al cargar despachos:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const applyFilters = () => {
     let filtered = despachos
@@ -210,10 +161,14 @@ export function DespachoPage() {
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
           </Button>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button onClick={() => setModalOpen(true)}>
             Nuevo Despacho
           </Button>
+          <DespachoFormModal
+            open={modalOpen}
+            onClose={() => setModalOpen(false)}
+            onCreated={loadDespachos}
+          />
         </div>
       </div>
 
