@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Badge } from "../ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { authService } from "../../lib/auth"
+import { authService } from "../../lib/supabaseAuth"
 import type { Preproceso } from "../../lib/types"
 import { Plus, Search, Download, Cog, Thermometer, Droplets, CheckCircle, Clock, Play, ArrowLeft } from "lucide-react"
 import { supabase } from "../../lib/supabaseClient"
@@ -22,12 +22,27 @@ export function PreprocesoPage() {
   const [estadoFilter, setEstadoFilter] = useState<string>("all")
   const [modalOpen, setModalOpen] = useState(false);
 
-  const user = authService.getCurrentUser()
+  const [user, setUser] = useState<any>(null)
   const router = useRouter()
 
+  // Load user from Supabase auth
   useEffect(() => {
-    loadRegistros()
-  }, [])
+    const loadUser = async () => {
+      const sessionUser = await authService.checkSession()
+      if (!sessionUser) {
+        router.push("/login")
+        return
+      }
+      setUser(sessionUser)
+    }
+    loadUser()
+  }, [router])
+
+  useEffect(() => {
+    if (user) {
+      loadRegistros()
+    }
+  }, [user])
 
   useEffect(() => {
     applyFilters()

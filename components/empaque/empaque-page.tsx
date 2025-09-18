@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { EmpaqueFormModal } from "./empaque-form-modal"
 import { empaqueApi, ingresoFrutaApi } from "../../lib/api"
-import { authService } from "../../lib/auth"
+import { authService } from "../../lib/supabaseAuth"
 import type { RegistroEmpaque } from "../../lib/mocks"
 import { Plus, Search, Download, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
 
@@ -24,15 +24,30 @@ export function EmpaquePage() {
   const [ingresosFruta, setIngresosFruta] = useState<any[]>([]);
   const [isLoadingIngresos, setIsLoadingIngresos] = useState(true);
 
-  const user = authService.getCurrentUser()
+  const [user, setUser] = useState<any>(null)
   const router = useRouter()
 
+  // Load user from Supabase auth
   useEffect(() => {
-    loadRegistros();
-    loadIngresosFruta();
-  }, [])
+    const loadUser = async () => {
+      const sessionUser = await authService.checkSession()
+      if (!sessionUser) {
+        router.push("/login")
+        return
+      }
+      setUser(sessionUser)
+    }
+    loadUser()
+  }, [router])
+
+  useEffect(() => {
+    if (user) {
+      loadRegistros();
+      loadIngresosFruta();
+    }
+  }, [user])
   const loadIngresosFruta = async () => {
-    if (!user) return;
+    if (!user?.tenantId) return;
     try {
       setIsLoadingIngresos(true);
       const data = await ingresoFrutaApi.getIngresos(user.tenantId);
@@ -49,7 +64,7 @@ export function EmpaquePage() {
   }, [registros, searchTerm])
 
   const loadRegistros = async () => {
-    if (!user) return
+    if (!user?.tenantId) return
 
     try {
       setIsLoading(true)
@@ -125,7 +140,16 @@ export function EmpaquePage() {
   const totalKgDescartados = registros.reduce((sum, r) => sum + r.kgDescartados, 0)
   const porcentajeDescartePromedio = totalKgEntraron > 0 ? (totalKgDescartados / totalKgEntraron) * 100 : 0
 
-  if (!user || !["Admin", "Empaque"].includes(user.rol)) {
+  // Show loading while user is being loaded
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (!["Admin", "Empaque"].includes(user.rol)) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>

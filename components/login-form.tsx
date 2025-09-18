@@ -12,6 +12,7 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
+import { authService } from "../lib/supabaseAuth";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -24,18 +25,6 @@ export default function LoginForm() {
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // chips de demo
-  const demoUsers = [
-    { label: "Admin", email: "admin@latoma.com" },
-    { label: "Campo", email: "campo@latoma.com" },
-    { label: "Empaque", email: "empaque@latoma.com" },
-    { label: "Finanzas", email: "finanzas@latoma.com" },
-  ];
-  function quickFill(u: string) {
-    setEmail(u);
-    setPassword("demo123");
-  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,18 +41,22 @@ export default function LoginForm() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, remember }),
-      });
+      // Use the new Supabase authentication service
+      const { user, error: authError } = await authService.login(email, password);
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error((data?.message as string) || "No se pudo iniciar sesión");
+      if (authError) {
+        setError(authError);
+        return;
       }
 
-        const next = params.get("next") || "/home";
+      if (!user) {
+        setError("Usuario no encontrado o credenciales incorrectas");
+        return;
+      }
+
+      // Successful login - redirect to next page
+      const next = params.get("next") || "/home";
+      router.push(next);
 
     } catch (err: any) {
       setError(err.message || "Error inesperado");
@@ -144,23 +137,6 @@ export default function LoginForm() {
           <Button type="submit" className="h-11 w-full text-base" disabled={loading}>
             {loading && <Loader2 className="mr-2 size-4 animate-spin" />} Ingresar
           </Button>
-
-          {/* Chips de demo */}
-          <div className="pt-3">
-            <p className="mb-2 text-xs text-muted-foreground">Usuarios de prueba rápidos:</p>
-            <div className="flex flex-wrap gap-2">
-              {demoUsers.map((d) => (
-                <button
-                  key={d.email}
-                  type="button"
-                  onClick={() => quickFill(d.email)}
-                  className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:bg-accent"
-                >
-                  {d.label}
-                </button>
-              ))}
-            </div>
-          </div>
         </form>
       </CardContent>
 

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { authService } from "../../lib/supabaseAuth";
 
 interface Props {
   open: boolean;
@@ -30,13 +31,13 @@ export default function PreprocesoFormModal({ open, onClose, onCreated }: Props)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-   const { authService } = await import("../../lib/auth");
-   const user = authService.getCurrentUser();
-   if (!user) {
-     setLoading(false);
-     alert("No hay usuario autenticado.");
-     return;
-   }
+    
+    const user = await authService.checkSession();
+    if (!user) {
+      setLoading(false);
+      alert("No hay usuario autenticado.");
+      return;
+    }
     const { error } = await supabase.from("preseleccion").insert([{
       semana: Number(form.semana),
       fecha: form.fecha ? new Date(form.fecha).toISOString() : null,

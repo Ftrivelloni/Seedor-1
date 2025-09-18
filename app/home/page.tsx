@@ -3,7 +3,7 @@ import { DashboardStats } from "../../components/dashboard-stats"
 import { Sidebar } from "../../components/sidebar"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { authService, type AuthUser } from "../../lib/auth"
+import { authService, type AuthUser } from "../../lib/supabaseAuth"
 import { CampoPage } from "../../components/campo/campo-page"
 import { EmpaquePage } from "../../components/empaque/empaque-page"
 import { InventarioPage } from "../../components/inventario/inventario-page"
@@ -19,13 +19,27 @@ export default function HomePage() {
   const router = useRouter()
 
   useEffect(() => {
-    const currentUser = authService.getCurrentUser()
-    if (!currentUser) {
-      router.push("/login")
-      return
+    const checkAuth = async () => {
+      // First check for session
+      const sessionUser = await authService.checkSession()
+      if (sessionUser) {
+        setUser(sessionUser)
+        setIsLoading(false)
+        return
+      }
+
+      // If no session, check localStorage
+      const currentUser = authService.getCurrentUser()
+      if (!currentUser) {
+        router.push("/login")
+        return
+      }
+      
+      setUser(currentUser)
+      setIsLoading(false)
     }
-    setUser(currentUser)
-    setIsLoading(false)
+
+    checkAuth()
   }, [router])
 
   if (isLoading) {
@@ -64,15 +78,20 @@ export default function HomePage() {
     }
   }
 
+  const handleLogout = async () => {
+    await authService.logout()
+    router.push("/login")
+  }
+
   return (
     <div className="min-h-screen bg-background flex">
-      <Sidebar user={user} onLogout={() => { router.push("/login") }} onNavigate={setCurrentPage} currentPage={currentPage} />
+      <Sidebar user={user} onLogout={handleLogout} onNavigate={setCurrentPage} currentPage={currentPage} />
       <div className="flex-1 flex flex-col">
         <header className="border-b bg-card">
           <div className="flex h-16 items-center justify-between px-6">
             <div>
               <h1 className="text-xl font-semibold">{currentPage.charAt(0).toUpperCase() + currentPage.slice(1)}</h1>
-              <p className="text-sm text-muted-foreground">Resumen general de {user.tenant.nombre}</p>
+              <p className="text-sm text-muted-foreground">Resumen general de {user.tenant.name}</p>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">

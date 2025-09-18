@@ -5,7 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import { Button } from "./ui/button"
 import { cn } from "../lib/utils"
-import type { AuthUser } from "../lib/auth"
+import type { AuthUser } from "../lib/supabaseAuth"
 import {
   LayoutDashboard,
   Sprout,
@@ -107,7 +107,7 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
               className="h-8 w-auto"
             />
             <div>
-              <h2 className="font-semibold text-sidebar-foreground">{user.tenant.nombre}</h2>
+              <h2 className="font-semibold text-sidebar-foreground">{user.tenant.name}</h2>
               <p className="text-xs text-sidebar-foreground/70">{user.nombre}</p>
             </div>
           </div>

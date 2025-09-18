@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Badge } from "../ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { authService } from "../../lib/auth"
+import { authService } from "../../lib/supabaseAuth"
 import type { Despacho } from "../../lib/types"
 import { Plus, Search, Download, Truck, Package, MapPin, Calendar, FileText, CheckCircle, Clock, AlertTriangle, ArrowLeft } from "lucide-react"
 
@@ -22,19 +22,34 @@ export function DespachoPage() {
   const [estadoFilter, setEstadoFilter] = useState<string>("all")
   const [modalOpen, setModalOpen] = useState(false);
 
-  const user = authService.getCurrentUser()
+  const [user, setUser] = useState<any>(null)
   const router = useRouter()
 
+  // Load user from Supabase auth
   useEffect(() => {
-    loadDespachos()
-  }, [])
+    const loadUser = async () => {
+      const sessionUser = await authService.checkSession()
+      if (!sessionUser) {
+        router.push("/login")
+        return
+      }
+      setUser(sessionUser)
+    }
+    loadUser()
+  }, [router])
+
+  useEffect(() => {
+    if (user) {
+      loadDespachos()
+    }
+  }, [user])
 
   useEffect(() => {
     applyFilters()
   }, [despachos, searchTerm, estadoFilter])
 
   const loadDespachos = async () => {
-    if (!user) return;
+    if (!user?.tenantId) return;
     try {
       setIsLoading(true);
       const { data, error } = await supabase
@@ -134,7 +149,16 @@ export function DespachoPage() {
   const entregados = despachos.filter(d => d.estado === "entregado").length
   const preparando = despachos.filter(d => d.estado === "preparando").length
 
-  if (!user || !["Admin", "Empaque"].includes(user.rol)) {
+  // Show loading while user is being loaded
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (!["Admin", "Empaque"].includes(user.rol)) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>

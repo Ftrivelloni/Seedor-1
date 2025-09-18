@@ -9,10 +9,254 @@ import {
   type MovimientoCaja,
 } from "./mocks"
 import { supabase } from './supabaseClient'
-import type { IngresoFruta, Preproceso, Pallet, Despacho, EgresoFruta } from './types'
+import type { IngresoFruta, Preproceso, Pallet, Despacho, EgresoFruta, Tenant, TenantMembership, TenantModule, CreateTenantRequest } from './types'
 
 // Simulate API delay
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// Tenant API
+export const tenantApi = {
+  // Create a new tenant with admin user
+  async createTenant(data: CreateTenantRequest): Promise<{ tenant: Tenant; user: any }> {
+    try {
+      console.log('Starting tenant creation process with data:', {
+        ...data,
+        admin_user: { ...data.admin_user, password: '[HIDDEN]' }
+      })
+
+      // Step 1: Create the user account (skip email confirmation for development)
+      console.log('Step 1: Creating user account...')
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: data.admin_user.email,
+        password: data.admin_user.password,
+        options: {
+          emailRedirectTo: undefined,
+          data: {
+            full_name: data.admin_user.full_name,
+          },
+        },
+      })
+
+      let userId: string
+      let userEmail: string
+
+      if (authError) {
+        console.error('Auth signup error:', authError)
+        // Check if user already exists
+        if (authError.message.includes('User already registered')) {
+          console.log('User already exists, attempting sign in...')
+          const { data: existingSignIn, error: existingSignInError } = await supabase.auth.signInWithPassword({
+            email: data.admin_user.email,
+            password: data.admin_user.password,
+          })
+          
+          if (existingSignInError) {
+            throw new Error(`Error de autenticación: ${existingSignInError.message}`)
+          }
+          
+          // Use the existing user for tenant creation
+          if (!existingSignIn.user?.id) {
+            throw new Error('No se pudo obtener información del usuario existente')
+          }
+          userId = existingSignIn.user.id
+          userEmail = existingSignIn.user.email!
+          console.log('Using existing user:', userId)
+        } else {
+          throw new Error(`Error de registro: ${authError.message}`)
+        }
+      } else if (authData?.user) {
+        userId = authData.user.id
+        userEmail = authData.user.email!
+        console.log('New user created successfully:', userId)
+        
+        // For new users, skip sign-in step since email might not be confirmed
+        console.log('Proceeding with tenant creation for new user (skipping sign-in)')
+      } else {
+        throw new Error('No se pudo crear o autenticar el usuario')
+      }
+
+      // Step 3: Create the tenant
+      console.log('Step 3: Creating tenant...')
+      const { data: tenantData, error: tenantError } = await supabase
+        .from('tenants')
+        .insert([
+          {
+            name: data.name,
+            slug: data.slug,
+            plan: data.plan,
+            primary_crop: data.primary_crop,
+            contact_email: data.contact_email,
+            created_by: userId,
+          },
+        ])
+        .select()
+        .single()
+
+      if (tenantError) {
+        console.error('Tenant creation error:', tenantError)
+        throw new Error(`Error al crear empresa: ${tenantError.message}`)
+      }
+
+      console.log('Tenant created successfully:', tenantData)
+
+      // Step 4: Create tenant membership for admin user
+      console.log('Step 4: Creating admin membership...')
+      const { error: membershipError } = await supabase
+        .from('tenant_memberships')
+        .insert([
+          {
+            id: crypto.randomUUID(), // Explicitly generate UUID for id column
+            tenant_id: tenantData.id,
+            user_id: userId,
+            role_code: 'admin',
+            status: 'active',
+            accepted_at: new Date().toISOString(),
+          },
+        ])
+
+      if (membershipError) {
+        console.error('Membership creation error:', membershipError)
+        throw new Error(`Error al crear membresía: ${membershipError.message}`)
+      }
+
+      console.log('Admin membership created successfully')
+
+      // Step 5: Enable default modules for the tenant
+      console.log('Step 5: Creating default modules...')
+      const defaultModules = ['dashboard', 'empaque', 'usuarios']
+      const moduleInserts = defaultModules.map((module) => ({
+        tenant_id: tenantData.id,
+        module_code: module,
+        enabled: true,
+      }))
+
+      const { error: modulesError } = await supabase
+        .from('tenant_modules')
+        .insert(moduleInserts)
+
+      if (modulesError) {
+        console.error('Modules creation error:', modulesError)
+        // Don't throw error for modules, it's not critical
+        console.warn('Modules creation failed, continuing anyway')
+      } else {
+        console.log('Default modules created successfully')
+      }
+
+      // Step 6: Create user object for frontend
+      const user = {
+        id: userId,
+        email: userEmail,
+        tenantId: tenantData.id,
+        rol: 'Admin',
+        nombre: data.admin_user.full_name,
+        tenant: tenantData,
+      }
+
+      console.log('Tenant creation completed successfully!')
+      return {
+        tenant: tenantData,
+        user: user,
+      }
+
+    } catch (error: any) {
+      console.error('Detailed tenant creation error:', error)
+      
+      // Provide more user-friendly error messages
+      if (error.message?.includes('duplicate key')) {
+        throw new Error('Ya existe una empresa con ese nombre o identificador')
+      }
+      if (error.message?.includes('invalid_email')) {
+        throw new Error('El formato del email no es válido')
+      }
+      if (error.message?.includes('weak_password')) {
+        throw new Error('La contraseña debe tener al menos 6 caracteres')
+      }
+      if (error.message?.includes('signup_disabled')) {
+        throw new Error('El registro de nuevos usuarios está deshabilitado')
+      }
+      if (error.message?.includes('email_already_in_use')) {
+        throw new Error('Ya existe una cuenta con este email')
+      }
+      
+      throw error
+    }
+  },
+
+  // Get tenant by slug
+  async getTenantBySlug(slug: string): Promise<Tenant | null> {
+    const { data, error } = await supabase
+      .from('tenants')
+      .select('*')
+      .eq('slug', slug)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') return null // Not found
+      throw error
+    }
+
+    return data
+  },
+
+  // Get user's tenants
+  async getUserTenants(userId: string): Promise<Tenant[]> {
+    const { data, error } = await supabase
+      .from('tenant_memberships')
+      .select(`
+        tenants (*)
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'active')
+
+    if (error) throw error
+
+    return data.map((membership: any) => membership.tenants)
+  },
+
+  // Get tenant modules
+  async getTenantModules(tenantId: string): Promise<TenantModule[]> {
+    const { data, error } = await supabase
+      .from('tenant_modules')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('enabled', true)
+
+    if (error) throw error
+    return data || []
+  },
+
+  // Check if slug is available
+  async isSlugAvailable(slug: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('tenants')
+      .select('slug')
+      .eq('slug', slug)
+      .single()
+
+    if (error && error.code === 'PGRST116') return true // Not found, so available
+    if (error) throw error
+
+    return false // Found, so not available
+  },
+
+  // Get user membership in tenant
+  async getUserMembership(userId: string, tenantId: string): Promise<TenantMembership | null> {
+    const { data, error } = await supabase
+      .from('tenant_memberships')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('tenant_id', tenantId)
+      .eq('status', 'active')
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') return null // Not found
+      throw error
+    }
+
+    return data
+  },
+}
 
 // Campo API
 export const campoApi = {
@@ -196,7 +440,27 @@ export const ingresoFrutaApi = {
     try {
       const { data, error } = await supabase
         .from('ingreso_fruta')
-  .select('id,tenant_id,created_at,updated_at,estado_liquidacion,fecha,num_ticket,num_remito,productor,finca,producto,lote,contratista,tipo_cosecha,cant_bin,tipo_bin,peso_neto,transporte,chofer,chasis,acoplado,operario')
+        .select(`
+          fecha,
+          estado_liquidacion,
+          num_ticket,
+          num_remito,
+          productor,
+          finca,
+          producto,
+          lote,
+          contratista,
+          tipo_cosecha,
+          cant_bin,
+          tipo_bin,
+          peso_neto,
+          transporte,
+          chofer,
+          chasis,
+          acoplado,
+          operario
+        `)
+        .eq('tennant_id', tenantId)
         .order('fecha', { ascending: false });
 
       if (error) {
@@ -210,14 +474,13 @@ export const ingresoFrutaApi = {
     }
   },
 
-  async createIngreso(ingreso: Omit<IngresoFruta, "id" | "created_at" | "updated_at">): Promise<IngresoFruta> {
-    // Asegurarse de que los campos coincidan con la tabla y los tipos
-    const { data, error } = await supabase
-      .from('ingreso_fruta')
-      .insert([{ ...ingreso }])
-      .select();
-    if (error) throw error;
-    return data[0];
+  async createIngreso(ingreso: Omit<IngresoFruta, "id">): Promise<IngresoFruta> {
+    await delay(800)
+    const newIngreso: IngresoFruta = {
+      ...ingreso,
+      id: `if${Date.now()}`,
+    }
+    return newIngreso
   },
 
   async updateIngreso(id: string, updates: Partial<IngresoFruta>): Promise<IngresoFruta> {

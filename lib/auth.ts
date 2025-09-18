@@ -51,9 +51,47 @@ class AuthService {
     return authUser
   }
 
-  logout() {
+  async checkSession(): Promise<AuthUser | null> {
+    // Check if there's a server session cookie
+    try {
+      const response = await fetch('/api/auth/me', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        if (userData.user) {
+          this.currentUser = userData.user;
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(LS_KEY, JSON.stringify(userData.user));
+          }
+          return userData.user;
+        }
+      }
+    } catch (error) {
+      console.log('No server session found, checking localStorage');
+    }
+
+    // Fallback to localStorage if no server session
+    return this.getCurrentUser();
+  }
+
+  async logout() {
     this.currentUser = null
-    if (typeof window !== "undefined") window.localStorage.removeItem(LS_KEY)
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(LS_KEY)
+    }
+    
+    // Also clear server session
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.log('Error clearing server session:', error);
+    }
   }
 
   getCurrentUser(): AuthUser | null {

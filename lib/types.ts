@@ -1,5 +1,47 @@
 // Tipos globales para el sistema agrícola multi-tenant
 
+// Tipos para el sistema multi-tenant
+export interface Tenant {
+  id: string
+  name: string
+  slug: string
+  plan: string
+  primary_crop: string
+  contact_email: string
+  created_by: string
+  created_at: string
+}
+
+export interface TenantMembership {
+  id: string
+  tenant_id: string
+  user_id: string
+  role_code: 'admin' | 'user' | 'viewer'
+  status: 'active' | 'pending' | 'inactive'
+  invited_by?: string
+  accepted_at?: string
+}
+
+export interface TenantModule {
+  tenant_id: string
+  module_code: string
+  enabled: boolean
+  created_at: string
+}
+
+export interface CreateTenantRequest {
+  name: string
+  slug: string
+  plan: string
+  primary_crop: string
+  contact_email: string
+  admin_user: {
+    email: string
+    password: string
+    full_name: string
+  }
+}
+
 export interface TareaCampo {
   id: string
   tenantId: string
@@ -51,34 +93,27 @@ export interface ItemInventario {
 // Nuevos tipos para el módulo de empaque
 
 export interface IngresoFruta {
-  id: string;
-  tenant_id: string;
-  created_at: string;
-  updated_at: string;
-  estado_liquidacion: boolean;
-  fecha: string;
-  num_ticket: number | null;
-  num_remito: number | null;
-  productor: string;
-  finca: string;
-  producto: string;
-  lote: number | null;
-  contratista: string;
-  tipo_cosecha: string;
-  cant_bin: number | null;
-  tipo_bin: string;
-  peso_neto: number | null;
-  transporte: string;
-  chofer: string;
-  chasis: string;
-  acoplado: string;
-  operario: string;
+  id: string
+  tenantId: string
+  fecha: string
+  proveedor: string
+  tipoFruta: string
+  cantidad: number
+  unidad: string
+  calidad: "A" | "B" | "C"
+  precioUnitario: number
+  total: number
+  numeroLote: string
+  transportista?: string
+  observaciones?: string
+  estado: "recibido" | "rechazado" | "en_revision"
 }
 
 export interface Preproceso {
   id: string
   tenantId: string
   fecha: string
+  semana: string
   loteIngreso: string
   tipoFruta: string
   cantidadInicial: number
@@ -91,6 +126,15 @@ export interface Preproceso {
   humedad?: number
   observaciones?: string
   estado: "pendiente" | "en_proceso" | "completado"
+  duracion: number
+  bin_volcados: number
+  ritmo_maquina: number
+  duracion_proceso: number
+  bin_pleno: number
+  bin_intermedio_l: number
+  bin_intermedio_ll: number
+  bin_incipiente: number
+  cant_personal: number
 }
 
 export interface Pallet {
