@@ -475,12 +475,16 @@ export const ingresoFrutaApi = {
   },
 
   async createIngreso(ingreso: Omit<IngresoFruta, "id">): Promise<IngresoFruta> {
-    await delay(800)
-    const newIngreso: IngresoFruta = {
-      ...ingreso,
-      id: `if${Date.now()}`,
+    // Inserta el ingreso en la tabla real de Supabase
+    const { data, error } = await supabase
+      .from('ingreso_fruta')
+      .insert([ingreso])
+      .select()
+      .single();
+    if (error) {
+      throw new Error('Error al crear ingreso: ' + error.message)
     }
-    return newIngreso
+    return data;
   },
 
   async updateIngreso(id: string, updates: Partial<IngresoFruta>): Promise<IngresoFruta> {
