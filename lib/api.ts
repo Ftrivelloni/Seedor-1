@@ -460,7 +460,7 @@ export const ingresoFrutaApi = {
           acoplado,
           operario
         `)
-        .eq('tennant_id', tenantId)
+  .eq('tenant_id', tenantId)
         .order('fecha', { ascending: false });
 
       if (error) {

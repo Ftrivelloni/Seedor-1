@@ -1,30 +1,17 @@
 "use client"
 
+
 import { Sidebar } from "../../components/sidebar"
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { authService, type AuthUser } from "../../lib/auth"
+import { useUser } from "../../components/auth/UserContext"
 
 export default function EmpaqueLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
+  const { user, loading } = useUser()
 
-  useEffect(() => {
-    const currentUser = authService.getCurrentUser()
-    if (!currentUser) {
-      router.push("/login")
-      return
-    }
-    setUser(currentUser)
-    setIsLoading(false)
-  }, [router])
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -33,6 +20,9 @@ export default function EmpaqueLayout({
   }
 
   if (!user) {
+    if (typeof window !== "undefined") {
+      window.location.href = "/login"
+    }
     return null
   }
 
@@ -40,12 +30,12 @@ export default function EmpaqueLayout({
     <div className="min-h-screen bg-background flex">
       <Sidebar 
         user={user} 
-        onLogout={() => { router.push("/login") }} 
+        onLogout={() => { window.location.href = "/login" }} 
         onNavigate={(page) => {
           if (page === "empaque") {
-            router.push("/empaque")
+            window.location.href = "/empaque"
           } else {
-            router.push("/home")
+            window.location.href = "/home"
           }
         }} 
         currentPage="empaque" 
