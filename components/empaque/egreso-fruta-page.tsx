@@ -11,10 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { authService } from "../../lib/supabaseAuth"
 import type { EgresoFruta } from "../../lib/types"
 import { Plus, Search, Download, ArrowUp, DollarSign, AlertTriangle, FileText, Package, ArrowLeft } from "lucide-react"
+import { EgresoFrutaFormModal } from "./egreso-fruta-form-modal"
 
 export function EgresoFrutaPage() {
-  const [egresos, setEgresos] = useState<EgresoFruta[]>([])
-  const [filteredEgresos, setFilteredEgresos] = useState<EgresoFruta[]>([])
+  const [modalOpen, setModalOpen] = useState(false)
+  const [egresos, setEgresos] = useState<any[]>([])
+  const [filteredEgresos, setFilteredEgresos] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [tipoMovimientoFilter, setTipoMovimientoFilter] = useState<string>("all")
@@ -46,87 +48,16 @@ export function EgresoFrutaPage() {
   }, [egresos, searchTerm, tipoMovimientoFilter])
 
   const loadEgresos = async () => {
-    if (!user?.tenantId) return
-
+    if (!user?.tenantId) return;
+    setIsLoading(true);
     try {
-      setIsLoading(true)
-      // TODO: Replace with actual API call
-      const mockData: EgresoFruta[] = [
-        {
-          id: "ef001",
-          tenantId: user.tenantId,
-          fecha: "2024-03-15",
-          tipoMovimiento: "venta",
-          tipoFruta: "Naranjas",
-          cantidad: 1152,
-          unidad: "kg",
-          destino: "Supermercado Central",
-          valorUnitario: 3.2,
-          valorTotal: 3686.4,
-          responsable: "Carlos Ruiz",
-          documentoReferencia: "FAC-2024-001",
-          observaciones: "Venta regular, cliente frecuente"
-        },
-        {
-          id: "ef002",
-          tenantId: user.tenantId,
-          fecha: "2024-03-15",
-          tipoMovimiento: "merma",
-          tipoFruta: "Limones",
-          cantidad: 45,
-          unidad: "kg",
-          destino: "Compost",
-          motivo: "Sobremaduras no comercializables",
-          responsable: "María González",
-          observaciones: "Material destinado a compostaje"
-        },
-        {
-          id: "ef003",
-          tenantId: user.tenantId,
-          fecha: "2024-03-14",
-          tipoMovimiento: "venta",
-          tipoFruta: "Mandarinas",
-          cantidad: 800,
-          unidad: "kg",
-          destino: "Exportación Brasil",
-          valorUnitario: 4.5,
-          valorTotal: 3600,
-          responsable: "Ana López",
-          documentoReferencia: "EXP-2024-002",
-          observaciones: "Exportación premium, calidad A"
-        },
-        {
-          id: "ef004",
-          tenantId: user.tenantId,
-          fecha: "2024-03-13",
-          tipoMovimiento: "devolucion",
-          tipoFruta: "Naranjas",
-          cantidad: 120,
-          unidad: "kg",
-          destino: "Proveedor Original",
-          motivo: "Calidad inferior al esperado",
-          responsable: "Carlos Ruiz",
-          documentoReferencia: "DEV-2024-001",
-          observaciones: "Devolución por defectos de calidad"
-        },
-        {
-          id: "ef005",
-          tenantId: user.tenantId,
-          fecha: "2024-03-16",
-          tipoMovimiento: "regalo",
-          tipoFruta: "Limones",
-          cantidad: 25,
-          unidad: "kg",
-          destino: "Fundación Comunitaria",
-          responsable: "María González",
-          observaciones: "Donación para comedor comunitario"
-        }
-      ]
-      setEgresos(mockData)
+      const { egresoFrutaApi } = await import("../../lib/api");
+      const data = await egresoFrutaApi.getEgresos(user.tenantId);
+      setEgresos(data);
     } catch (error) {
-      console.error("Error al cargar egresos:", error)
+      console.error("Error al cargar egresos:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -136,37 +67,36 @@ export function EgresoFrutaPage() {
     if (searchTerm) {
       filtered = filtered.filter(
         (egreso) =>
-          egreso.tipoFruta.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          egreso.destino.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          egreso.responsable.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          egreso.documentoReferencia?.toLowerCase().includes(searchTerm.toLowerCase())
+          (egreso.producto || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (egreso.cliente || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (egreso.chofer || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (egreso.num_remito ? egreso.num_remito.toString().includes(searchTerm) : false)
       )
     }
 
-    if (tipoMovimientoFilter !== "all") {
-      filtered = filtered.filter((egreso) => egreso.tipoMovimiento === tipoMovimientoFilter)
-    }
+    // No hay tipoMovimiento en la tabla real, así que el filtro se omite o se puede adaptar si hay un campo equivalente
 
-    // Sort by date (most recent first)
+    // Ordenar por fecha (más reciente primero)
     filtered = filtered.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
     setFilteredEgresos(filtered)
   }
 
   const exportToCSV = () => {
-    const headers = ["Fecha", "Tipo Movimiento", "Tipo Fruta", "Cantidad", "Destino", "Valor Unit.", "Valor Total", "Responsable", "Documento"]
+    const headers = ["Fecha", "Producto", "Peso Neto", "Cliente", "Finca", "Remito", "Chofer", "Transporte", "Chasis", "Acoplado"]
     const csvData = [
       headers.join(","),
       ...filteredEgresos.map((egreso) => [
         egreso.fecha,
-        egreso.tipoMovimiento,
-        `"${egreso.tipoFruta}"`,
-        `${egreso.cantidad} ${egreso.unidad}`,
-        `"${egreso.destino}"`,
-        egreso.valorUnitario ? `$${egreso.valorUnitario}` : "N/A",
-        egreso.valorTotal ? `$${egreso.valorTotal}` : "N/A",
-        `"${egreso.responsable}"`,
-        `"${egreso.documentoReferencia || ""}"`
+        egreso.producto,
+        egreso.peso_neto,
+        egreso.cliente,
+        egreso.finca,
+        egreso.num_remito,
+        egreso.chofer,
+        egreso.transporte,
+        egreso.chasis,
+        egreso.acoplado
       ].join(","))
     ].join("\n")
 
@@ -224,6 +154,11 @@ export function EgresoFrutaPage() {
     )
   }
 
+  const handleCreated = (nuevo: any) => {
+    setEgresos((prev) => [nuevo, ...prev])
+    setFilteredEgresos((prev) => [nuevo, ...prev])
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -243,11 +178,17 @@ export function EgresoFrutaPage() {
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
           </Button>
-          <Button>
+          <Button onClick={() => setModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Egreso
           </Button>
         </div>
+        <EgresoFrutaFormModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onCreated={handleCreated}
+          tenantId={user?.tenantId || ""}
+        />
       </div>
 
       {/* Stats Cards */}
@@ -350,61 +291,32 @@ export function EgresoFrutaPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Fecha</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Tipo Fruta</TableHead>
-                  <TableHead className="text-right">Cantidad</TableHead>
-                  <TableHead>Destino</TableHead>
-                  <TableHead className="text-right">Valor Unit.</TableHead>
-                  <TableHead className="text-right">Valor Total</TableHead>
-                  <TableHead>Responsable</TableHead>
-                  <TableHead>Documento</TableHead>
-                  <TableHead>Motivo/Observ.</TableHead>
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Peso Neto</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Finca</TableHead>
+                  <TableHead>Remito</TableHead>
+                  <TableHead>Chofer</TableHead>
+                  <TableHead>Transporte</TableHead>
+                  <TableHead>Chasis</TableHead>
+                  <TableHead>Acoplado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredEgresos.map((egreso) => (
                   <TableRow key={egreso.id}>
                     <TableCell className="font-medium">
-                      {new Date(egreso.fecha).toLocaleDateString()}
+                      {egreso.fecha ? new Date(egreso.fecha).toLocaleDateString() : ""}
                     </TableCell>
-                    <TableCell>{getTipoMovimientoBadge(egreso.tipoMovimiento)}</TableCell>
-                    <TableCell>{egreso.tipoFruta}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {egreso.cantidad.toLocaleString()} {egreso.unidad}
-                    </TableCell>
-                    <TableCell>{egreso.destino}</TableCell>
-                    <TableCell className="text-right">
-                      {egreso.valorUnitario ? (
-                        <span className="text-green-600 font-medium">${egreso.valorUnitario}</span>
-                      ) : (
-                        <span className="text-muted-foreground">N/A</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {egreso.valorTotal ? (
-                        <span className="text-green-600 font-bold">${egreso.valorTotal.toLocaleString()}</span>
-                      ) : (
-                        <span className="text-muted-foreground">N/A</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm">{egreso.responsable}</TableCell>
-                    <TableCell>
-                      {egreso.documentoReferencia ? (
-                        <div className="flex items-center space-x-1">
-                          <FileText className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs font-mono">{egreso.documentoReferencia}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">Sin doc</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="max-w-xs">
-                        <p className="text-xs text-muted-foreground truncate">
-                          {egreso.motivo || egreso.observaciones || "Sin observaciones"}
-                        </p>
-                      </div>
-                    </TableCell>
+                    <TableCell>{egreso.producto}</TableCell>
+                    <TableCell>{egreso.peso_neto}</TableCell>
+                    <TableCell>{egreso.cliente}</TableCell>
+                    <TableCell>{egreso.finca}</TableCell>
+                    <TableCell>{egreso.num_remito}</TableCell>
+                    <TableCell>{egreso.chofer}</TableCell>
+                    <TableCell>{egreso.transporte}</TableCell>
+                    <TableCell>{egreso.chasis}</TableCell>
+                    <TableCell>{egreso.acoplado}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

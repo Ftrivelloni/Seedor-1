@@ -1,3 +1,35 @@
+// Egreso Fruta API
+export const egresoFrutaApi = {
+  async getEgresos(tenantId: string): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('egreso_fruta')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('fecha', { ascending: false });
+      if (error) {
+        console.error('Error fetching egreso_fruta:', error);
+        return [];
+      }
+      return data || [];
+    } catch (error) {
+      console.error('Error connecting to Supabase:', error);
+      return [];
+    }
+  },
+
+  async createEgreso(egreso: Omit<EgresoFruta, "id">): Promise<EgresoFruta> {
+    const { data, error } = await supabase
+      .from('egreso_fruta')
+      .insert([egreso])
+      .select()
+      .single();
+    if (error) {
+      throw new Error('Error al crear egreso: ' + error.message)
+    }
+    return data;
+  },
+};
 import {
   tareasCampo,
   registrosEmpaque,
@@ -586,31 +618,3 @@ export const despachoApi = {
   },
 }
 
-// Egreso Fruta API
-export const egresoFrutaApi = {
-  async getEgresos(tenantId: string): Promise<EgresoFruta[]> {
-    await delay(500)
-    // TODO: Implement actual Supabase integration
-    return []
-  },
-
-  async createEgreso(egreso: Omit<EgresoFruta, "id">): Promise<EgresoFruta> {
-    await delay(800)
-    const newEgreso: EgresoFruta = {
-      ...egreso,
-      id: `ef${Date.now()}`,
-    }
-    return newEgreso
-  },
-
-  async updateEgreso(id: string, updates: Partial<EgresoFruta>): Promise<EgresoFruta> {
-    await delay(600)
-    // TODO: Implement actual update logic
-    throw new Error("Egreso no encontrado")
-  },
-
-  async deleteEgreso(id: string): Promise<void> {
-    await delay(400)
-    // TODO: Implement actual delete logic
-  },
-}
