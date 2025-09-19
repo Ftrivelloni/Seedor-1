@@ -1,5 +1,6 @@
 "use client"
 
+import { supabase } from "../../lib/supabaseClient";
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/ui/button"
@@ -7,7 +8,7 @@ import { Input } from "@/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { EmpaqueFormModal } from "./empaque-form-modal"
-import { empaqueApi, ingresoFrutaApi } from "../../lib/api"
+import { empaqueApi, ingresoFrutaApi, palletsApi, despachoApi } from "../../lib/api"
 import { authService } from "../../lib/supabaseAuth"
 import type { RegistroEmpaque } from "../../lib/mocks"
 import { Plus, Search, Download, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
@@ -22,7 +23,11 @@ export function EmpaquePage() {
   // Filtro y datos para la tabla de ingreso de fruta
   const [filtroFecha, setFiltroFecha] = useState("");
   const [ingresosFruta, setIngresosFruta] = useState<any[]>([]);
+  const [pallets, setPallets] = useState<any[]>([]);
+  const [isLoadingPallets, setIsLoadingPallets] = useState(true);
   const [isLoadingIngresos, setIsLoadingIngresos] = useState(true);
+  const [despachos, setDespachos] = useState<any[]>([]);
+  const [isLoadingDespachos, setIsLoadingDespachos] = useState(true);
 
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
@@ -44,6 +49,8 @@ export function EmpaquePage() {
     if (user) {
       loadRegistros();
       loadIngresosFruta();
+      loadPallets();
+      loadDespachos();
     }
   }, [user])
   const loadIngresosFruta = async () => {
@@ -56,6 +63,50 @@ export function EmpaquePage() {
       setIngresosFruta([]);
     } finally {
       setIsLoadingIngresos(false);
+    }
+  };
+
+  const loadPallets = async () => {
+    if (!user?.tenantId) return;
+    try {
+      setIsLoadingPallets(true);
+      const { data, error } = await supabase
+        .from("pallets")
+        .select("*")
+        .eq("tenant_id", user.tenantId);
+      if (error) {
+        console.error("Error al cargar pallets:", error);
+        setPallets([]);
+      } else {
+        setPallets(data || []);
+      }
+    } catch (error) {
+      console.error("Error al cargar pallets:", error);
+      setPallets([]);
+    } finally {
+      setIsLoadingPallets(false);
+    }
+  };
+
+  const loadDespachos = async () => {
+    if (!user?.tenantId) return;
+    try {
+      setIsLoadingDespachos(true);
+      const { data, error } = await supabase
+        .from("despacho")
+        .select("*")
+        .eq("tenant_id", user.tenantId);
+      if (error) {
+        console.error("Error al cargar despachos:", error);
+        setDespachos([]);
+      } else {
+        setDespachos(data || []);
+      }
+    } catch (error) {
+      console.error("Error al cargar despachos:", error);
+      setDespachos([]);
+    } finally {
+      setIsLoadingDespachos(false);
     }
   };
 
@@ -313,8 +364,9 @@ export function EmpaquePage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-2">
-              <div><span className="font-medium">Total empacado:</span> {totalKgSalieron.toLocaleString()} kg</div>
-              <div><span className="font-medium">Última fecha:</span> {registros.length > 0 ? new Date(registros[0].fecha).toLocaleDateString() : '-'}</div>
+              <div><span className="font-medium">Total empacado:</span> {pallets.reduce((sum, p) => sum + (p.peso || 0), 0).toLocaleString()} kg</div>
+              <div><span className="font-medium">Total pallets:</span> {pallets.length}</div>
+              <div><span className="font-medium">Última fecha:</span> {pallets.length > 0 ? new Date(pallets[0].created_at).toLocaleDateString() : '-'}</div>
             </div>
           </CardContent>
         </Card>
@@ -330,8 +382,9 @@ export function EmpaquePage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-2">
-              <div><span className="font-medium">Total despachado:</span> {totalKgDescartados.toLocaleString()} kg</div>
-              <div><span className="font-medium">Última fecha:</span> {registros.length > 0 ? new Date(registros[0].fecha).toLocaleDateString() : '-'}</div>
+              <div><span className="font-medium">Total despachado:</span> {despachos.reduce((sum, d) => sum + (d.total_cajas || 0), 0).toLocaleString()} cajas</div>
+              <div><span className="font-medium">Total pallets:</span> {despachos.reduce((sum, d) => sum + (d.total_pallets || 0), 0)}</div>
+              <div><span className="font-medium">Última fecha:</span> {despachos.length > 0 ? new Date(despachos[0].created_at).toLocaleDateString() : '-'}</div>
             </div>
           </CardContent>
         </Card>

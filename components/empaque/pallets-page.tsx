@@ -149,8 +149,8 @@ export function PalletsPage() {
   }
 
   // Calculate statistics
-  const totalCajas = pallets.reduce((sum, p) => sum + p.cantidadCajas, 0)
-  const totalPeso = pallets.reduce((sum, p) => sum + p.pesoTotal, 0)
+  const totalCajas = pallets.reduce((sum, p) => sum + (p.cantidadCajas || 0), 0)
+  const totalPeso = pallets.reduce((sum, p) => sum + (p.pesoTotal || 0), 0)
   const enCamara = pallets.filter(p => p.estado === "en_camara").length
   const listoDespacho = pallets.filter(p => p.estado === "listo_despacho").length
 
@@ -279,7 +279,7 @@ export function PalletsPage() {
                 <SelectValue placeholder="Ubicación" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas las ubicaciones</SelectItem>
+                <SelectItem key="all">Todas las ubicaciones</SelectItem>
                 {getUbicaciones().map((ubicacion) => (
                   <SelectItem key={ubicacion} value={ubicacion}>{ubicacion}</SelectItem>
                 ))}
@@ -338,10 +338,10 @@ export function PalletsPage() {
                       </TableCell>
                       <TableCell>{pallet.tipoFruta}</TableCell>
                       <TableCell className="text-right font-medium">
-                        {pallet.cantidadCajas}
+                        {pallet.cantidadCajas || 0}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {pallet.pesoTotal.toLocaleString()} kg
+                        {pallet.pesoTotal?.toLocaleString() || 0} kg
                       </TableCell>
                       <TableCell className="font-mono text-sm">
                         {pallet.loteOrigen}

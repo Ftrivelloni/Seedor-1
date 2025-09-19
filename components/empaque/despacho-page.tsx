@@ -11,12 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { authService } from "../../lib/supabaseAuth"
-import type { Despacho } from "../../lib/types"
 import { Plus, Search, Download, Truck, Package, MapPin, Calendar, FileText, CheckCircle, Clock, AlertTriangle, ArrowLeft } from "lucide-react"
 
 export function DespachoPage() {
-  const [despachos, setDespachos] = useState<Despacho[]>([])
-  const [filteredDespachos, setFilteredDespachos] = useState<Despacho[]>([])
+  const [despachos, setDespachos] = useState<any[]>([])
+  const [filteredDespachos, setFilteredDespachos] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [estadoFilter, setEstadoFilter] = useState<string>("all")
@@ -75,14 +74,15 @@ export function DespachoPage() {
     if (searchTerm) {
       filtered = filtered.filter(
         (despacho) =>
-          despacho.numeroGuia.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          despacho.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          despacho.transportista.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          despacho.destino.toLowerCase().includes(searchTerm.toLowerCase())
+          despacho.num_remito?.toString().includes(searchTerm) ||
+          despacho.cliente?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          despacho.transporte?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          despacho.destino?.toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
 
-    if (estadoFilter !== "all") {
+    // Si tenés un campo "estado" en la tabla, podés filtrar por estado
+    if (estadoFilter !== "all" && despachos.length > 0 && "estado" in despachos[0]) {
       filtered = filtered.filter((despacho) => despacho.estado === estadoFilter)
     }
 
@@ -93,19 +93,20 @@ export function DespachoPage() {
   }
 
   const exportToCSV = () => {
-    const headers = ["Fecha", "Guía", "Cliente", "Transportista", "Pallets", "Destino", "Entrega Estimada", "Estado", "Responsable"]
+    const headers = [
+      "Fecha", "Guía", "Cliente", "Destino", "Transporte", "Chofer", "Total Pallets", "Total Cajas"
+    ]
     const csvData = [
       headers.join(","),
       ...filteredDespachos.map((despacho) => [
         despacho.fecha,
-        despacho.numeroGuia,
+        despacho.num_remito,
         `"${despacho.cliente}"`,
-        `"${despacho.transportista}"`,
-        despacho.pallets.join("; "),
         `"${despacho.destino}"`,
-        despacho.fechaEntregaEstimada,
-        despacho.estado,
-        `"${despacho.responsable}"`
+        `"${despacho.transporte}"`,
+        `"${despacho.chofer}"`,
+        despacho.total_pallets,
+        despacho.total_cajas
       ].join(","))
     ].join("\n")
 
@@ -121,35 +122,11 @@ export function DespachoPage() {
     document.body.removeChild(link)
   }
 
-  const getEstadoBadge = (estado: Despacho["estado"]) => {
-    switch (estado) {
-      case "preparando":
-        return <Badge variant="secondary"><Package className="h-3 w-3 mr-1" />Preparando</Badge>
-      case "en_transito":
-        return <Badge variant="default" className="bg-blue-500"><Truck className="h-3 w-3 mr-1" />En Tránsito</Badge>
-      case "entregado":
-        return <Badge variant="default" className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" />Entregado</Badge>
-      case "devuelto":
-        return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Devuelto</Badge>
-      default:
-        return <Badge variant="outline">{estado}</Badge>
-    }
-  }
+  // Estadísticas básicas
+  const totalDespachos = despachos.length
+  const totalPallets = despachos.reduce((sum, d) => sum + (d.total_pallets || 0), 0)
+  const totalCajas = despachos.reduce((sum, d) => sum + (d.total_cajas || 0), 0)
 
-  const getDiasEntrega = (fechaEntrega: string) => {
-    const hoy = new Date()
-    const entrega = new Date(fechaEntrega)
-    const diferencia = Math.ceil((entrega.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
-    return diferencia
-  }
-
-  // Calculate statistics
-  const totalPallets = despachos.reduce((sum, d) => sum + d.pallets.length, 0)
-  const enTransito = despachos.filter(d => d.estado === "en_transito").length
-  const entregados = despachos.filter(d => d.estado === "entregado").length
-  const preparando = despachos.filter(d => d.estado === "preparando").length
-
-  // Show loading while user is being loaded
   if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -198,41 +175,23 @@ export function DespachoPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Despachos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{despachos.length}</div>
+            <div className="text-2xl font-bold">{totalDespachos}</div>
             <p className="text-xs text-muted-foreground">{totalPallets} pallets totales</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">En Preparación</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Cajas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{preparando}</div>
-            <p className="text-xs text-muted-foreground">Pendientes de envío</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">En Tránsito</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{enTransito}</div>
-            <p className="text-xs text-muted-foreground">En camino al destino</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Entregados</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{entregados}</div>
-            <p className="text-xs text-muted-foreground">Completados exitosamente</p>
+            <div className="text-2xl font-bold">{totalCajas}</div>
+            <p className="text-xs text-muted-foreground">Cajas enviadas</p>
           </CardContent>
         </Card>
       </div>
@@ -250,24 +209,27 @@ export function DespachoPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por guía, cliente, transportista o destino..."
+                placeholder="Buscar por guía, cliente, transporte o destino..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <Select value={estadoFilter} onValueChange={setEstadoFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value="preparando">Preparando</SelectItem>
-                <SelectItem value="en_transito">En Tránsito</SelectItem>
-                <SelectItem value="entregado">Entregado</SelectItem>
-                <SelectItem value="devuelto">Devuelto</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Si tenés campo estado, podés filtrar por estado */}
+            {despachos.length > 0 && "estado" in despachos[0] && (
+              <Select value={estadoFilter} onValueChange={setEstadoFilter}>
+                <SelectTrigger className="w-full md:w-48">
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="preparando">Preparando</SelectItem>
+                  <SelectItem value="en_transito">En Tránsito</SelectItem>
+                  <SelectItem value="entregado">Entregado</SelectItem>
+                  <SelectItem value="devuelto">Devuelto</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -295,83 +257,28 @@ export function DespachoPage() {
                   <TableHead>Fecha</TableHead>
                   <TableHead>Guía</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Transportista</TableHead>
-                  <TableHead>Pallets</TableHead>
                   <TableHead>Destino</TableHead>
-                  <TableHead>Entrega</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Responsable</TableHead>
-                  <TableHead>Documentos</TableHead>
+                  <TableHead>Transporte</TableHead>
+                  <TableHead>Chofer</TableHead>
+                  <TableHead>Total Pallets</TableHead>
+                  <TableHead>Total Cajas</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredDespachos.map((despacho) => {
-                  const diasEntrega = getDiasEntrega(despacho.fechaEntregaEstimada)
-                  const entregaProxima = diasEntrega <= 1 && diasEntrega >= 0
-
-                  return (
-                    <TableRow key={despacho.id}>
-                      <TableCell className="font-medium">
-                        {new Date(despacho.fecha).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm font-medium">
-                        {despacho.numeroGuia}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Package className="h-4 w-4 text-muted-foreground" />
-                          <span>{despacho.cliente}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Truck className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{despacho.transportista}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <span className="font-medium">{despacho.pallets.length}</span>
-                          <div className="text-xs text-muted-foreground">
-                            {despacho.pallets.slice(0, 2).map(p => p.split('-').pop()).join(', ')}
-                            {despacho.pallets.length > 2 && '...'}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-1">
-                          <MapPin className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-sm">{despacho.destino}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className={`flex items-center space-x-1 ${entregaProxima ? 'text-orange-600' : ''}`}>
-                          <Calendar className="h-3 w-3" />
-                          <div className="text-xs">
-                            <div>{new Date(despacho.fechaEntregaEstimada).toLocaleDateString()}</div>
-                            <div className="text-muted-foreground">
-                              {diasEntrega > 0 ? `En ${diasEntrega}d` : 
-                               diasEntrega === 0 ? 'Hoy' : 
-                               `${Math.abs(diasEntrega)}d atraso`}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getEstadoBadge(despacho.estado)}</TableCell>
-                      <TableCell className="text-sm">{despacho.responsable}</TableCell>
-                      <TableCell>
-                        {despacho.documentos && despacho.documentos.length > 0 ? (
-                          <div className="flex items-center space-x-1">
-                            <FileText className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs">{despacho.documentos.length} docs</span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">Sin docs</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
+                {filteredDespachos.map((despacho) => (
+                  <TableRow key={despacho.id}>
+                    <TableCell>
+                      {despacho.fecha ? new Date(despacho.fecha).toLocaleDateString() : ""}
+                    </TableCell>
+                    <TableCell>{despacho.num_remito}</TableCell>
+                    <TableCell>{despacho.cliente}</TableCell>
+                    <TableCell>{despacho.destino}</TableCell>
+                    <TableCell>{despacho.transporte}</TableCell>
+                    <TableCell>{despacho.chofer}</TableCell>
+                    <TableCell>{despacho.total_pallets}</TableCell>
+                    <TableCell>{despacho.total_cajas}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
