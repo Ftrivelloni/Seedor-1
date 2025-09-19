@@ -5,9 +5,10 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  tenantId: string;
 }
 
-export default function DespachoFormModal({ open, onClose, onCreated }: Props) {
+export default function DespachoFormModal({ open, onClose, onCreated, tenantId }: Props) {
   const [form, setForm] = useState({
     fecha: "",
     num_remito: "",
@@ -38,6 +39,7 @@ export default function DespachoFormModal({ open, onClose, onCreated }: Props) {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.from("despacho").insert([{
+      tenant_id: tenantId,  
       fecha: form.fecha ? new Date(form.fecha).toISOString() : null,
       num_remito: Number(form.num_remito),
       cliente: form.cliente,

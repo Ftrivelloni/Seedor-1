@@ -192,6 +192,7 @@ export function DespachoPage() {
             open={modalOpen}
             onClose={() => setModalOpen(false)}
             onCreated={loadDespachos}
+            tenantId={user.tenantId}
           />
         </div>
       </div>

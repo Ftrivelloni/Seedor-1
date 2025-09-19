@@ -5,9 +5,10 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  tenantId: string;
 }
 
-export default function PalletsFormModal({ open, onClose, onCreated }: Props) {
+export default function PalletsFormModal({ open, onClose, onCreated, tenantId }: Props) {
   const [form, setForm] = useState({
     semana: "",
     fecha: "",
@@ -31,6 +32,7 @@ export default function PalletsFormModal({ open, onClose, onCreated }: Props) {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.from("pallets").insert([{
+      tenant_id: tenantId,
       semana: Number(form.semana),
       fecha: form.fecha ? new Date(form.fecha).toISOString() : null,
       num_pallet: Number(form.num_pallet),

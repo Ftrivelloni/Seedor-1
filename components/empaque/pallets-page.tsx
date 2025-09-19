@@ -198,6 +198,7 @@ export function PalletsPage() {
             open={modalOpen}
             onClose={() => setModalOpen(false)}
             onCreated={loadPallets}
+            tenantId={user.tenantId}
           />
         </div>
       </div>
