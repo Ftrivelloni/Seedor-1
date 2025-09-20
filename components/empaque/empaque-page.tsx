@@ -28,6 +28,8 @@ export function EmpaquePage() {
   const [isLoadingIngresos, setIsLoadingIngresos] = useState(true);
   const [despachos, setDespachos] = useState<any[]>([]);
   const [isLoadingDespachos, setIsLoadingDespachos] = useState(true);
+  const [egresosFruta, setEgresosFruta] = useState<any[]>([]);
+  const [isLoadingEgresosFruta, setIsLoadingEgresosFruta] = useState(true);
 
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
@@ -51,6 +53,7 @@ export function EmpaquePage() {
       loadIngresosFruta();
       loadPallets();
       loadDespachos();
+      loadEgresosFruta();
     }
   }, [user])
   const loadIngresosFruta = async () => {
@@ -107,6 +110,28 @@ export function EmpaquePage() {
       setDespachos([]);
     } finally {
       setIsLoadingDespachos(false);
+    }
+  };
+
+  const loadEgresosFruta = async () => {
+    if (!user?.tenantId) return;
+    try {
+      setIsLoadingEgresosFruta(true);
+      const { data, error } = await supabase
+        .from("egreso_fruta")
+        .select("*")
+        .eq("tenant_id", user.tenantId);
+      if (error) {
+        console.error("Error al cargar egresos de fruta:", error);
+        setEgresosFruta([]);
+      } else {
+        setEgresosFruta(data || []);
+      }
+    } catch (error) {
+      console.error("Error al cargar egresos de fruta:", error);
+      setEgresosFruta([]);
+    } finally {
+      setIsLoadingEgresosFruta(false);
     }
   };
 
@@ -400,8 +425,9 @@ export function EmpaquePage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-2">
-              <div><span className="font-medium">% descarte promedio:</span> {porcentajeDescartePromedio.toFixed(1)}%</div>
-              <div><span className="font-medium">Última fecha:</span> {registros.length > 0 ? new Date(registros[0].fecha).toLocaleDateString() : '-'}</div>
+              <div><span className="font-medium">Total enviado:</span> {egresosFruta.reduce((sum, e) => sum + (e.peso_neto || 0), 0).toLocaleString()} kg</div>
+              <div><span className="font-medium">Total egresos:</span> {egresosFruta.length}</div>
+              <div><span className="font-medium">Última fecha:</span> {egresosFruta.length > 0 ? new Date(egresosFruta[0].created_at).toLocaleDateString() : '-'}</div>
             </div>
           </CardContent>
         </Card>

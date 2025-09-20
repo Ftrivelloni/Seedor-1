@@ -1,139 +1,114 @@
 "use client"
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog"
-import { Input } from "../ui/input"
-import { Button } from "../ui/button"
-import { useToast } from "../../hooks/use-toast"
-import type { EgresoFruta } from "../../lib/types"
+import React, { useState } from "react";
+import { supabase } from "../../lib/supabaseClient";
 
 interface Props {
-  open: boolean
-  onClose: () => void
-  onCreated: (egreso: EgresoFruta) => void
-  tenantId: string
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+  tenantId: string;
 }
 
-const initialState = {
-  tenant_id: "",
-  fecha: new Date().toISOString().slice(0, 10),
-  producto: "",
-  peso_neto: 0,
-  cliente: "",
-  finca: "",
-  num_remito: "",
-  DTV: "",
-  tara: 0,
-  transporte: "",
-  chasis: "",
-  acoplado: "",
-  chofer: "",
-}
-
-export function EgresoFrutaFormModal({ open, onClose, onCreated, tenantId }: Props) {
-  const [form, setForm] = useState<any>({ ...initialState, tenant_id: tenantId })
-  const [loading, setLoading] = useState(false)
-  const { toast } = useToast()
-  const [errors, setErrors] = useState<{ [k: string]: string }>({})
-
-  const validate = (field: keyof typeof form, value: any) => {
-    let err = ""
-    if (["producto", "cliente", "fecha", "peso_neto"].includes(field) && !value) {
-      err = "Campo requerido"
-    }
-    if (field === "peso_neto" && (isNaN(value) || value <= 0)) {
-      err = "Debe ser un número mayor a 0"
-    }
-    setErrors((prev) => ({ ...prev, [field]: err }))
-    return err
-  }
+export default function EgresoFrutaFormModal({ open, onClose, onCreated, tenantId }: Props) {
+  const [form, setForm] = useState({
+    num_remito: "",
+    fecha: "",
+    cliente: "",
+    finca: "",
+    producto: "",
+    DTV: "",
+    tara: "",
+    peso_neto: "",
+    transporte: "",
+    chasis: "",
+    acoplado: "",
+    chofer: "",
+  });
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    let val: any = value
-    if (["peso_neto", "tara", "num_remito"].includes(name)) {
-      val = value === "" ? "" : Number(value)
-    }
-    validate(name as keyof typeof form, val)
-    setForm((prev: any) => ({ ...prev, [name]: val }))
-  }
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    let hasError = false
-    Object.entries(form).forEach(([k, v]) => {
-      if (validate(k as keyof typeof form, v)) hasError = true
-    })
-    if (hasError) return
-    setLoading(true)
-    try {
-      const { egresoFrutaApi } = await import("../../lib/api")
-      const egreso = await egresoFrutaApi.createEgreso(form)
-      toast({ title: "Egreso registrado", description: "El egreso fue guardado correctamente." })
-      onCreated(egreso)
-      onClose()
-      setForm({ ...initialState, tenant_id: tenantId })
-      setErrors({})
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
-    } finally {
-      setLoading(false)
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.from("egreso_fruta").insert([{
+      tenant_id: tenantId,
+      num_remito: Number(form.num_remito),
+      fecha: form.fecha ? new Date(form.fecha).toISOString() : null,
+      cliente: form.cliente,
+      finca: form.finca,
+      producto: form.producto,
+      DTV: form.DTV,
+      tara: Number(form.tara),
+      peso_neto: Number(form.peso_neto),
+      transporte: form.transporte,
+      chasis: form.chasis,
+      acoplado: form.acoplado,
+      chofer: form.chofer,
+    }]);
+    setLoading(false);
+    if (!error) {
+      onCreated();
+      onClose();
+      setForm({
+        num_remito: "",
+        fecha: "",
+        cliente: "",
+        finca: "",
+        producto: "",
+        DTV: "",
+        tara: "",
+        peso_neto: "",
+        transporte: "",
+        chasis: "",
+        acoplado: "",
+        chofer: "",
+      });
+    } else {
+      alert("Error al guardar: " + error.message);
     }
-  }
+  };
+
+  if (!open) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nuevo Egreso de Fruta</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <label className="block text-sm font-medium">Fecha
-            <Input type="date" name="fecha" value={form.fecha} onChange={handleChange} required />
-            {errors.fecha && <span className="text-xs text-red-500">{errors.fecha}</span>}
-          </label>
-          <label className="block text-sm font-medium">Producto
-            <Input name="producto" value={form.producto} onChange={handleChange} required />
-            {errors.producto && <span className="text-xs text-red-500">{errors.producto}</span>}
-          </label>
-          <label className="block text-sm font-medium">Peso Neto (kg)
-            <Input name="peso_neto" value={form.peso_neto} onChange={handleChange} type="number" min={1} required />
-            {errors.peso_neto && <span className="text-xs text-red-500">{errors.peso_neto}</span>}
-          </label>
-          <label className="block text-sm font-medium">Cliente
-            <Input name="cliente" value={form.cliente} onChange={handleChange} required />
-            {errors.cliente && <span className="text-xs text-red-500">{errors.cliente}</span>}
-          </label>
-          <label className="block text-sm font-medium">Finca
-            <Input name="finca" value={form.finca} onChange={handleChange} />
-          </label>
-          <label className="block text-sm font-medium">Remito
-            <Input name="num_remito" value={form.num_remito} onChange={handleChange} type="number" min={0} />
-          </label>
-          <label className="block text-sm font-medium">DTV
-            <Input name="DTV" value={form.DTV} onChange={handleChange} />
-          </label>
-          <label className="block text-sm font-medium">Tara
-            <Input name="tara" value={form.tara} onChange={handleChange} type="number" min={0} />
-          </label>
-          <label className="block text-sm font-medium">Transporte
-            <Input name="transporte" value={form.transporte} onChange={handleChange} />
-          </label>
-          <label className="block text-sm font-medium">Chasis
-            <Input name="chasis" value={form.chasis} onChange={handleChange} />
-          </label>
-          <label className="block text-sm font-medium">Acoplado
-            <Input name="acoplado" value={form.acoplado} onChange={handleChange} />
-          </label>
-          <label className="block text-sm font-medium">Chofer
-            <Input name="chofer" value={form.chofer} onChange={handleChange} />
-          </label>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>Cancelar</Button>
-            <Button type="submit" disabled={loading}>Guardar</Button>
-          </DialogFooter>
+    <div className="modal-backdrop">
+      <div className="modal">
+        <h2>Nuevo Egreso de Fruta</h2>
+        <form onSubmit={handleSubmit}>
+          <input name="num_remito" type="number" placeholder="N° Remito" value={form.num_remito} onChange={handleChange} required />
+          <input name="fecha" type="date" placeholder="Fecha" value={form.fecha} onChange={handleChange} required />
+          <input name="cliente" type="text" placeholder="Cliente" value={form.cliente} onChange={handleChange} required />
+          <input name="finca" type="text" placeholder="Finca" value={form.finca} onChange={handleChange} />
+          <input name="producto" type="text" placeholder="Producto" value={form.producto} onChange={handleChange} required />
+          <input name="DTV" type="text" placeholder="DTV" value={form.DTV} onChange={handleChange} />
+          <input name="tara" type="number" placeholder="Tara" value={form.tara} onChange={handleChange} />
+          <input name="peso_neto" type="number" placeholder="Peso Neto" value={form.peso_neto} onChange={handleChange} required />
+          <input name="transporte" type="text" placeholder="Transporte" value={form.transporte} onChange={handleChange} />
+          <input name="chasis" type="text" placeholder="Chasis" value={form.chasis} onChange={handleChange} />
+          <input name="acoplado" type="text" placeholder="Acoplado" value={form.acoplado} onChange={handleChange} />
+          <input name="chofer" type="text" placeholder="Chofer" value={form.chofer} onChange={handleChange} />
+          <button type="submit" disabled={loading}>{loading ? "Guardando..." : "Guardar"}</button>
+          <button type="button" onClick={onClose}>Cancelar</button>
         </form>
-      </DialogContent>
-    </Dialog>
-  )
+      </div>
+      <style>{`
+        .modal-backdrop {
+          position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+          background: rgba(0,0,0,0.6);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 1000;
+        }
+        .modal {
+          background: #fff; padding: 2rem; border-radius: 8px; min-width: 320px;
+          z-index: 1001;
+        }
+        .modal input { display: block; margin-bottom: 1rem; width: 100%; }
+        .modal button { margin-right: 1rem; }
+      `}</style>
+    </div>
+  );
 }

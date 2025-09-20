@@ -9,9 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "../ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { authService } from "../../lib/supabaseAuth"
-import type { EgresoFruta } from "../../lib/types"
-import { Plus, Search, Download, ArrowUp, DollarSign, AlertTriangle, FileText, Package, ArrowLeft } from "lucide-react"
-import { EgresoFrutaFormModal } from "./egreso-fruta-form-modal"
+import { Plus, Search, Download, ArrowUp, ArrowLeft } from "lucide-react"
+import EgresoFrutaFormModal from "./egreso-fruta-form-modal"
+import { supabase } from "../../lib/supabaseClient"
 
 export function EgresoFrutaPage() {
   const [modalOpen, setModalOpen] = useState(false)
@@ -19,12 +19,9 @@ export function EgresoFrutaPage() {
   const [filteredEgresos, setFilteredEgresos] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [tipoMovimientoFilter, setTipoMovimientoFilter] = useState<string>("all")
-
-  const [user, setUser] = useState<any>(null)
   const router = useRouter()
+  const [user, setUser] = useState<any>(null)
 
-  // Load user from Supabase auth
   useEffect(() => {
     const loadUser = async () => {
       const sessionUser = await authService.checkSession()
@@ -45,17 +42,25 @@ export function EgresoFrutaPage() {
 
   useEffect(() => {
     applyFilters()
-  }, [egresos, searchTerm, tipoMovimientoFilter])
+  }, [egresos, searchTerm])
 
   const loadEgresos = async () => {
     if (!user?.tenantId) return;
     setIsLoading(true);
     try {
-      const { egresoFrutaApi } = await import("../../lib/api");
-      const data = await egresoFrutaApi.getEgresos(user.tenantId);
-      setEgresos(data);
+      const { data, error } = await supabase
+        .from("egreso_fruta")
+        .select("*")
+        .eq("tenant_id", user.tenantId);
+      if (error) {
+        console.error("Error al cargar egresos:", error);
+        setEgresos([]);
+      } else {
+        setEgresos(data || []);
+      }
     } catch (error) {
       console.error("Error al cargar egresos:", error);
+      setEgresos([]);
     } finally {
       setIsLoading(false);
     }
@@ -73,8 +78,6 @@ export function EgresoFrutaPage() {
           (egreso.num_remito ? egreso.num_remito.toString().includes(searchTerm) : false)
       )
     }
-
-    // No hay tipoMovimiento en la tabla real, así que el filtro se omite o se puede adaptar si hay un campo equivalente
 
     // Ordenar por fecha (más reciente primero)
     filtered = filtered.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
@@ -112,32 +115,6 @@ export function EgresoFrutaPage() {
     document.body.removeChild(link)
   }
 
-  const getTipoMovimientoBadge = (tipo: EgresoFruta["tipoMovimiento"]) => {
-    switch (tipo) {
-      case "venta":
-        return <Badge variant="default" className="bg-green-500"><DollarSign className="h-3 w-3 mr-1" />Venta</Badge>
-      case "merma":
-        return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Merma</Badge>
-      case "devolucion":
-        return <Badge variant="secondary"><ArrowUp className="h-3 w-3 mr-1" />Devolución</Badge>
-      case "regalo":
-        return <Badge variant="outline"><Package className="h-3 w-3 mr-1" />Regalo</Badge>
-      default:
-        return <Badge variant="outline">{tipo}</Badge>
-    }
-  }
-
-  // Calculate statistics
-  const totalCantidad = egresos.reduce((sum, e) => sum + e.cantidad, 0)
-  const totalVentas = egresos
-    .filter(e => e.tipoMovimiento === "venta")
-    .reduce((sum, e) => sum + (e.valorTotal || 0), 0)
-  const totalMerma = egresos
-    .filter(e => e.tipoMovimiento === "merma")
-    .reduce((sum, e) => sum + e.cantidad, 0)
-  const ventas = egresos.filter(e => e.tipoMovimiento === "venta").length
-
-  // Show loading while user is being loaded
   if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -152,11 +129,6 @@ export function EgresoFrutaPage() {
         <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
       </div>
     )
-  }
-
-  const handleCreated = (nuevo: any) => {
-    setEgresos((prev) => [nuevo, ...prev])
-    setFilteredEgresos((prev) => [nuevo, ...prev])
   }
 
   return (
@@ -186,53 +158,9 @@ export function EgresoFrutaPage() {
         <EgresoFrutaFormModal
           open={modalOpen}
           onClose={() => setModalOpen(false)}
-          onCreated={handleCreated}
+          onCreated={loadEgresos}
           tenantId={user?.tenantId || ""}
         />
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Egresado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalCantidad.toLocaleString()} kg</div>
-            <p className="text-xs text-muted-foreground">{egresos.length} movimientos</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Valor Ventas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">${totalVentas.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">{ventas} transacciones</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Merma</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">{totalMerma.toLocaleString()} kg</div>
-            <p className="text-xs text-muted-foreground">
-              {totalCantidad > 0 ? `${((totalMerma / totalCantidad) * 100).toFixed(1)}%` : "0%"} del total
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Precio Promedio</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              ${ventas > 0 ? (totalVentas / egresos.filter(e => e.tipoMovimiento === "venta").reduce((sum, e) => sum + e.cantidad, 0)).toFixed(2) : "0.00"}
-            </div>
-            <p className="text-xs text-muted-foreground">Por kilogramo</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Search and Filters */}
@@ -248,24 +176,12 @@ export function EgresoFrutaPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por tipo de fruta, destino, responsable o documento..."
+                placeholder="Buscar por tipo de fruta, cliente, chofer o remito..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <Select value={tipoMovimientoFilter} onValueChange={setTipoMovimientoFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Tipo de movimiento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los tipos</SelectItem>
-                <SelectItem value="venta">Venta</SelectItem>
-                <SelectItem value="merma">Merma</SelectItem>
-                <SelectItem value="devolucion">Devolución</SelectItem>
-                <SelectItem value="regalo">Regalo</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
