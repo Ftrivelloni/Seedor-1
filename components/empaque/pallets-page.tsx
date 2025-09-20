@@ -279,9 +279,9 @@ export function PalletsPage() {
                 <SelectValue placeholder="Ubicación" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem key="all">Todas las ubicaciones</SelectItem>
-                {getUbicaciones().map((ubicacion) => (
-                  <SelectItem key={ubicacion} value={ubicacion}>{ubicacion}</SelectItem>
+                <SelectItem key="select-ubicacion-all" value="all">Todas las ubicaciones</SelectItem>
+                {getUbicaciones().map((ubicacion, idx) => (
+                  <SelectItem key={`select-ubicacion-${idx}-${ubicacion}`} value={ubicacion}>{ubicacion}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
