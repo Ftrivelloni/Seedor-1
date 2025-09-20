@@ -31,6 +31,10 @@ export function EmpaquePage() {
   const [egresosFruta, setEgresosFruta] = useState<any[]>([]);
   const [isLoadingEgresosFruta, setIsLoadingEgresosFruta] = useState(true);
 
+  // Estado para preprocesos
+  const [preprocesos, setPreprocesos] = useState<any[]>([]);
+  const [isLoadingPreprocesos, setIsLoadingPreprocesos] = useState(true);
+
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
 
@@ -54,8 +58,37 @@ export function EmpaquePage() {
       loadPallets();
       loadDespachos();
       loadEgresosFruta();
+      loadPreprocesos();
     }
+    // Escuchar evento global para recargar preprocesos
+    const handler = () => { loadPreprocesos(); };
+    window.addEventListener('preproceso:created', handler);
+    return () => {
+      window.removeEventListener('preproceso:created', handler);
+    };
   }, [user])
+  // Cargar preprocesos desde Supabase
+  const loadPreprocesos = async () => {
+    if (!user?.tenantId) return;
+    try {
+      setIsLoadingPreprocesos(true);
+      const { data, error } = await supabase
+        .from("preseleccion")
+        .select("*")
+        .eq("tenant_id", user.tenantId);
+      if (error) {
+        console.error("Error al cargar preprocesos:", error);
+        setPreprocesos([]);
+      } else {
+        setPreprocesos(data || []);
+      }
+    } catch (error) {
+      console.error("Error al cargar preprocesos:", error);
+      setPreprocesos([]);
+    } finally {
+      setIsLoadingPreprocesos(false);
+    }
+  };
   const loadIngresosFruta = async () => {
     if (!user?.tenantId) return;
     try {
@@ -371,10 +404,14 @@ export function EmpaquePage() {
             <CardDescription>Resumen de preparación y limpieza</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col gap-2">
-              <div><span className="font-medium">Total procesado:</span> {totalKgEntraron.toLocaleString()} kg</div>
-              <div><span className="font-medium">Última fecha:</span> {registros.length > 0 ? new Date(registros[0].fecha).toLocaleDateString() : '-'}</div>
-            </div>
+            {isLoadingPreprocesos ? (
+              <div className="text-muted-foreground">Cargando...</div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <div><span className="font-medium">Total procesado:</span> {preprocesos.reduce((sum, p) => sum + (p.bin_volcados || 0), 0).toLocaleString()} bins</div>
+                <div><span className="font-medium">Última fecha:</span> {preprocesos.length > 0 ? new Date(preprocesos[0].fecha).toLocaleDateString() : '-'}</div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
