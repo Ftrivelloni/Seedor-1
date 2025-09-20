@@ -1,31 +1,23 @@
 "use client"
-
 import PreprocesoFormModal from "./preproceso-form-modal";
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/ui/button"
-import { Input } from "@/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
-import { Badge } from "../ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { authService } from "../../lib/supabaseAuth"
-import type { Preproceso } from "../../lib/types"
-import { Plus, Search, Download, Cog, Thermometer, Droplets, CheckCircle, Clock, Play, ArrowLeft } from "lucide-react"
 import { supabase } from "../../lib/supabaseClient"
+import { Plus, Download, ArrowLeft, Cog } from "lucide-react"
 
 export function PreprocesoPage() {
-  const [registros, setRegistros] = useState<Preproceso[]>([])
-  const [filteredRegistros, setFilteredRegistros] = useState<Preproceso[]>([])
+  const [registros, setRegistros] = useState<any[]>([])
+  const [filteredRegistros, setFilteredRegistros] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [estadoFilter, setEstadoFilter] = useState<string>("all")
-  const [modalOpen, setModalOpen] = useState(false);
-
+  const [modalOpen, setModalOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
 
-  // Load user from Supabase auth
   useEffect(() => {
     const loadUser = async () => {
       const sessionUser = await authService.checkSession()
@@ -39,60 +31,39 @@ export function PreprocesoPage() {
   }, [router])
 
   useEffect(() => {
-    if (user) {
-      loadRegistros()
-    }
+    if (user) loadRegistros()
   }, [user])
 
   useEffect(() => {
-    applyFilters()
-  }, [registros, searchTerm, estadoFilter])
-
-  const loadRegistros = async () => {
-    if (!user) return;
-
-    try {
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from("preseleccion")
-        .select("*")
-        .eq("tenant_id", user.tenantId);
-      if (error) {
-        console.error("Error al cargar registros:", error);
-        setRegistros([]);
-      } else {
-        setRegistros(data || []);
-      }
-    } catch (error) {
-      console.error("Error al cargar registros:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const applyFilters = () => {
     let filtered = registros
-
     if (searchTerm) {
       filtered = filtered.filter(
         (registro) =>
-          (registro.loteIngreso?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-          (registro.tipoFruta?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-          (registro.responsable?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+          (registro.semana?.toString().includes(searchTerm)) ||
+          (registro.fecha?.toLowerCase().includes(searchTerm.toLowerCase()))
       )
     }
-
-    if (estadoFilter !== "all") {
-      filtered = filtered.filter((registro) => registro.estado === estadoFilter)
-    }
-
     filtered = filtered.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
-
     setFilteredRegistros(filtered)
+  }, [registros, searchTerm])
+
+  const loadRegistros = async () => {
+    if (!user?.tenantId) return
+    setIsLoading(true)
+    const { data, error } = await supabase
+      .from("preseleccion")
+      .select("*")
+      .eq("tenant_id", user.tenantId)
+    setIsLoading(false)
+    if (error) {
+      setRegistros([])
+    } else {
+      setRegistros(data || [])
+    }
   }
 
   const exportToCSV = () => {
-    const headers = ["Fecha", "Semana", "Duración", "Bin Volcados", "Ritmo Máquina", "Duración Proceso", "Bin Pleno", "Bin Intermedio l", "Bin Intermedio ll", "Bin Incipiente", "Cant. Personal"]
+    const headers = ["Fecha", "Semana", "Duración", "Bin Volcados", "Ritmo Máquina", "Duración Proceso", "Bin Pleno", "Bin Intermedio I", "Bin Intermedio II", "Bin Incipiente", "Cant. Personal"]
     const csvData = [
       headers.join(","),
       ...filteredRegistros.map((registro) => [
@@ -103,13 +74,12 @@ export function PreprocesoPage() {
         registro.ritmo_maquina,
         registro.duracion_proceso,
         registro.bin_pleno,
-        registro.bin_intermedio_l,
-        registro.bin_intermedio_ll,
+        registro.bin_intermedio_I,
+        registro.bin_intermedio_II,
         registro.bin_incipiente,
         registro.cant_personal
       ].join(","))
     ].join("\n")
-
     const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
     const url = URL.createObjectURL(blob)
@@ -132,7 +102,6 @@ export function PreprocesoPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button variant="outline" size="sm" onClick={() => router.push('/empaque')}>
@@ -157,11 +126,10 @@ export function PreprocesoPage() {
             open={modalOpen}
             onClose={() => setModalOpen(false)}
             onCreated={loadRegistros}
+            tenantId={user.tenantId}
           />
         </div>
       </div>
-
-      {/* Records Table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -188,8 +156,8 @@ export function PreprocesoPage() {
                   <TableHead>Ritmo Máquina</TableHead>
                   <TableHead>Duración Proceso</TableHead>
                   <TableHead>Bin Pleno</TableHead>
-                  <TableHead>Bin Intermedio l</TableHead>
-                  <TableHead>Bin Intermedio ll</TableHead>
+                  <TableHead>Bin Intermedio I</TableHead>
+                  <TableHead>Bin Intermedio II</TableHead>
                   <TableHead>Bin Incipiente</TableHead>
                   <TableHead>Cant. Personal</TableHead>
                 </TableRow>
@@ -204,8 +172,8 @@ export function PreprocesoPage() {
                     <TableCell>{registro.ritmo_maquina}</TableCell>
                     <TableCell>{registro.duracion_proceso}</TableCell>
                     <TableCell>{registro.bin_pleno}</TableCell>
-                    <TableCell>{registro.bin_intermedio_l}</TableCell>
-                    <TableCell>{registro.bin_intermedio_ll}</TableCell>
+                    <TableCell>{registro.bin_intermedio_I}</TableCell>
+                    <TableCell>{registro.bin_intermedio_II}</TableCell>
                     <TableCell>{registro.bin_incipiente}</TableCell>
                     <TableCell>{registro.cant_personal}</TableCell>
                   </TableRow>

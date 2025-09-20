@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+"use client"
+import { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { authService } from "../../lib/supabaseAuth";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  tenantId: string;
 }
 
-export default function PreprocesoFormModal({ open, onClose, onCreated }: Props) {
+export default function PreprocesoFormModal({ open, onClose, onCreated, tenantId }: Props) {
   const [form, setForm] = useState({
     semana: "",
     fecha: "",
@@ -17,8 +18,8 @@ export default function PreprocesoFormModal({ open, onClose, onCreated }: Props)
     ritmo_maquina: "",
     duracion_proceso: "",
     bin_pleno: "",
-    bin_intermedio_l: "", // corregido
-    bin_intermedio_ll: "", // corregido
+    bin_intermedio_I: "",
+    bin_intermedio_II: "",
     bin_incipiente: "",
     cant_personal: "",
   });
@@ -31,13 +32,6 @@ export default function PreprocesoFormModal({ open, onClose, onCreated }: Props)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    const user = await authService.checkSession();
-    if (!user) {
-      setLoading(false);
-      alert("No hay usuario autenticado.");
-      return;
-    }
     const { error } = await supabase.from("preseleccion").insert([{
       semana: Number(form.semana),
       fecha: form.fecha ? new Date(form.fecha).toISOString() : null,
@@ -46,11 +40,11 @@ export default function PreprocesoFormModal({ open, onClose, onCreated }: Props)
       ritmo_maquina: Number(form.ritmo_maquina),
       duracion_proceso: Number(form.duracion_proceso),
       bin_pleno: Number(form.bin_pleno),
-      bin_intermedio_l: Number(form.bin_intermedio_l),
-      bin_intermedio_ll: Number(form.bin_intermedio_ll),
+      bin_intermedio_I: Number(form.bin_intermedio_I),
+      bin_intermedio_II: Number(form.bin_intermedio_II),
       bin_incipiente: Number(form.bin_incipiente),
       cant_personal: Number(form.cant_personal),
-      tenant_id: user.tenantId,
+      tenant_id: tenantId,
     }]);
     setLoading(false);
     if (!error) {
@@ -64,8 +58,8 @@ export default function PreprocesoFormModal({ open, onClose, onCreated }: Props)
         ritmo_maquina: "",
         duracion_proceso: "",
         bin_pleno: "",
-        bin_intermedio_l: "",
-        bin_intermedio_ll: "",
+        bin_intermedio_I: "",
+        bin_intermedio_II: "",
         bin_incipiente: "",
         cant_personal: "",
       });
@@ -88,8 +82,8 @@ export default function PreprocesoFormModal({ open, onClose, onCreated }: Props)
           <input name="ritmo_maquina" type="number" placeholder="Ritmo Máquina" value={form.ritmo_maquina} onChange={handleChange} required />
           <input name="duracion_proceso" type="number" placeholder="Duración Proceso" value={form.duracion_proceso} onChange={handleChange} required />
           <input name="bin_pleno" type="number" placeholder="Bin Pleno" value={form.bin_pleno} onChange={handleChange} required />
-          <input name="bin_intermedio_l" type="number" placeholder="Bin Intermedio l" value={form.bin_intermedio_l} onChange={handleChange} required />
-          <input name="bin_intermedio_ll" type="number" placeholder="Bin Intermedio ll" value={form.bin_intermedio_ll} onChange={handleChange} required />
+          <input name="bin_intermedio_I" type="number" placeholder="Bin Intermedio I" value={form.bin_intermedio_I} onChange={handleChange} required />
+          <input name="bin_intermedio_II" type="number" placeholder="Bin Intermedio II" value={form.bin_intermedio_II} onChange={handleChange} required />
           <input name="bin_incipiente" type="number" placeholder="Bin Incipiente" value={form.bin_incipiente} onChange={handleChange} required />
           <input name="cant_personal" type="number" placeholder="Cantidad Personal" value={form.cant_personal} onChange={handleChange} required />
           <button type="submit" disabled={loading}>{loading ? "Guardando..." : "Guardar"}</button>

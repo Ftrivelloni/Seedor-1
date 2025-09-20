@@ -131,8 +131,8 @@ export interface Preproceso {
   ritmo_maquina: number
   duracion_proceso: number
   bin_pleno: number
-  bin_intermedio_l: number
-  bin_intermedio_ll: number
+  bin_intermedio_I: number
+  bin_intermedio_II: number
   bin_incipiente: number
   cant_personal: number
 }
