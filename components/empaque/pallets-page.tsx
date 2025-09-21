@@ -6,7 +6,21 @@ import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
 import PalletsFormModal from "./pallets-form-modal"
 import { authService } from "../../lib/supabaseAuth"
-import type { Pallet } from "../../lib/types"
+// Si tenés un tipo Pallet propio, podés mantenerlo; acá uso uno derivado.
+type Pallet = {
+    id: string
+    codigo: string
+    fechaCreacion: string | null
+    tipoFruta: string
+    cantidadCajas: number | null
+    pesoTotal: number | null
+    loteOrigen: string | null
+    ubicacion: string | null
+    estado: "armado" | "en_camara" | "listo_despacho" | "despachado" | string | null
+    destino: string | null
+    temperaturaAlmacen: number | null
+    fechaVencimiento: string | null
+}
 
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -14,59 +28,54 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Badge } from "../ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-
 import {
-    Plus,
-    Search,
-    Download,
-    Archive,
-    MapPin,
-    Thermometer,
-    Calendar,
-    Package,
-    ArrowLeft,
-    ChevronLeft,
-    ChevronRight,
-    Boxes
+    Plus, Search, Download, Archive, MapPin, Thermometer, Calendar, Package,
+    ArrowLeft, ChevronLeft, ChevronRight, Boxes
 } from "lucide-react"
 
-// === util badges ===
+// --- badge de estado (igual al tuyo)
 function EstadoBadge({ estado }: { estado: Pallet["estado"] }) {
     switch (estado) {
         case "armado":
-            return (
-                <Badge variant="secondary">
-                    <Package className="mr-1 h-3 w-3" />
-                    Armado
-                </Badge>
-            )
+            return <Badge variant="secondary"><Package className="mr-1 h-3 w-3" />Armado</Badge>
         case "en_camara":
-            return (
-                <Badge variant="default" className="bg-blue-500">
-                    <Thermometer className="mr-1 h-3 w-3" />
-                    En Cámara
-                </Badge>
-            )
+            return <Badge variant="default" className="bg-blue-500"><Thermometer className="mr-1 h-3 w-3" />En Cámara</Badge>
         case "listo_despacho":
-            return (
-                <Badge variant="default" className="bg-green-500">
-                    <Archive className="mr-1 h-3 w-3" />
-                    Listo Despacho
-                </Badge>
-            )
+            return <Badge variant="default" className="bg-green-500"><Archive className="mr-1 h-3 w-3" />Listo Despacho</Badge>
         case "despachado":
-            return (
-                <Badge variant="outline">
-                    <Download className="mr-1 h-3 w-3" />
-                    Despachado
-                </Badge>
-            )
+            return <Badge variant="outline"><Download className="mr-1 h-3 w-3" />Despachado</Badge>
         default:
-            return <Badge variant="outline">{estado}</Badge>
+            return <Badge variant="outline">{estado ?? "N/D"}</Badge>
+    }
+}
+
+/**
+ * Normaliza una fila cruda de Supabase (columnas del modal)
+ * a la forma que la UI usa.
+ *
+ * Modal guarda: semana, fecha, num_pallet, producto, productor, categoria,
+ * cod_envase, destino, kilos, cant_cajas, peso. :contentReference[oaicite:3]{index=3}
+ */
+function normalizeRow(row: any): Pallet {
+    const id = String(row.id ?? `${row.num_pallet ?? "np"}-${row.fecha ?? "s/fecha"}`)
+    return {
+        id,
+        codigo: String(row.num_pallet ?? row.codigo ?? id),
+        fechaCreacion: row.fecha ?? row.fechaCreacion ?? null,
+        tipoFruta: row.producto ?? row.tipoFruta ?? "",
+        cantidadCajas: row.cant_cajas ?? row.cantidadCajas ?? null,
+        pesoTotal: row.kilos ?? row.pesoTotal ?? row.peso ?? null,
+        loteOrigen: row.lote_origen ?? row.loteOrigen ?? null,
+        ubicacion: row.ubicacion ?? null,
+        estado: row.estado ?? "armado",
+        destino: row.destino ?? null,
+        temperaturaAlmacen: row.temperatura ?? row.temperaturaAlmacen ?? null,
+        fechaVencimiento: row.vencimiento ?? row.fechaVencimiento ?? null,
     }
 }
 
 export function PalletsPage() {
+    const [raw, setRaw] = useState<any[]>([])
     const [pallets, setPallets] = useState<Pallet[]>([])
     const [filtered, setFiltered] = useState<Pallet[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -82,39 +91,39 @@ export function PalletsPage() {
     const [user, setUser] = useState<any>(null)
     const router = useRouter()
 
-    // ===== auth =====
+    // --- auth
     useEffect(() => {
         const loadUser = async () => {
             const sessionUser = await authService.checkSession()
-            if (!sessionUser) {
-                router.push("/login")
-                return
-            }
+            if (!sessionUser) { router.push("/login"); return }
             setUser(sessionUser)
         }
         loadUser()
     }, [router])
 
-    // ===== data =====
+    // --- fetch
+    const fetchPallets = async (tenantId: string) => {
+        setIsLoading(true)
+        const { data, error } = await supabase
+            .from("pallets")
+            .select("*")
+            .eq("tenant_id", tenantId)
+        setIsLoading(false)
+        if (error) {
+            console.error("Error al cargar pallets:", error)
+            setRaw([])
+            setPallets([])
+            return
+        }
+        setRaw(data || [])
+        setPallets((data || []).map(normalizeRow))
+    }
+
     useEffect(() => {
-        if (!user?.tenantId) return
-            ;(async () => {
-            setIsLoading(true)
-            const { data, error } = await supabase
-                .from("pallets")
-                .select("*")
-                .eq("tenant_id", user.tenantId)
-            setIsLoading(false)
-            if (error) {
-                console.error("Error al cargar pallets:", error)
-                setPallets([])
-            } else {
-                setPallets(data || [])
-            }
-        })()
+        if (user?.tenantId) fetchPallets(user.tenantId)
     }, [user])
 
-    // ===== filters/search/sort =====
+    // --- filtros / búsqueda / orden
     useEffect(() => {
         let list = [...pallets]
 
@@ -122,41 +131,35 @@ export function PalletsPage() {
             const q = searchTerm.toLowerCase()
             list = list.filter((p) =>
                 [
-                    p.codigo,
-                    p.tipoFruta,
-                    p.loteOrigen,
-                    p.destino ?? "",
-                    p.ubicacion ?? "",
-                    String(p.cantidadCajas ?? ""),
-                    String(p.pesoTotal ?? ""),
+                    p.codigo, p.tipoFruta, p.loteOrigen ?? "", p.destino ?? "",
+                    p.ubicacion ?? "", String(p.cantidadCajas ?? ""), String(p.pesoTotal ?? "")
                 ]
-                    .map((x) => (x ?? "").toLowerCase())
+                    .map((x) => x.toString().toLowerCase())
                     .some((v) => v.includes(q))
             )
         }
 
-        if (estadoFilter !== "all") {
-            list = list.filter((p) => p.estado === estadoFilter)
-        }
+        if (estadoFilter !== "all") list = list.filter((p) => (p.estado ?? "").toString() === estadoFilter)
+        if (ubicacionFilter !== "all") list = list.filter((p) => (p.ubicacion ?? "").toLowerCase() === ubicacionFilter.toLowerCase())
 
-        if (ubicacionFilter !== "all") {
-            list = list.filter((p) => (p.ubicacion ?? "").toLowerCase() === ubicacionFilter.toLowerCase())
-        }
-
-        list.sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime())
+        // fecha robusta
+        list.sort((a, b) => {
+            const ta = a.fechaCreacion ? new Date(a.fechaCreacion).getTime() : -Infinity
+            const tb = b.fechaCreacion ? new Date(b.fechaCreacion).getTime() : -Infinity
+            return tb - ta
+        })
 
         setFiltered(list)
         setPage(1)
     }, [pallets, searchTerm, estadoFilter, ubicacionFilter])
 
-    // ===== ubicaciones únicas =====
+    // --- ubicaciones únicas
     const ubicaciones = useMemo(
-        () =>
-            Array.from(new Set(pallets.map((p) => p.ubicacion).filter(Boolean))).sort() as string[],
+        () => Array.from(new Set(pallets.map((p) => p.ubicacion).filter(Boolean))).sort() as string[],
         [pallets]
     )
 
-    // ===== KPIs =====
+    // --- KPIs
     const stats = useMemo(() => {
         const totalCajas = filtered.reduce((s, p) => s + (p.cantidadCajas || 0), 0)
         const totalPeso = filtered.reduce((s, p) => s + (p.pesoTotal || 0), 0)
@@ -165,33 +168,16 @@ export function PalletsPage() {
         return { totalCajas, totalPeso, enCamara, listoDespacho }
     }, [filtered])
 
-    // ===== CSV =====
+    // --- CSV
     const exportToCSV = () => {
         const headers = [
-            "Código",
-            "Fecha",
-            "Tipo Fruta",
-            "Cajas",
-            "Peso Total (kg)",
-            "Lote Origen",
-            "Ubicación",
-            "Estado",
-            "Destino",
-            "Temperatura (°C)",
-            "Vencimiento",
+            "Código","Fecha","Tipo Fruta","Cajas","Peso Total (kg)","Lote Origen",
+            "Ubicación","Estado","Destino","Temperatura (°C)","Vencimiento",
         ]
         const rows = filtered.map((p) => [
-            p.codigo,
-            p.fechaCreacion,
-            `"${p.tipoFruta}"`,
-            p.cantidadCajas ?? "",
-            p.pesoTotal ?? "",
-            p.loteOrigen ?? "",
-            `"${p.ubicacion ?? ""}"`,
-            p.estado ?? "",
-            `"${p.destino ?? ""}"`,
-            p.temperaturaAlmacen ?? "",
-            p.fechaVencimiento ?? "",
+            p.codigo, p.fechaCreacion ?? "", `"${p.tipoFruta}"`, p.cantidadCajas ?? "",
+            p.pesoTotal ?? "", p.loteOrigen ?? "", `"${p.ubicacion ?? ""}"`,
+            p.estado ?? "", `"${p.destino ?? ""}"`, p.temperaturaAlmacen ?? "", p.fechaVencimiento ?? "",
         ])
         const csv = [headers, ...rows].map((r) => r.join(",")).join("\n")
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
@@ -203,7 +189,7 @@ export function PalletsPage() {
         URL.revokeObjectURL(url)
     }
 
-    // ===== pagination =====
+    // --- paginación
     const totalRows = filtered.length
     const totalPages = Math.max(1, Math.ceil(totalRows / pageSize))
     const start = (page - 1) * pageSize
@@ -267,17 +253,7 @@ export function PalletsPage() {
                     <PalletsFormModal
                         open={modalOpen}
                         onClose={() => setModalOpen(false)}
-                        onCreated={() => {
-                            // recargar lista
-                            if (!user?.tenantId) return
-                                ;(async () => {
-                                const { data, error } = await supabase
-                                    .from("pallets")
-                                    .select("*")
-                                    .eq("tenant_id", user.tenantId)
-                                if (!error) setPallets(data || [])
-                            })()
-                        }}
+                        onCreated={() => { if (user?.tenantId) fetchPallets(user.tenantId) }}
                         tenantId={user.tenantId}
                     />
                 </div>
@@ -307,9 +283,7 @@ export function PalletsPage() {
                         <CardDescription>en resultados</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">
-                            {stats.totalCajas.toLocaleString()}
-                        </div>
+                        <div className="text-2xl font-bold">{filtered.reduce((s, p) => s + (p.cantidadCajas || 0), 0).toLocaleString()}</div>
                     </CardContent>
                 </Card>
 
@@ -322,7 +296,7 @@ export function PalletsPage() {
                         <CardDescription>pallets</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-blue-600">{stats.enCamara}</div>
+                        <div className="text-2xl font-bold text-blue-600">{filtered.filter((p) => p.estado === "en_camara").length}</div>
                     </CardContent>
                 </Card>
 
@@ -335,100 +309,10 @@ export function PalletsPage() {
                         <CardDescription>pallets</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-green-600">{stats.listoDespacho}</div>
+                        <div className="text-2xl font-bold text-green-600">{filtered.filter((p) => p.estado === "listo_despacho").length}</div>
                     </CardContent>
                 </Card>
             </div>
-
-            {/* Filtros (mobile) */}
-            <Card className="sm:hidden">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Search className="h-5 w-5" />
-                        Buscar y filtrar
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <Input
-                        placeholder="Buscar por código, fruta, lote, destino…"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    <Select value={estadoFilter} onValueChange={setEstadoFilter}>
-                        <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Estado" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos los estados</SelectItem>
-                            <SelectItem value="armado">Armado</SelectItem>
-                            <SelectItem value="en_camara">En Cámara</SelectItem>
-                            <SelectItem value="listo_despacho">Listo Despacho</SelectItem>
-                            <SelectItem value="despachado">Despachado</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Select value={ubicacionFilter} onValueChange={setUbicacionFilter}>
-                        <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Ubicación" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas las ubicaciones</SelectItem>
-                            {ubicaciones.map((u) => (
-                                <SelectItem key={u} value={u}>
-                                    {u}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </CardContent>
-            </Card>
-
-            {/* Barra de filtros (desktop) */}
-            <Card className="hidden sm:block">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Search className="h-5 w-5" />
-                        Buscar y filtrar
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                        <div className="relative flex-1">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Buscar por código, fruta, lote o destino…"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
-                        <Select value={estadoFilter} onValueChange={setEstadoFilter}>
-                            <SelectTrigger className="w-full md:w-48">
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos los estados</SelectItem>
-                                <SelectItem value="armado">Armado</SelectItem>
-                                <SelectItem value="en_camara">En Cámara</SelectItem>
-                                <SelectItem value="listo_despacho">Listo Despacho</SelectItem>
-                                <SelectItem value="despachado">Despachado</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Select value={ubicacionFilter} onValueChange={setUbicacionFilter}>
-                            <SelectTrigger className="w-full md:w-48">
-                                <SelectValue placeholder="Ubicación" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas las ubicaciones</SelectItem>
-                                {ubicaciones.map((u) => (
-                                    <SelectItem key={u} value={u}>
-                                        {u}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </CardContent>
-            </Card>
 
             {/* Tabla */}
             <Card>
@@ -437,9 +321,7 @@ export function PalletsPage() {
                         <Archive className="h-5 w-5" />
                         Pallets
                     </CardTitle>
-                    <CardDescription>
-                        {filtered.length} de {pallets.length} pallets
-                    </CardDescription>
+                    <CardDescription>{filtered.length} de {pallets.length} pallets</CardDescription>
                 </CardHeader>
 
                 <CardContent className="space-y-3">
@@ -468,13 +350,9 @@ export function PalletsPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {pageRows.map((p) => {
-                                            const diasVenc =
-                                                p.fechaVencimiento != null
-                                                    ? Math.ceil(
-                                                        (new Date(p.fechaVencimiento).getTime() - new Date().getTime()) /
-                                                        (1000 * 60 * 60 * 24)
-                                                    )
-                                                    : null
+                                            const diasVenc = p.fechaVencimiento != null
+                                                ? Math.ceil((new Date(p.fechaVencimiento).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                                                : null
                                             const nearDue = diasVenc !== null && diasVenc <= 3
 
                                             return (
@@ -486,24 +364,16 @@ export function PalletsPage() {
                                                         {p.fechaCreacion ? new Date(p.fechaCreacion).toLocaleDateString() : "-"}
                                                     </TableCell>
                                                     <TableCell className="py-2 text-center align-middle">{p.tipoFruta}</TableCell>
-                                                    <TableCell className="py-2 text-center align-middle">
-                                                        {p.cantidadCajas?.toLocaleString() ?? 0}
-                                                    </TableCell>
-                                                    <TableCell className="py-2 text-center align-middle">
-                                                        {p.pesoTotal?.toLocaleString() ?? 0}
-                                                    </TableCell>
-                                                    <TableCell className="py-2 text-center align-middle font-mono text-xs">
-                                                        {p.loteOrigen}
-                                                    </TableCell>
+                                                    <TableCell className="py-2 text-center align-middle">{p.cantidadCajas?.toLocaleString() ?? 0}</TableCell>
+                                                    <TableCell className="py-2 text-center align-middle">{p.pesoTotal?.toLocaleString() ?? 0}</TableCell>
+                                                    <TableCell className="py-2 text-center align-middle font-mono text-xs">{p.loteOrigen}</TableCell>
                                                     <TableCell className="py-2 text-center align-middle">
                                                         <div className="inline-flex items-center gap-1">
                                                             <MapPin className="h-3 w-3 text-muted-foreground" />
                                                             <span className="text-sm">{p.ubicacion}</span>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="py-2 text-center align-middle">
-                                                        <EstadoBadge estado={p.estado} />
-                                                    </TableCell>
+                                                    <TableCell className="py-2 text-center align-middle"><EstadoBadge estado={p.estado} /></TableCell>
                                                     <TableCell className="py-2 text-center align-middle">
                                                         {p.destino || <span className="text-muted-foreground">Sin asignar</span>}
                                                     </TableCell>
@@ -523,9 +393,7 @@ export function PalletsPage() {
                                                                 <Calendar className="h-3 w-3" />
                                                                 <span className="text-xs">
                                   {new Date(p.fechaVencimiento).toLocaleDateString()}{" "}
-                                                                    {diasVenc !== null && (
-                                                                        <span className="ml-1">({diasVenc > 0 ? `${diasVenc}d` : "Vencido"})</span>
-                                                                    )}
+                                                                    {diasVenc !== null && <span className="ml-1">({diasVenc > 0 ? `${diasVenc}d` : "Vencido"})</span>}
                                 </span>
                                                             </div>
                                                         ) : (
@@ -550,15 +418,9 @@ export function PalletsPage() {
                                         <span className="text-sm text-muted-foreground">Filas por página</span>
                                         <Select
                                             value={String(pageSize)}
-                                            onValueChange={(v) => {
-                                                const ps = Number(v)
-                                                setPageSize(ps)
-                                                setPage(1)
-                                            }}
+                                            onValueChange={(v) => { const ps = Number(v); setPageSize(ps); setPage(1) }}
                                         >
-                                            <SelectTrigger className="h-8 w-[90px]">
-                                                <SelectValue />
-                                            </SelectTrigger>
+                                            <SelectTrigger className="h-8 w-[90px]"><SelectValue /></SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="10">10</SelectItem>
                                                 <SelectItem value="25">25</SelectItem>

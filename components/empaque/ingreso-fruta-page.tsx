@@ -147,6 +147,20 @@ export function IngresoFrutaPage() {
     const goPrev = () => setPage((p) => Math.max(1, p - 1))
     const goNext = () => setPage((p) => Math.min(totalPages, p + 1))
 
+    // ========= KEYS ÚNICAS (nuevo) =========
+    const pageRowsWithKey = useMemo(() => {
+        return pageRows.map((r, i) => {
+            const base =
+                r?.id ??
+                r?.num_ticket ??
+                r?.num_remito ??
+                (r?.fecha ? new Date(r.fecha).getTime() : "s/fecha")
+            // Combinamos con la posición visible para evitar colisiones
+            const __key = String(base) + "-" + (start + i)
+            return { ...r, __key }
+        })
+    }, [pageRows, start])
+
     if (!user) {
         return (
             <div className="flex h-64 items-center justify-center">
@@ -298,11 +312,11 @@ export function IngresoFrutaPage() {
                                 <tbody>
                                 {isLoading ? (
                                     <tr><td colSpan={10} className="px-3 py-6 text-center text-muted-foreground">Cargando…</td></tr>
-                                ) : pageRows.length === 0 ? (
+                                ) : pageRowsWithKey.length === 0 ? (
                                     <tr><td colSpan={10} className="px-3 py-6 text-center text-muted-foreground">Sin registros</td></tr>
                                 ) : (
-                                    pageRows.map((r) => (
-                                        <tr key={`gen-${r.id}`} className="hover:bg-muted/50">
+                                    pageRowsWithKey.map((r) => (
+                                        <tr key={`gen-${r.__key}`} className="hover:bg-muted/50">
                                             <td className="sticky left-0 z-10 bg-background px-3 py-2 text-center align-middle">
                                                 {r.fecha ? new Date(r.fecha).toLocaleDateString() : ""}
                                             </td>
@@ -345,11 +359,11 @@ export function IngresoFrutaPage() {
                                 <tbody>
                                 {isLoading ? (
                                     <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Cargando…</td></tr>
-                                ) : pageRows.length === 0 ? (
+                                ) : pageRowsWithKey.length === 0 ? (
                                     <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Sin registros</td></tr>
                                 ) : (
-                                    pageRows.map((r) => (
-                                        <tr key={`tr-${r.id}`} className="hover:bg-muted/50">
+                                    pageRowsWithKey.map((r) => (
+                                        <tr key={`tr-${r.__key}`} className="hover:bg-muted/50">
                                             <td className="px-3 py-2 text-center align-middle">{r.transporte ?? "-"}</td>
                                             <td className="px-3 py-2 text-center align-middle">{r.chofer ?? "-"}</td>
                                             <td className="px-3 py-2 text-center align-middle">{r.chasis ?? "-"}</td>
@@ -383,11 +397,11 @@ export function IngresoFrutaPage() {
                                 <tbody>
                                 {isLoading ? (
                                     <tr><td colSpan={3} className="px-3 py-6 text-center text-muted-foreground">Cargando…</td></tr>
-                                ) : pageRows.length === 0 ? (
+                                ) : pageRowsWithKey.length === 0 ? (
                                     <tr><td colSpan={3} className="px-3 py-6 text-center text-muted-foreground">Sin registros</td></tr>
                                 ) : (
-                                    pageRows.map((r) => (
-                                        <tr key={`bp-${r.id}`} className="hover:bg-muted/50">
+                                    pageRowsWithKey.map((r) => (
+                                        <tr key={`bp-${r.__key}`} className="hover:bg-muted/50">
                                             <td className="px-3 py-2 text-center align-middle">{r.cant_bin ?? "-"}</td>
                                             <td className="px-3 py-2 text-center align-middle">{r.tipo_bin ?? "-"}</td>
                                             <td className="px-3 py-2 text-center align-middle">{r.peso_neto ?? "-"}</td>
