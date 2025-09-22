@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
 import { FinanzasFormModal } from "./finanzas-form-modal"
 import { finanzasApi } from "../../lib/api"
-import { authService } from "../../lib/auth"
+import { authService } from "../../lib/supabaseAuth"
 import type { MovimientoCaja } from "../../lib/mocks"
 import { Plus, Search, Download, DollarSign, TrendingUp, TrendingDown, FileText } from "lucide-react"
 

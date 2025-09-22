@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { authService } from "../../lib/supabaseAuth"
+import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 
 import { IngresoFrutaFormModal } from "./ingreso-fruta-form-modal"
 import { Button } from "../ui/button"
@@ -99,42 +100,41 @@ export function IngresoFrutaPage() {
         [filtered]
     )
 
-    // ========= CSV =========
-    const exportToCSV = () => {
-        const headers = [
-            "Fecha","Ticket","Remito","Productor","Finca","Producto","Lote",
-            "Contratista","Tipo cosecha","Liquidación","Transporte","Chofer",
-            "Chasis","Acoplado","Operario","Cant. bins","Tipo bin","Peso neto (kg)"
-        ]
-        const rows = filtered.map((r) => [
-            r.fecha ?? "",
-            r.num_ticket ?? "",
-            r.num_remito ?? "",
-            `"${r.productor ?? ""}"`,
-            `"${r.finca ?? ""}"`,
-            `"${r.producto ?? ""}"`,
-            r.lote ?? "",
-            `"${r.contratista ?? ""}"`,
-            `"${r.tipo_cosecha ?? ""}"`,
-            r.estado_liquidacion ? "Sí" : "No",
-            `"${r.transporte ?? ""}"`,
-            `"${r.chofer ?? ""}"`,
-            `"${r.chasis ?? ""}"`,
-            `"${r.acoplado ?? ""}"`,
-            `"${r.operario ?? ""}"`,
-            r.cant_bin ?? "",
-            `"${r.tipo_bin ?? ""}"`,
-            r.peso_neto ?? "",
-        ])
+    // ========= Excel Export =========
+    const exportToExcel = () => {
+        const headers = {
+            fecha: "Fecha",
+            num_ticket: "Ticket",
+            num_remito: "Remito",
+            productor: "Productor",
+            finca: "Finca",
+            producto: "Producto",
+            lote: "Lote",
+            contratista: "Contratista",
+            tipo_cosecha: "Tipo cosecha",
+            estado_liquidacion: "Liquidación",
+            transporte: "Transporte",
+            chofer: "Chofer",
+            chasis: "Chasis",
+            acoplado: "Acoplado",
+            operario: "Operario",
+            cant_bin: "Cant. bins",
+            tipo_bin: "Tipo bin",
+            peso_neto: "Peso neto (kg)"
+        }
 
-        const csv = [headers, ...rows].map((r) => r.join(",")).join("\n")
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = `ingreso-fruta-${new Date().toISOString().slice(0, 10)}.csv`
-        a.click()
-        URL.revokeObjectURL(url)
+        // Transform liquidación boolean to text
+        const dataWithTransformations = filtered.map(r => ({
+            ...r,
+            estado_liquidacion: r.estado_liquidacion ? "Sí" : "No"
+        }))
+
+        exportDataToExcel({
+            data: dataWithTransformations,
+            filename: "ingreso-fruta",
+            sheetName: "Ingreso Fruta",
+            headers
+        })
     }
 
     // ========= Paginación =========
@@ -202,9 +202,9 @@ export function IngresoFrutaPage() {
                         />
                     </div>
 
-                    <Button variant="outline" onClick={exportToCSV} disabled={filtered.length === 0}>
+                    <Button variant="outline" onClick={exportToExcel} disabled={filtered.length === 0}>
                         <Download className="mr-2 h-4 w-4" />
-                        Exportar CSV
+                        Exportar Excel
                     </Button>
 
                     <Button onClick={() => setModalOpen(true)}>

@@ -6,7 +6,7 @@ import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
 import { Badge } from "@/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card"
-import { authService } from "@lib/auth"
+import { authService } from "@lib/supabaseAuth"
 import { User, Building, Shield, Settings, Info, CheckCircle, XCircle } from "lucide-react"
 
 const rolePermissions = {
@@ -70,7 +70,7 @@ export function AjustesPage() {
     )
   }
 
-  const userPermissions = rolePermissions[user.rol]
+  const userPermissions = rolePermissions[user.rol as keyof typeof rolePermissions]
 
   const handleEditName = () => {
     setEditedName(user.nombre)
@@ -167,12 +167,12 @@ export function AjustesPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="tenant-nombre">Nombre de la Empresa</Label>
-              <Input id="tenant-nombre" value={user.tenant.nombre} disabled />
+              <Input id="tenant-nombre" value={user.tenant.name} disabled />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="tenant-tipo">Tipo de Cultivo</Label>
-              <Input id="tenant-tipo" value={user.tenant.tipo} disabled />
+              <Input id="tenant-tipo" value={user.tenant.primary_crop} disabled />
             </div>
 
             <div className="space-y-2">
@@ -206,7 +206,7 @@ export function AjustesPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {userPermissions.permissions.map((permission) => (
+            {userPermissions?.permissions.map((permission: any) => (
               <div
                 key={permission.module}
                 className={`p-4 border rounded-lg ${

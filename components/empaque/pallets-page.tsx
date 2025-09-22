@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
 import PalletsFormModal from "./pallets-form-modal"
 import { authService } from "../../lib/supabaseAuth"
+import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 // Si tenés un tipo Pallet propio, podés mantenerlo; acá uso uno derivado.
 type Pallet = {
     id: string
@@ -168,25 +169,28 @@ export function PalletsPage() {
         return { totalCajas, totalPeso, enCamara, listoDespacho }
     }, [filtered])
 
-    // --- CSV
-    const exportToCSV = () => {
-        const headers = [
-            "Código","Fecha","Tipo Fruta","Cajas","Peso Total (kg)","Lote Origen",
-            "Ubicación","Estado","Destino","Temperatura (°C)","Vencimiento",
-        ]
-        const rows = filtered.map((p) => [
-            p.codigo, p.fechaCreacion ?? "", `"${p.tipoFruta}"`, p.cantidadCajas ?? "",
-            p.pesoTotal ?? "", p.loteOrigen ?? "", `"${p.ubicacion ?? ""}"`,
-            p.estado ?? "", `"${p.destino ?? ""}"`, p.temperaturaAlmacen ?? "", p.fechaVencimiento ?? "",
-        ])
-        const csv = [headers, ...rows].map((r) => r.join(",")).join("\n")
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = `pallets-${new Date().toISOString().slice(0, 10)}.csv`
-        a.click()
-        URL.revokeObjectURL(url)
+    // --- Excel Export
+    const exportToExcel = () => {
+        const headers = {
+            codigo: "Código",
+            fechaCreacion: "Fecha",
+            tipoFruta: "Tipo Fruta",
+            cantidadCajas: "Cajas",
+            pesoTotal: "Peso Total (kg)",
+            loteOrigen: "Lote Origen",
+            ubicacion: "Ubicación",
+            estado: "Estado",
+            destino: "Destino",
+            temperaturaAlmacen: "Temperatura (°C)",
+            fechaVencimiento: "Vencimiento"
+        }
+
+        exportDataToExcel({
+            data: filtered,
+            filename: "pallets",
+            sheetName: "Pallets",
+            headers
+        })
     }
 
     // --- paginación
@@ -240,9 +244,9 @@ export function PalletsPage() {
                         />
                     </div>
 
-                    <Button variant="outline" onClick={exportToCSV} disabled={filtered.length === 0}>
+                    <Button variant="outline" onClick={exportToExcel} disabled={filtered.length === 0}>
                         <Download className="mr-2 h-4 w-4" />
-                        Exportar CSV
+                        Exportar Excel
                     </Button>
 
                     <Button onClick={() => setModalOpen(true)}>

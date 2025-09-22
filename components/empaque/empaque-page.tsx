@@ -3,22 +3,20 @@
 import { supabase } from "../../lib/supabaseClient";
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
+import { Button } from "../ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
-import { EmpaqueFormModal } from "./empaque-form-modal"
 import { empaqueApi, ingresoFrutaApi, palletsApi, despachoApi } from "../../lib/api"
 import { authService } from "../../lib/supabaseAuth"
 import type { RegistroEmpaque } from "../../lib/mocks"
-import { Plus, Search, Download, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
+import { Search, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
 
 
 export function EmpaquePage() {
   const [registros, setRegistros] = useState<RegistroEmpaque[]>([])
   const [filteredRegistros, setFilteredRegistros] = useState<RegistroEmpaque[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isModalOpen, setIsModalOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   // Filtro y datos para la tabla de ingreso de fruta
   const [filtroFecha, setFiltroFecha] = useState("");
@@ -204,43 +202,8 @@ export function EmpaquePage() {
     setFilteredRegistros(filtered)
   }
 
-  const handleCreateRegistro = async (registroData: Omit<RegistroEmpaque, "id" | "kgDescartados">) => {
-    await empaqueApi.createRegistro(registroData)
-    await loadRegistros()
-  }
-
   const navigateToSubpage = (subpage: string) => {
     router.push(`/empaque/${subpage}`)
-  }
-
-  const exportToCSV = () => {
-    const headers = ["Fecha", "Cultivo", "Kg Entraron", "Kg Salieron", "Kg Descartados", "% Descarte", "Notas"]
-    const csvData = [
-      headers.join(","),
-      ...filteredRegistros.map((registro) => {
-        const porcentajeDescarte = ((registro.kgDescartados / registro.kgEntraron) * 100).toFixed(1)
-        return [
-          registro.fecha,
-          `"${registro.cultivo}"`,
-          registro.kgEntraron,
-          registro.kgSalieron,
-          registro.kgDescartados,
-          `${porcentajeDescarte}%`,
-          `"${registro.notas || ""}"`,
-        ].join(",")
-      }),
-    ].join("\n")
-
-    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    const url = URL.createObjectURL(blob)
-    link.setAttribute("href", url)
-    const today = new Date().toISOString().split("T")[0]
-    link.setAttribute("download", `registros-empaque-${today}.csv`)
-    link.style.visibility = "hidden"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
   }
 
   // Calculate statistics
@@ -274,16 +237,6 @@ export function EmpaquePage() {
         <div>
           <h1 className="text-2xl font-bold">Gestión de Empaque</h1>
           <p className="text-muted-foreground">Registros de procesamiento de fruta</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={exportToCSV} disabled={filteredRegistros.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            Exportar CSV
-          </Button>
-          <Button onClick={() => setIsModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Registro
-          </Button>
         </div>
       </div>
 
@@ -469,14 +422,6 @@ export function EmpaquePage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Form Modal */}
-      <EmpaqueFormModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleCreateRegistro}
-        tenantId={user.tenantId}
-      />
     </div>
   )
 }

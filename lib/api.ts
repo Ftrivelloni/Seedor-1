@@ -294,13 +294,14 @@ export const tenantApi = {
 export const campoApi = {
   async getTareas(tenantId: string): Promise<TareaCampo[]> {
     try {
+      // Try the database first, but expect it to fail since table doesn't exist properly
       const { data, error } = await supabase
         .from('tareas_campo')
         .select('*')
-        .eq('tenantId', tenantId);
+        .eq('tenant_id', tenantId); // Use snake_case for database
       
       if (error) {
-        console.error('Error fetching tareas:', error);
+        console.log('Supabase table not found, using mock data:', error.message);
         // Fallback to mock data if there's an error
         await delay(500);
         return tareasCampo.filter((t) => t.tenantId === tenantId);
@@ -308,7 +309,7 @@ export const campoApi = {
       
       return data as TareaCampo[];
     } catch (error) {
-      console.error('Error connecting to Supabase:', error);
+      console.log('Error connecting to Supabase, using mock data:', error);
       // Fallback to mock data
       await delay(500);
       return tareasCampo.filter((t) => t.tenantId === tenantId);

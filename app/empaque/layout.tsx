@@ -1,6 +1,6 @@
 "use client"
 
-
+import { useRouter } from "next/navigation"
 import { Sidebar } from "../../components/sidebar"
 import { useUser } from "../../components/auth/UserContext"
 
@@ -10,6 +10,7 @@ export default function EmpaqueLayout({
   children: React.ReactNode
 }) {
   const { user, loading } = useUser()
+  const router = useRouter()
 
   if (loading) {
     return (
@@ -20,9 +21,7 @@ export default function EmpaqueLayout({
   }
 
   if (!user) {
-    if (typeof window !== "undefined") {
-      window.location.href = "/login"
-    }
+    router.push("/login")
     return null
   }
 
@@ -30,13 +29,22 @@ export default function EmpaqueLayout({
     <div className="min-h-screen bg-background flex">
       <Sidebar 
         user={user} 
-        onLogout={() => { window.location.href = "/login" }} 
+        onLogout={() => { router.push("/login") }} 
         onNavigate={(page) => {
-          if (page === "empaque") {
-            window.location.href = "/empaque"
-          } else {
-            window.location.href = "/home"
-          }
+          // Map page names to their correct routes
+          const pageRoutes: Record<string, string> = {
+            dashboard: "/home",
+            campo: "/campo",
+            empaque: "/empaque",
+            inventario: "/inventario",
+            finanzas: "/finanzas",
+            ajustes: "/ajustes",
+            trabajadores: "/trabajadores",
+            contactos: "/contactos",
+          };
+
+          const targetRoute = pageRoutes[page] || "/home";
+          router.push(targetRoute);
         }} 
         currentPage="empaque" 
       />

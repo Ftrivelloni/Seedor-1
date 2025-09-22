@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { authService } from "../../lib/supabaseAuth"
 import { supabase } from "../../lib/supabaseClient"
 import { Plus, Download, ArrowLeft, Cog, Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 
 export function PreprocesoPage() {
     const [registros, setRegistros] = useState<any[]>([])
@@ -67,23 +68,27 @@ export function PreprocesoPage() {
         setRegistros(error ? [] : (data || []))
     }
 
-    const exportToCSV = () => {
-        const headers = ["Fecha","Semana","Duración","Bin Volcados","Ritmo Máquina","Duración Proceso","Bin Pleno","Bin Intermedio I","Bin Intermedio II","Bin Incipiente","Cant. Personal"]
-        const csvData = [
-            headers.join(","),
-            ...filteredRegistros.map((r) => [
-                r.fecha, r.semana, r.duracion, r.bin_volcados, r.ritmo_maquina,
-                r.duracion_proceso, r.bin_pleno, r.bin_intermedio_I, r.bin_intermedio_II,
-                r.bin_incipiente, r.cant_personal
-            ].join(","))
-        ].join("\n")
-        const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = `preproceso-${new Date().toISOString().slice(0,10)}.csv`
-        a.click()
-        URL.revokeObjectURL(url)
+    const exportToExcel = () => {
+        const headers = {
+            fecha: "Fecha",
+            semana: "Semana", 
+            duracion: "Duración",
+            bin_volcados: "Bin Volcados",
+            ritmo_maquina: "Ritmo Máquina",
+            duracion_proceso: "Duración Proceso",
+            bin_pleno: "Bin Pleno",
+            bin_intermedio_I: "Bin Intermedio I",
+            bin_intermedio_II: "Bin Intermedio II",
+            bin_incipiente: "Bin Incipiente",
+            cant_personal: "Cant. Personal"
+        }
+
+        exportDataToExcel({
+            data: filteredRegistros,
+            filename: "preproceso",
+            sheetName: "Preproceso",
+            headers
+        })
     }
 
     // datos paginados
@@ -129,9 +134,9 @@ export function PreprocesoPage() {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <Button variant="outline" onClick={exportToCSV} disabled={filteredRegistros.length === 0}>
+                    <Button variant="outline" onClick={exportToExcel} disabled={filteredRegistros.length === 0}>
                         <Download className="mr-2 h-4 w-4" />
-                        Exportar CSV
+                        Exportar Excel
                     </Button>
                     <Button onClick={() => setModalOpen(true)}>
                         <Plus className="mr-2 h-4 w-4" />

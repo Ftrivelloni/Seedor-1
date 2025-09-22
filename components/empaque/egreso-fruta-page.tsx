@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
 import { authService } from "../../lib/supabaseAuth"
+import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -83,29 +84,27 @@ export function EgresoFrutaPage() {
         setPage(1)
     }, [egresos, searchTerm])
 
-    // ========= CSV =========
-    const exportToCSV = () => {
-        const headers = ["Fecha","Producto","Peso Neto","Cliente","Finca","Remito","Chofer","Transporte","Chasis","Acoplado"]
-        const rows = filtered.map((e) => [
-            e.fecha,
-            `"${e.producto ?? ""}"`,
-            e.peso_neto ?? "",
-            `"${e.cliente ?? ""}"`,
-            `"${e.finca ?? ""}"`,
-            e.num_remito ?? "",
-            `"${e.chofer ?? ""}"`,
-            `"${e.transporte ?? ""}"`,
-            `"${e.chasis ?? ""}"`,
-            `"${e.acoplado ?? ""}"`,
-        ])
-        const csv = [headers, ...rows].map(r => r.join(",")).join("\n")
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = `egreso-fruta-${new Date().toISOString().slice(0,10)}.csv`
-        a.click()
-        URL.revokeObjectURL(url)
+    // ========= Excel Export =========
+    const exportToExcel = () => {
+        const headers = {
+            fecha: "Fecha",
+            producto: "Producto",
+            peso_neto: "Peso Neto",
+            cliente: "Cliente",
+            finca: "Finca",
+            num_remito: "Remito",
+            chofer: "Chofer",
+            transporte: "Transporte",
+            chasis: "Chasis",
+            acoplado: "Acoplado"
+        }
+
+        exportDataToExcel({
+            data: filtered,
+            filename: "egreso-fruta",
+            sheetName: "Egreso Fruta",
+            headers
+        })
     }
 
     // ========= Paginación =========
@@ -159,9 +158,9 @@ export function EgresoFrutaPage() {
                         />
                     </div>
 
-                    <Button variant="outline" onClick={exportToCSV} disabled={filtered.length === 0}>
+                    <Button variant="outline" onClick={exportToExcel} disabled={filtered.length === 0}>
                         <Download className="mr-2 h-4 w-4" />
-                        Exportar CSV
+                        Exportar Excel
                     </Button>
 
                     <Button onClick={() => setModalOpen(true)}>

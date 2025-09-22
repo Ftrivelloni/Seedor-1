@@ -9,9 +9,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
 import { TaskFormModal } from "./task-form-modal"
 import { campoApi } from "@lib/api"
-import { authService } from "@lib/auth"
+import { authService } from "@lib/supabaseAuth"
 import type { TareaCampo } from "@lib/types"
 import { Plus, Search, Filter, Edit, Trash2, Calendar, User } from "lucide-react"
+import { 
+  TASK_STATES, 
+  TASK_TYPES, 
+  getTaskTypeLabel, 
+  getTaskStateLabel,
+  getTaskStateBadgeVariant,
+  getTaskTypeBadgeVariant,
+  CAMPO_PERMISSION_ROLES,
+  hasFieldPermission,
+  getUniqueTaskTypes,
+  getUniqueTaskStates
+} from "@lib/constants/campo"
 
 export function CampoPage() {
   const [tareas, setTareas] = useState<TareaCampo[]>([])
@@ -113,39 +125,9 @@ export function CampoPage() {
 
   // Get unique values for filters
   const uniqueLotes = [...new Set(tareas.map((t) => t.lote))]
-  const uniqueTipos = [...new Set(tareas.map((t) => t.tipo))]
+  const uniqueTipos = getUniqueTaskTypes(tareas)
 
-  const getEstadoBadgeVariant = (estado: TareaCampo["estado"]) => {
-    switch (estado) {
-      case "pendiente":
-        return "secondary"
-      case "en-curso":
-        return "default"
-      case "completada":
-        return "outline"
-      default:
-        return "secondary"
-    }
-  }
-
-  const getTipoBadgeVariant = (tipo: TareaCampo["tipo"]) => {
-    switch (tipo) {
-      case "fertilizante":
-        return "default"
-      case "insecticida":
-        return "destructive"
-      case "poda":
-        return "secondary"
-      case "riego":
-        return "outline"
-      case "cosecha":
-        return "default"
-      default:
-        return "secondary"
-    }
-  }
-
-  if (!user || !["Admin", "Campo"].includes(user.rol)) {
+  if (!user || !hasFieldPermission([user.rol])) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
@@ -248,8 +230,8 @@ export function CampoPage() {
               <SelectContent>
                 <SelectItem value="all">Todos los tipos</SelectItem>
                 {uniqueTipos.map((tipo) => (
-                  <SelectItem key={tipo} value={tipo}>
-                    {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                  <SelectItem key={tipo.value} value={tipo.value}>
+                    {tipo.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -260,9 +242,11 @@ export function CampoPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value="pendiente">Pendiente</SelectItem>
-                <SelectItem value="en-curso">En Curso</SelectItem>
-                <SelectItem value="completada">Completada</SelectItem>
+                {TASK_STATES.map((estado) => (
+                  <SelectItem key={estado.value} value={estado.value}>
+                    {estado.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -311,15 +295,13 @@ export function CampoPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getTipoBadgeVariant(tarea.tipo)}>
-                        {tarea.tipo.charAt(0).toUpperCase() + tarea.tipo.slice(1)}
+                      <Badge variant={getTaskTypeBadgeVariant(tarea.tipo)}>
+                        {getTaskTypeLabel(tarea.tipo)}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getEstadoBadgeVariant(tarea.estado)}>
-                        {tarea.estado === "en-curso"
-                          ? "En Curso"
-                          : tarea.estado.charAt(0).toUpperCase() + tarea.estado.slice(1)}
+                      <Badge variant={getTaskStateBadgeVariant(tarea.estado)}>
+                        {getTaskStateLabel(tarea.estado)}
                       </Badge>
                     </TableCell>
                     <TableCell>

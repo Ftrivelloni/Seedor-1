@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card"
 import { Badge } from "@/ui/badge"
-import { authService } from "@lib/auth"
+import { authService } from "@lib/supabaseAuth"
 import { tareasCampo, movimientosCaja, inventario } from "@lib/mocks"
 import { Calendar, TrendingUp, AlertTriangle, DollarSign } from "lucide-react"
 

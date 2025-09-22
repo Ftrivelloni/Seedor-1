@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/ui/dialog"
 import type { TareaCampo } from "@lib/types"
+import { TASK_TYPES, TASK_STATES } from "@lib/constants/campo"
 
 interface TaskFormModalProps {
   isOpen: boolean
@@ -25,20 +26,6 @@ interface TaskFormModalProps {
   task?: TareaCampo
   tenantId: string
 }
-
-const tiposTarea = [
-  { value: "insecticida", label: "Insecticida" },
-  { value: "fertilizante", label: "Fertilizante" },
-  { value: "poda", label: "Poda" },
-  { value: "riego", label: "Riego" },
-  { value: "cosecha", label: "Cosecha" },
-]
-
-const estadosTarea = [
-  { value: "pendiente", label: "Pendiente" },
-  { value: "en-curso", label: "En Curso" },
-  { value: "completada", label: "Completada" },
-]
 
 export function TaskFormModal({ isOpen, onClose, onSubmit, task, tenantId }: TaskFormModalProps) {
   const [formData, setFormData] = useState({
@@ -129,7 +116,7 @@ export function TaskFormModal({ isOpen, onClose, onSubmit, task, tenantId }: Tas
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {tiposTarea.map((tipo) => (
+                  {TASK_TYPES.map((tipo) => (
                     <SelectItem key={tipo.value} value={tipo.value}>
                       {tipo.label}
                     </SelectItem>
@@ -144,7 +131,7 @@ export function TaskFormModal({ isOpen, onClose, onSubmit, task, tenantId }: Tas
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {estadosTarea.map((estado) => (
+                  {TASK_STATES.map((estado) => (
                     <SelectItem key={estado.value} value={estado.value}>
                       {estado.label}
                     </SelectItem>

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
 import DespachoFormModal from "./despacho-form-modal"
+import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -95,29 +96,25 @@ export function DespachoPage() {
     const totalPallets = filtered.reduce((sum, d) => sum + (d.total_pallets || 0), 0)
     const totalCajas = filtered.reduce((sum, d) => sum + (d.total_cajas || 0), 0)
 
-    // ======== CSV ========
-    const exportToCSV = () => {
-        const headers = [
-            "Fecha","Guía","Cliente","Destino","Transporte","Chofer","Total Pallets","Total Cajas"
-        ]
-        const rows = filtered.map((d) => [
-            d.fecha,
-            d.num_remito,
-            `"${d.cliente ?? ""}"`,
-            `"${d.destino ?? ""}"`,
-            `"${d.transporte ?? ""}"`,
-            `"${d.chofer ?? ""}"`,
-            d.total_pallets ?? 0,
-            d.total_cajas ?? 0
-        ])
-        const csv = [headers, ...rows].map(r => r.join(",")).join("\n")
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = `despachos-${new Date().toISOString().slice(0,10)}.csv`
-        a.click()
-        URL.revokeObjectURL(url)
+    // ======== Excel Export ========
+    const exportToExcel = () => {
+        const headers = {
+            fecha: "Fecha",
+            num_remito: "Guía",
+            cliente: "Cliente",
+            destino: "Destino",
+            transporte: "Transporte",
+            chofer: "Chofer",
+            total_pallets: "Total Pallets",
+            total_cajas: "Total Cajas"
+        }
+
+        exportDataToExcel({
+            data: filtered,
+            filename: "despachos",
+            sheetName: "Despachos",
+            headers
+        })
     }
 
     // ======== Paginación ========
@@ -171,9 +168,9 @@ export function DespachoPage() {
                         />
                     </div>
 
-                    <Button variant="outline" onClick={exportToCSV} disabled={filtered.length === 0}>
+                    <Button variant="outline" onClick={exportToExcel} disabled={filtered.length === 0}>
                         <Download className="mr-2 h-4 w-4" />
-                        Exportar CSV
+                        Exportar Excel
                     </Button>
 
                     <Button onClick={() => setModalOpen(true)}>
