@@ -32,20 +32,11 @@ export default function EmpaqueLayout({
         user={user} 
         onLogout={() => { window.location.href = "/login" }} 
         onNavigate={(page) => {
-          // Map page names to their correct routes
-          const pageRoutes: Record<string, string> = {
-            dashboard: "/home",
-            campo: "/campo",
-            empaque: "/empaque",
-            inventario: "/inventario",
-            finanzas: "/finanzas",
-            ajustes: "/ajustes",
-            trabajadores: "/trabajadores",
-            contactos: "/contactos",
-          };
-
-          const targetRoute = pageRoutes[page] || "/home";
-          window.location.href = targetRoute;
+          if (page === "empaque") {
+            window.location.href = "/empaque"
+          } else {
+            window.location.href = "/home"
+          }
         }} 
         currentPage="empaque" 
       />

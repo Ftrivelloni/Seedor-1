@@ -1,353 +1,458 @@
+// components/empaque/ingreso-fruta-page.tsx
 "use client"
-import { useState, useEffect } from "react"
+
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/ui/button"
-import { Input } from "@/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
-import { Plus, Search, Download, ArrowLeft } from "lucide-react"
 import { authService } from "../../lib/supabaseAuth"
+
 import { IngresoFrutaFormModal } from "./ingreso-fruta-form-modal"
-import * as XLSX from 'xlsx'
+import { Button } from "../ui/button"
+import { Input } from "../ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, Package, Scale, Search, Plus } from "lucide-react"
 
 export function IngresoFrutaPage() {
+    const [registros, setRegistros] = useState<any[]>([])
+    const [filtered, setFiltered] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(true)
 
-  const [registros, setRegistros] = useState<any[]>([])
-  const [filteredRegistros, setFilteredRegistros] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [modalOpen, setModalOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [tenantUuid, setTenantUuid] = useState<string | null>(null)
+    const [searchTerm, setSearchTerm] = useState("")
+    const [page, setPage] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
 
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const router = useRouter()
+    const [modalOpen, setModalOpen] = useState(false)
+    const [saving, setSaving] = useState(false)
+    const [user, setUser] = useState<any>(null)
+    const router = useRouter()
 
-  // Load user from Supabase auth
-  useEffect(() => {
-    const loadUser = async () => {
-      const sessionUser = await authService.checkSession()
-      if (!sessionUser) {
-        router.push("/login")
-        return
-      }
-      setCurrentUser(sessionUser)
-    }
-    loadUser()
-  }, [router])
+    // ========= Auth =========
+    useEffect(() => {
+        const loadUser = async () => {
+            const sessionUser = await authService.checkSession()
+            if (!sessionUser) {
+                router.push("/login")
+                return
+            }
+            setUser(sessionUser)
+        }
+        loadUser()
+    }, [router])
 
-  const user = currentUser
-
-  // Obtener el UUID real del tenant al cargar la página
-  useEffect(() => {
-    if (user?.tenantId) {
-      setTenantUuid(user.tenantId)
-    }
-  }, [user])
-
-  useEffect(() => {
+    // ========= Carga =========
     const loadRegistros = async () => {
-      if (!user?.tenantId) return
-      try {
-        setIsLoading(true)
-        const { ingresoFrutaApi } = await import("../../lib/api")
-        const data = await ingresoFrutaApi.getIngresos(user.tenantId)
-        setRegistros(data)
-      } catch (error) {
-        console.error("Error al cargar registros:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    loadRegistros()
-  }, [user])
-
-  useEffect(() => {
-    let filtered = registros
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (registro) =>
-          (registro.productor || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (registro.producto || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (registro.lote?.toString() || "").toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-    filtered = filtered.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
-    setFilteredRegistros(filtered)
-  }, [registros, searchTerm])
-
-  const totalBins = registros.reduce((sum, r) => sum + (r.cant_bin || 0), 0)
-  const totalPeso = registros.reduce((sum, r) => sum + (r.peso_neto || 0), 0)
-
-  const exportToExcel = () => {
-    const worksheetData = [
-      ["Fecha", "Ticket", "Remito", "Productor", "Finca", "Producto", "Lote", "Contratista", "Tipo Cosecha", "Liquidación", "Transporte", "Chofer", "Chasis", "Acoplado", "Operario", "Cantidad Bins", "Tipo Bin", "Peso Neto"],
-      ...filteredRegistros.map((registro) => [
-        registro.fecha ? new Date(registro.fecha).toLocaleDateString() : "-",
-        registro.num_ticket ?? "-",
-        registro.num_remito ?? "-",
-        registro.productor ?? "-",
-        registro.finca ?? "-",
-        registro.producto ?? "-",
-        registro.lote ?? "-",
-        registro.contratista ?? "-",
-        registro.tipo_cosecha ?? "-",
-        registro.estado_liquidacion ? "Sí" : "No",
-        registro.transporte ?? "-",
-        registro.chofer ?? "-",
-        registro.chasis ?? "-",
-        registro.acoplado ?? "-",
-        registro.operario ?? "-",
-        registro.cant_bin ?? "-",
-        registro.tipo_bin ?? "-",
-        registro.peso_neto ? `${registro.peso_neto} kg` : "-"
-      ])
-    ]
-
-    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Ingreso Fruta")
-    
-    const today = new Date().toISOString().split("T")[0]
-    XLSX.writeFile(workbook, `ingreso-fruta-${today}.xlsx`)
-  }
-
-  // Show loading while user is being loaded
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
-
-  if (!["Admin", "Empaque"].includes(user.rol)) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-10">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="outline" size="sm" onClick={() => router.push('/empaque')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Ingreso de Fruta</h1>
-            <p className="text-muted-foreground">Gestión de recepción de materia prima</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={exportToExcel} disabled={filteredRegistros.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            Exportar Excel
-          </Button>
-          <Button onClick={() => setModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Ingreso
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Registros</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{registros.length}</div>
-            <p className="text-xs text-muted-foreground">Ingresos totales</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Bins</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalBins.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Bins ingresados</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Peso Total</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{totalPeso.toLocaleString()} kg</div>
-            <p className="text-xs text-muted-foreground">Materia prima</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Promedio por Bin</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {totalBins > 0 ? (totalPeso / totalBins).toFixed(1) : "0"} kg
-            </div>
-            <p className="text-xs text-muted-foreground">Peso promedio</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Search className="h-5 w-5" />
-            <span>Buscar y Filtrar</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por productor, producto o lote..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Modal de nuevo ingreso */}
-      <IngresoFrutaFormModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSubmit={async (data) => {
-          if (!user?.tenantId) {
-            alert("No se pudo obtener el ID del tenant. Contacte a soporte.");
-            return;
-          }
-          setSaving(true)
-          try {
+        if (!user?.tenantId) return
+        try {
+            setIsLoading(true)
             const { ingresoFrutaApi } = await import("../../lib/api")
-            await ingresoFrutaApi.createIngreso({ ...data, tenant_id: user.tenantId })
-            // Recargar registros
-            const nuevos = await ingresoFrutaApi.getIngresos(user.tenantId)
-            setRegistros(nuevos)
-            setModalOpen(false)
-          } catch (e: any) {
-            alert("Error al guardar el ingreso: " + (e?.message || JSON.stringify(e)))
-            console.error(e)
-          } finally {
-            setSaving(false)
-          }
-        }}
-      />
+            const data = await ingresoFrutaApi.getIngresos(user.tenantId)
+            setRegistros(data || [])
+        } catch (error) {
+            console.error("Error al cargar registros:", error)
+            setRegistros([])
+        } finally {
+            setIsLoading(false)
+        }
+    }
 
-      {/* Visualización en tablas separadas pero linkeadas */}
-      <div className="space-y-10">
-        {/* Tabla: Datos Generales */}
-        <div>
-          <h4 className="font-semibold mb-2">Datos generales</h4>
-          <table className="w-full text-sm border border-gray-200 rounded-lg bg-white mb-2">
-            <thead>
-              <tr className="bg-gray-50 text-muted-foreground">
-                <th className="text-left px-4 py-2 border-b font-semibold">Fecha</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Ticket</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Remito</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Productor</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Finca</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Producto</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Lote</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Contratista</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Tipo de cosecha</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Liquidación</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={10} className="text-center text-muted-foreground px-4 py-4">Cargando...</td></tr>
-              ) : filteredRegistros.length === 0 ? (
-                <tr><td colSpan={10} className="text-center text-muted-foreground px-4 py-4">No se encontraron registros de ingreso</td></tr>
-              ) : (
-                filteredRegistros.map((registro, idx) => (
-                  <tr key={idx}>
-                    <td className="px-4 py-2 border-b">{registro.fecha ? new Date(registro.fecha).toLocaleDateString() : "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.num_ticket ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.num_remito ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.productor ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.finca ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.producto ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.lote ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.contratista ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.tipo_cosecha ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.estado_liquidacion ? "Sí" : "No"}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+    useEffect(() => {
+        if (user) loadRegistros()
+    }, [user])
+
+    // ========= Filtro/orden =========
+    useEffect(() => {
+        let list = [...registros]
+        if (searchTerm) {
+            const q = searchTerm.toLowerCase()
+            list = list.filter((r) =>
+                [
+                    r.productor,
+                    r.producto,
+                    r.finca,
+                    r.transporte,
+                    r.chofer,
+                    r.tipo_bin,
+                    r.contratista,
+                    r.tipo_cosecha,
+                    r.operario,
+                    r.num_ticket?.toString(),
+                    r.num_remito?.toString(),
+                    r.lote?.toString(),
+                ]
+                    .map((x) => (x ?? "").toLowerCase())
+                    .some((v) => v.includes(q))
+            )
+        }
+        // más reciente primero
+        list.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+        setFiltered(list)
+        setPage(1)
+    }, [registros, searchTerm])
+
+    // ========= KPI =========
+    const totalBins = useMemo(
+        () => filtered.reduce((sum, r) => sum + (Number(r.cant_bin) || 0), 0),
+        [filtered]
+    )
+    const totalPeso = useMemo(
+        () => filtered.reduce((sum, r) => sum + (Number(r.peso_neto) || 0), 0),
+        [filtered]
+    )
+
+    // ========= CSV =========
+    const exportToCSV = () => {
+        const headers = [
+            "Fecha","Ticket","Remito","Productor","Finca","Producto","Lote",
+            "Contratista","Tipo cosecha","Liquidación","Transporte","Chofer",
+            "Chasis","Acoplado","Operario","Cant. bins","Tipo bin","Peso neto (kg)"
+        ]
+        const rows = filtered.map((r) => [
+            r.fecha ?? "",
+            r.num_ticket ?? "",
+            r.num_remito ?? "",
+            `"${r.productor ?? ""}"`,
+            `"${r.finca ?? ""}"`,
+            `"${r.producto ?? ""}"`,
+            r.lote ?? "",
+            `"${r.contratista ?? ""}"`,
+            `"${r.tipo_cosecha ?? ""}"`,
+            r.estado_liquidacion ? "Sí" : "No",
+            `"${r.transporte ?? ""}"`,
+            `"${r.chofer ?? ""}"`,
+            `"${r.chasis ?? ""}"`,
+            `"${r.acoplado ?? ""}"`,
+            `"${r.operario ?? ""}"`,
+            r.cant_bin ?? "",
+            `"${r.tipo_bin ?? ""}"`,
+            r.peso_neto ?? "",
+        ])
+
+        const csv = [headers, ...rows].map((r) => r.join(",")).join("\n")
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `ingreso-fruta-${new Date().toISOString().slice(0, 10)}.csv`
+        a.click()
+        URL.revokeObjectURL(url)
+    }
+
+    // ========= Paginación =========
+    const totalRows = filtered.length
+    const totalPages = Math.max(1, Math.ceil(totalRows / pageSize))
+    const start = (page - 1) * pageSize
+    const end = start + pageSize
+    const pageRows = filtered.slice(start, end)
+
+    const goPrev = () => setPage((p) => Math.max(1, p - 1))
+    const goNext = () => setPage((p) => Math.min(totalPages, p + 1))
+
+    // ========= KEYS ÚNICAS (nuevo) =========
+    const pageRowsWithKey = useMemo(() => {
+        return pageRows.map((r, i) => {
+            const base =
+                r?.id ??
+                r?.num_ticket ??
+                r?.num_remito ??
+                (r?.fecha ? new Date(r.fecha).getTime() : "s/fecha")
+            // Combinamos con la posición visible para evitar colisiones
+            const __key = String(base) + "-" + (start + i)
+            return { ...r, __key }
+        })
+    }, [pageRows, start])
+
+    if (!user) {
+        return (
+            <div className="flex h-64 items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+            </div>
+        )
+    }
+    if (!["Admin", "Empaque"].includes(user.rol)) {
+        return (
+            <div className="flex h-64 items-center justify-center">
+                <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
+            </div>
+        )
+    }
+
+    return (
+        <div className="mx-auto w-full max-w-4xl md:max-w-5xl px-3 md:px-6 py-6 space-y-6">
+            {/* Header */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" onClick={() => router.push("/empaque")}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Volver
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-bold leading-tight">Ingreso de Fruta</h1>
+                        <p className="text-sm text-muted-foreground">Recepción de materia prima</p>
+                    </div>
+                </div>
+
+                <div className="flex flex-1 items-center justify-end gap-2">
+                    <div className="relative hidden sm:block">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar por productor, producto, transporte, lote…"
+                            className="w-72 pl-9"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+
+                    <Button variant="outline" onClick={exportToCSV} disabled={filtered.length === 0}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Exportar CSV
+                    </Button>
+
+                    <Button onClick={() => setModalOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nuevo ingreso
+                    </Button>
+
+                    <IngresoFrutaFormModal
+                        isOpen={modalOpen}
+                        onClose={() => setModalOpen(false)}
+                        onSubmit={async (data) => {
+                            if (!user?.tenantId) {
+                                alert("No se pudo obtener el ID del tenant. Contacte a soporte.")
+                                return
+                            }
+                            setSaving(true)
+                            try {
+                                const { ingresoFrutaApi } = await import("../../lib/api")
+                                await ingresoFrutaApi.createIngreso({ ...data, tenant_id: user.tenantId })
+                                const nuevos = await ingresoFrutaApi.getIngresos(user.tenantId)
+                                setRegistros(nuevos)
+                                setModalOpen(false)
+                            } catch (e: any) {
+                                alert("Error al guardar el ingreso: " + (e?.message || JSON.stringify(e)))
+                                console.error(e)
+                            } finally {
+                                setSaving(false)
+                            }
+                        }}
+                    />
+                </div>
+            </div>
+
+            {/* KPIs */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                            <Package className="h-4 w-4" />
+                            Bins en resultados
+                        </CardTitle>
+                        <CardDescription>{filtered.length} registros</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{totalBins}</div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                            <Scale className="h-4 w-4" />
+                            Peso neto total (kg)
+                        </CardTitle>
+                        <CardDescription>en los resultados</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{totalPeso}</div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Buscador (mobile) */}
+            <Card className="sm:hidden">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Search className="h-5 w-5" />
+                        Buscar
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Input
+                        placeholder="Buscar por productor, producto, transporte, lote…"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </CardContent>
+            </Card>
+
+            {/* ======= TRES TABLAS ======= */}
+            <div className="space-y-6">
+                {/* 1) Datos generales */}
+                <Card>
+                    <CardHeader className="gap-1">
+                        <CardTitle>Datos generales</CardTitle>
+                        <CardDescription>Fecha, ticket, remito y productor</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="overflow-x-auto rounded-lg border">
+                            <table className="min-w-[960px] w-full text-sm">
+                                <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur">
+                                <tr>
+                                    <th className="sticky left-0 z-20 bg-background px-3 py-2 text-center font-medium">Fecha</th>
+                                    <th className="px-3 py-2 text-center font-medium">Ticket</th>
+                                    <th className="px-3 py-2 text-center font-medium">Remito</th>
+                                    <th className="px-3 py-2 text-center font-medium">Productor</th>
+                                    <th className="px-3 py-2 text-center font-medium">Finca</th>
+                                    <th className="px-3 py-2 text-center font-medium">Producto</th>
+                                    <th className="px-3 py-2 text-center font-medium">Lote</th>
+                                    <th className="px-3 py-2 text-center font-medium">Contratista</th>
+                                    <th className="px-3 py-2 text-center font-medium">Tipo cosecha</th>
+                                    <th className="px-3 py-2 text-center font-medium">Liquidación</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {isLoading ? (
+                                    <tr><td colSpan={10} className="px-3 py-6 text-center text-muted-foreground">Cargando…</td></tr>
+                                ) : pageRowsWithKey.length === 0 ? (
+                                    <tr><td colSpan={10} className="px-3 py-6 text-center text-muted-foreground">Sin registros</td></tr>
+                                ) : (
+                                    pageRowsWithKey.map((r) => (
+                                        <tr key={`gen-${r.__key}`} className="hover:bg-muted/50">
+                                            <td className="sticky left-0 z-10 bg-background px-3 py-2 text-center align-middle">
+                                                {r.fecha ? new Date(r.fecha).toLocaleDateString() : ""}
+                                            </td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.num_ticket ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.num_remito ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.productor ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.finca ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.producto ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.lote ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.contratista ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.tipo_cosecha ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.estado_liquidacion ? "Sí" : "No"}</td>
+                                        </tr>
+                                    ))
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* 2) Transporte */}
+                <Card>
+                    <CardHeader className="gap-1">
+                        <CardTitle>Transporte</CardTitle>
+                        <CardDescription>Transportista, chofer y unidad</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="overflow-x-auto rounded-lg border">
+                            <table className="min-w-[720px] w-full text-sm">
+                                <thead className="bg-background/95 backdrop-blur">
+                                <tr>
+                                    <th className="px-3 py-2 text-center font-medium">Transporte</th>
+                                    <th className="px-3 py-2 text-center font-medium">Chofer</th>
+                                    <th className="px-3 py-2 text-center font-medium">Chasis</th>
+                                    <th className="px-3 py-2 text-center font-medium">Acoplado</th>
+                                    <th className="px-3 py-2 text-center font-medium">Operario</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {isLoading ? (
+                                    <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Cargando…</td></tr>
+                                ) : pageRowsWithKey.length === 0 ? (
+                                    <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Sin registros</td></tr>
+                                ) : (
+                                    pageRowsWithKey.map((r) => (
+                                        <tr key={`tr-${r.__key}`} className="hover:bg-muted/50">
+                                            <td className="px-3 py-2 text-center align-middle">{r.transporte ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.chofer ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.chasis ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.acoplado ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.operario ?? "-"}</td>
+                                        </tr>
+                                    ))
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* 3) Bins y peso */}
+                <Card>
+                    <CardHeader className="gap-1">
+                        <CardTitle>Bins y peso</CardTitle>
+                        <CardDescription>Cantidad de bins, tipo y peso neto</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="overflow-x-auto rounded-lg border">
+                            <table className="min-w-[560px] w-full text-sm">
+                                <thead className="bg-background/95 backdrop-blur">
+                                <tr>
+                                    <th className="px-3 py-2 text-center font-medium">Cant. bins</th>
+                                    <th className="px-3 py-2 text-center font-medium">Tipo bin</th>
+                                    <th className="px-3 py-2 text-center font-medium">Peso neto (kg)</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {isLoading ? (
+                                    <tr><td colSpan={3} className="px-3 py-6 text-center text-muted-foreground">Cargando…</td></tr>
+                                ) : pageRowsWithKey.length === 0 ? (
+                                    <tr><td colSpan={3} className="px-3 py-6 text-center text-muted-foreground">Sin registros</td></tr>
+                                ) : (
+                                    pageRowsWithKey.map((r) => (
+                                        <tr key={`bp-${r.__key}`} className="hover:bg-muted/50">
+                                            <td className="px-3 py-2 text-center align-middle">{r.cant_bin ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.tipo_bin ?? "-"}</td>
+                                            <td className="px-3 py-2 text-center align-middle">{r.peso_neto ?? "-"}</td>
+                                        </tr>
+                                    ))
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Paginación global */}
+            <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <div className="text-sm text-muted-foreground">
+                    Mostrando <strong>{Math.min(end, totalRows)}</strong> de <strong>{totalRows}</strong> — página {page} de {totalPages}
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                        <span className="text-sm text-muted-foreground">Filas por página</span>
+                        <Select
+                            value={String(pageSize)}
+                            onValueChange={(v) => {
+                                const ps = Number(v)
+                                setPageSize(ps)
+                                setPage(1)
+                            }}
+                        >
+                            <SelectTrigger className="h-8 w-[90px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="10">10</SelectItem>
+                                <SelectItem value="25">25</SelectItem>
+                                <SelectItem value="50">50</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                        <Button variant="outline" size="sm" onClick={goPrev} disabled={page === 1}>
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={goNext} disabled={page === totalPages}>
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            </div>
         </div>
-        {/* Tabla: Transporte */}
-        <div>
-          <h4 className="font-semibold mb-2">Transporte</h4>
-          <table className="w-full text-sm border border-gray-200 rounded-lg bg-white mb-2">
-            <thead>
-              <tr className="bg-gray-50 text-muted-foreground">
-                <th className="text-left px-4 py-2 border-b font-semibold">Transporte</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Chofer</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Chasis</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Acoplado</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Operario</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={5} className="text-center text-muted-foreground px-4 py-4">Cargando...</td></tr>
-              ) : filteredRegistros.length === 0 ? (
-                <tr><td colSpan={5} className="text-center text-muted-foreground px-4 py-4">No se encontraron registros de ingreso</td></tr>
-              ) : (
-                filteredRegistros.map((registro, idx) => (
-                  <tr key={idx}>
-                    <td className="px-4 py-2 border-b">{registro.transporte ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.chofer ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.chasis ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.acoplado ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.operario ?? "-"}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        {/* Tabla: Bins y Peso */}
-        <div>
-          <h4 className="font-semibold mb-2">Bins y peso</h4>
-          <table className="w-full text-sm border border-gray-200 rounded-lg bg-white">
-            <thead>
-              <tr className="bg-gray-50 text-muted-foreground">
-                <th className="text-left px-4 py-2 border-b font-semibold">Cantidad de bins</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Tipo bin</th>
-                <th className="text-left px-4 py-2 border-b font-semibold">Peso Neto</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={3} className="text-center text-muted-foreground px-4 py-4">Cargando...</td></tr>
-              ) : filteredRegistros.length === 0 ? (
-                <tr><td colSpan={3} className="text-center text-muted-foreground px-4 py-4">No se encontraron registros de ingreso</td></tr>
-              ) : (
-                filteredRegistros.map((registro, idx) => (
-                  <tr key={idx}>
-                    <td className="px-4 py-2 border-b">{registro.cant_bin ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.tipo_bin ?? "-"}</td>
-                    <td className="px-4 py-2 border-b">{registro.peso_neto ? `${registro.peso_neto} kg` : "-"}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  )
+    )
 }

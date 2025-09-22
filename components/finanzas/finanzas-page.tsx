@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
 import { FinanzasFormModal } from "./finanzas-form-modal"
 import { finanzasApi } from "../../lib/api"
-import { authService } from "../../lib/supabaseAuth"
+import { authService } from "../../lib/auth"
 import type { MovimientoCaja } from "../../lib/mocks"
 import { Plus, Search, Download, DollarSign, TrendingUp, TrendingDown, FileText } from "lucide-react"
 
@@ -81,6 +81,33 @@ export function FinanzasPage() {
     await loadMovimientos()
   }
 
+  const exportToCSV = () => {
+    const headers = ["Fecha", "Tipo", "Concepto", "Categoría", "Monto", "Comprobante"]
+    const csvData = [
+      headers.join(","),
+      ...filteredMovimientos.map((movimiento) => {
+        return [
+          movimiento.fecha,
+          movimiento.tipo === "ingreso" ? "Ingreso" : "Egreso",
+          `"${movimiento.concepto}"`,
+          `"${movimiento.categoria}"`,
+          movimiento.monto,
+          `"${movimiento.comprobante || ""}"`,
+        ].join(",")
+      }),
+    ].join("\n")
+
+    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", `movimientos-caja-${new Date().toISOString().split("T")[0]}.csv`)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   // Calculate statistics
   const totalIngresos = movimientos.filter((m) => m.tipo === "ingreso").reduce((sum, m) => sum + m.monto, 0)
   const totalEgresos = movimientos.filter((m) => m.tipo === "egreso").reduce((sum, m) => sum + m.monto, 0)
@@ -105,6 +132,10 @@ export function FinanzasPage() {
           <p className="text-muted-foreground">Control de caja chica y movimientos</p>
         </div>
         <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={exportToCSV} disabled={filteredMovimientos.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            Exportar CSV
+          </Button>
           <Button onClick={() => setIsModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Movimiento

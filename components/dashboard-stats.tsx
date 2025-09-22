@@ -2,38 +2,18 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card"
 import { Badge } from "@/ui/badge"
-import { authService } from "@lib/supabaseAuth"
+import { authService } from "@lib/auth"
 import { tareasCampo, movimientosCaja, inventario } from "@lib/mocks"
 import { Calendar, TrendingUp, AlertTriangle, DollarSign } from "lucide-react"
-import { useState, useEffect } from "react"
 
 export function DashboardStats() {
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const loadUser = async () => {
-      const sessionUser = await authService.checkSession()
-      setUser(sessionUser)
-      setLoading(false)
-    }
-    loadUser()
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
-
+  const user = authService.getCurrentUser()
   if (!user) return null
 
   // Filter data by tenant
-  const tenantTareas = tareasCampo.filter((t) => t.tenantId === user.tenant.id)
-  const tenantMovimientos = movimientosCaja.filter((m) => m.tenantId === user.tenant.id)
-  const tenantInventario = inventario.filter((i) => i.tenantId === user.tenant.id)
+  const tenantTareas = tareasCampo.filter((t) => t.tenantId === user.tenantId)
+  const tenantMovimientos = movimientosCaja.filter((m) => m.tenantId === user.tenantId)
+  const tenantInventario = inventario.filter((i) => i.tenantId === user.tenantId)
 
   // Calculate KPIs
   const tareasPendientes = tenantTareas.filter((t) => t.estado === "pendiente").length

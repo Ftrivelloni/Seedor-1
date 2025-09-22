@@ -1,421 +1,306 @@
+// components/empaque/egreso-fruta-page.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/ui/button"
-import { Input } from "@/ui/input"
+import { supabase } from "../../lib/supabaseClient"
+import { authService } from "../../lib/supabaseAuth"
+
+import { Button } from "../ui/button"
+import { Input } from "../ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
-import { Badge } from "../ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { authService } from "../../lib/supabaseAuth"
-import type { EgresoFruta } from "../../lib/types"
-import { Plus, Search, Download, ArrowUp, DollarSign, AlertTriangle, FileText, Package, ArrowLeft } from "lucide-react"
-import * as XLSX from 'xlsx'
+
+import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, Search } from "lucide-react"
+import EgresoFrutaFormModal from "./egreso-fruta-form-modal"
 
 export function EgresoFrutaPage() {
-  const [egresos, setEgresos] = useState<EgresoFruta[]>([])
-  const [filteredEgresos, setFilteredEgresos] = useState<EgresoFruta[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [tipoMovimientoFilter, setTipoMovimientoFilter] = useState<string>("all")
+    const [egresos, setEgresos] = useState<any[]>([])
+    const [filtered, setFiltered] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(true)
 
-  const [user, setUser] = useState<any>(null)
-  const router = useRouter()
+    const [searchTerm, setSearchTerm] = useState("")
+    const [page, setPage] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
 
-  // Load user from Supabase auth
-  useEffect(() => {
-    const loadUser = async () => {
-      const sessionUser = await authService.checkSession()
-      if (!sessionUser) {
-        router.push("/login")
-        return
-      }
-      setUser(sessionUser)
-    }
-    loadUser()
-  }, [router])
+    const [modalOpen, setModalOpen] = useState(false)
+    const [user, setUser] = useState<any>(null)
+    const router = useRouter()
 
-  useEffect(() => {
-    if (user) {
-      loadEgresos()
-    }
-  }, [user])
-
-  useEffect(() => {
-    applyFilters()
-  }, [egresos, searchTerm, tipoMovimientoFilter])
-
-  const loadEgresos = async () => {
-    if (!user?.tenantId) return
-
-    try {
-      setIsLoading(true)
-      // TODO: Replace with actual API call
-      const mockData: EgresoFruta[] = [
-        {
-          id: "ef001",
-          tenantId: user.tenantId,
-          fecha: "2024-03-15",
-          tipoMovimiento: "venta",
-          tipoFruta: "Naranjas",
-          cantidad: 1152,
-          unidad: "kg",
-          destino: "Supermercado Central",
-          valorUnitario: 3.2,
-          valorTotal: 3686.4,
-          responsable: "Carlos Ruiz",
-          documentoReferencia: "FAC-2024-001",
-          observaciones: "Venta regular, cliente frecuente"
-        },
-        {
-          id: "ef002",
-          tenantId: user.tenantId,
-          fecha: "2024-03-15",
-          tipoMovimiento: "merma",
-          tipoFruta: "Limones",
-          cantidad: 45,
-          unidad: "kg",
-          destino: "Compost",
-          motivo: "Sobremaduras no comercializables",
-          responsable: "María González",
-          observaciones: "Material destinado a compostaje"
-        },
-        {
-          id: "ef003",
-          tenantId: user.tenantId,
-          fecha: "2024-03-14",
-          tipoMovimiento: "venta",
-          tipoFruta: "Mandarinas",
-          cantidad: 800,
-          unidad: "kg",
-          destino: "Exportación Brasil",
-          valorUnitario: 4.5,
-          valorTotal: 3600,
-          responsable: "Ana López",
-          documentoReferencia: "EXP-2024-002",
-          observaciones: "Exportación premium, calidad A"
-        },
-        {
-          id: "ef004",
-          tenantId: user.tenantId,
-          fecha: "2024-03-13",
-          tipoMovimiento: "devolucion",
-          tipoFruta: "Naranjas",
-          cantidad: 120,
-          unidad: "kg",
-          destino: "Proveedor Original",
-          motivo: "Calidad inferior al esperado",
-          responsable: "Carlos Ruiz",
-          documentoReferencia: "DEV-2024-001",
-          observaciones: "Devolución por defectos de calidad"
-        },
-        {
-          id: "ef005",
-          tenantId: user.tenantId,
-          fecha: "2024-03-16",
-          tipoMovimiento: "regalo",
-          tipoFruta: "Limones",
-          cantidad: 25,
-          unidad: "kg",
-          destino: "Fundación Comunitaria",
-          responsable: "María González",
-          observaciones: "Donación para comedor comunitario"
+    // ========= Auth & carga =========
+    useEffect(() => {
+        const loadUser = async () => {
+            const sessionUser = await authService.checkSession()
+            if (!sessionUser) {
+                router.push("/login")
+                return
+            }
+            setUser(sessionUser)
         }
-      ]
-      setEgresos(mockData)
-    } catch (error) {
-      console.error("Error al cargar egresos:", error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+        loadUser()
+    }, [router])
 
-  const applyFilters = () => {
-    let filtered = egresos
+    useEffect(() => {
+        if (user) loadEgresos()
+    }, [user])
 
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (egreso) =>
-          egreso.tipoFruta.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          egreso.destino.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          egreso.responsable.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          egreso.documentoReferencia?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+    const loadEgresos = async () => {
+        if (!user?.tenantId) return
+        setIsLoading(true)
+        const { data, error } = await supabase
+            .from("egreso_fruta")
+            .select("*")
+            .eq("tenant_id", user.tenantId)
+        setIsLoading(false)
+        setEgresos(error ? [] : (data || []))
     }
 
-    if (tipoMovimientoFilter !== "all") {
-      filtered = filtered.filter((egreso) => egreso.tipoMovimiento === tipoMovimientoFilter)
+    // ========= Filtros / orden =========
+    useEffect(() => {
+        let list = [...egresos]
+
+        if (searchTerm) {
+            const q = searchTerm.toLowerCase()
+            list = list.filter((e) =>
+                [
+                    e.producto,
+                    e.cliente,
+                    e.chofer,
+                    e.transporte,
+                    e.finca,
+                    e.chasis,
+                    e.acoplado,
+                    e.num_remito?.toString(),
+                ]
+                    .map((x) => (x ?? "").toLowerCase())
+                    .some((v) => v.includes(q))
+            )
+        }
+
+        list.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+        setFiltered(list)
+        setPage(1)
+    }, [egresos, searchTerm])
+
+    // ========= CSV =========
+    const exportToCSV = () => {
+        const headers = ["Fecha","Producto","Peso Neto","Cliente","Finca","Remito","Chofer","Transporte","Chasis","Acoplado"]
+        const rows = filtered.map((e) => [
+            e.fecha,
+            `"${e.producto ?? ""}"`,
+            e.peso_neto ?? "",
+            `"${e.cliente ?? ""}"`,
+            `"${e.finca ?? ""}"`,
+            e.num_remito ?? "",
+            `"${e.chofer ?? ""}"`,
+            `"${e.transporte ?? ""}"`,
+            `"${e.chasis ?? ""}"`,
+            `"${e.acoplado ?? ""}"`,
+        ])
+        const csv = [headers, ...rows].map(r => r.join(",")).join("\n")
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `egreso-fruta-${new Date().toISOString().slice(0,10)}.csv`
+        a.click()
+        URL.revokeObjectURL(url)
     }
 
-    // Sort by date (most recent first)
-    filtered = filtered.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+    // ========= Paginación =========
+    const totalRows = filtered.length
+    const totalPages = Math.max(1, Math.ceil(totalRows / pageSize))
+    const start = (page - 1) * pageSize
+    const end = start + pageSize
+    const pageRows = filtered.slice(start, end)
 
-    setFilteredEgresos(filtered)
-  }
+    const goPrev = () => setPage((p) => Math.max(1, p - 1))
+    const goNext = () => setPage((p) => Math.min(totalPages, p + 1))
 
-  const exportToExcel = () => {
-    const worksheetData = [
-      ["Fecha", "Tipo Movimiento", "Tipo Fruta", "Cantidad", "Destino", "Valor Unit.", "Valor Total", "Responsable", "Documento"],
-      ...filteredEgresos.map((egreso) => [
-        egreso.fecha,
-        egreso.tipoMovimiento,
-        egreso.tipoFruta,
-        `${egreso.cantidad} ${egreso.unidad}`,
-        egreso.destino,
-        egreso.valorUnitario ? `$${egreso.valorUnitario}` : "N/A",
-        egreso.valorTotal ? `$${egreso.valorTotal}` : "N/A",
-        egreso.responsable,
-        egreso.documentoReferencia || ""
-      ])
-    ]
-
-    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Egreso Fruta")
-    
-    const today = new Date().toISOString().split("T")[0]
-    XLSX.writeFile(workbook, `egreso-fruta-${today}.xlsx`)
-  }
-
-  const getTipoMovimientoBadge = (tipo: EgresoFruta["tipoMovimiento"]) => {
-    switch (tipo) {
-      case "venta":
-        return <Badge variant="default" className="bg-green-500"><DollarSign className="h-3 w-3 mr-1" />Venta</Badge>
-      case "merma":
-        return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Merma</Badge>
-      case "devolucion":
-        return <Badge variant="secondary"><ArrowUp className="h-3 w-3 mr-1" />Devolución</Badge>
-      case "regalo":
-        return <Badge variant="outline"><Package className="h-3 w-3 mr-1" />Regalo</Badge>
-      default:
-        return <Badge variant="outline">{tipo}</Badge>
+    if (!user) {
+        return (
+            <div className="flex h-64 items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+            </div>
+        )
     }
-  }
+    if (!["Admin", "Empaque"].includes(user.rol)) {
+        return (
+            <div className="flex h-64 items-center justify-center">
+                <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
+            </div>
+        )
+    }
 
-  // Calculate statistics
-  const totalCantidad = egresos.reduce((sum, e) => sum + e.cantidad, 0)
-  const totalVentas = egresos
-    .filter(e => e.tipoMovimiento === "venta")
-    .reduce((sum, e) => sum + (e.valorTotal || 0), 0)
-  const totalMerma = egresos
-    .filter(e => e.tipoMovimiento === "merma")
-    .reduce((sum, e) => sum + e.cantidad, 0)
-  const ventas = egresos.filter(e => e.tipoMovimiento === "venta").length
-
-  // Show loading while user is being loaded
-  if (!user) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
+        <div className="mx-auto w-full max-w-4xl md:max-w-5xl px-3 md:px-6 py-6 space-y-6">
+            {/* Header */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" onClick={() => router.push('/empaque')}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Volver
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-bold leading-tight">Egreso de Fruta</h1>
+                        <p className="text-sm text-muted-foreground">Gestión de salidas de productos</p>
+                    </div>
+                </div>
 
-  if (!["Admin", "Empaque"].includes(user.rol)) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
-      </div>
-    )
-  }
+                <div className="flex flex-1 items-center justify-end gap-2">
+                    <div className="relative hidden sm:block">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar por producto, cliente, chofer, remito…"
+                            className="w-72 pl-9"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="outline" size="sm" onClick={() => router.push('/empaque')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Egreso de Fruta</h1>
-            <p className="text-muted-foreground">Gestión de salidas de productos</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={exportToExcel} disabled={filteredEgresos.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            Exportar Excel
-          </Button>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Egreso
-          </Button>
-        </div>
-      </div>
+                    <Button variant="outline" onClick={exportToCSV} disabled={filtered.length === 0}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Exportar CSV
+                    </Button>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Egresado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalCantidad.toLocaleString()} kg</div>
-            <p className="text-xs text-muted-foreground">{egresos.length} movimientos</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Valor Ventas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">${totalVentas.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">{ventas} transacciones</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Merma</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">{totalMerma.toLocaleString()} kg</div>
-            <p className="text-xs text-muted-foreground">
-              {totalCantidad > 0 ? `${((totalMerma / totalCantidad) * 100).toFixed(1)}%` : "0%"} del total
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Precio Promedio</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              ${ventas > 0 ? (totalVentas / egresos.filter(e => e.tipoMovimiento === "venta").reduce((sum, e) => sum + e.cantidad, 0)).toFixed(2) : "0.00"}
+                    <Button onClick={() => setModalOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nuevo egreso
+                    </Button>
+
+                    <EgresoFrutaFormModal
+                        open={modalOpen}
+                        onClose={() => setModalOpen(false)}
+                        onCreated={loadEgresos}
+                        tenantId={user.tenantId}
+                    />
+                </div>
             </div>
-            <p className="text-xs text-muted-foreground">Por kilogramo</p>
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* Search and Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Search className="h-5 w-5" />
-            <span>Buscar y Filtrar</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por tipo de fruta, destino, responsable o documento..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={tipoMovimientoFilter} onValueChange={setTipoMovimientoFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Tipo de movimiento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los tipos</SelectItem>
-                <SelectItem value="venta">Venta</SelectItem>
-                <SelectItem value="merma">Merma</SelectItem>
-                <SelectItem value="devolucion">Devolución</SelectItem>
-                <SelectItem value="regalo">Regalo</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+            {/* Buscador (mobile) */}
+            <Card className="sm:hidden">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Search className="h-5 w-5" />
+                        Buscar
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Input
+                        placeholder="Buscar por producto, cliente, chofer, remito…"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </CardContent>
+            </Card>
 
-      {/* Egresos Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <ArrowUp className="h-5 w-5" />
-            <span>Registros de Egreso</span>
-          </CardTitle>
-          <CardDescription>
-            {filteredEgresos.length} de {egresos.length} registros
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Tipo Fruta</TableHead>
-                  <TableHead className="text-right">Cantidad</TableHead>
-                  <TableHead>Destino</TableHead>
-                  <TableHead className="text-right">Valor Unit.</TableHead>
-                  <TableHead className="text-right">Valor Total</TableHead>
-                  <TableHead>Responsable</TableHead>
-                  <TableHead>Documento</TableHead>
-                  <TableHead>Motivo/Observ.</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEgresos.map((egreso) => (
-                  <TableRow key={egreso.id}>
-                    <TableCell className="font-medium">
-                      {new Date(egreso.fecha).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>{getTipoMovimientoBadge(egreso.tipoMovimiento)}</TableCell>
-                    <TableCell>{egreso.tipoFruta}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {egreso.cantidad.toLocaleString()} {egreso.unidad}
-                    </TableCell>
-                    <TableCell>{egreso.destino}</TableCell>
-                    <TableCell className="text-right">
-                      {egreso.valorUnitario ? (
-                        <span className="text-green-600 font-medium">${egreso.valorUnitario}</span>
-                      ) : (
-                        <span className="text-muted-foreground">N/A</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {egreso.valorTotal ? (
-                        <span className="text-green-600 font-bold">${egreso.valorTotal.toLocaleString()}</span>
-                      ) : (
-                        <span className="text-muted-foreground">N/A</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm">{egreso.responsable}</TableCell>
-                    <TableCell>
-                      {egreso.documentoReferencia ? (
-                        <div className="flex items-center space-x-1">
-                          <FileText className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs font-mono">{egreso.documentoReferencia}</span>
+            {/* Tabla */}
+            <Card>
+                <CardHeader className="gap-2">
+                    <CardTitle className="flex items-center gap-2">
+                        <ArrowUp className="h-5 w-5" />
+                        Registros de egreso
+                    </CardTitle>
+                    <CardDescription>
+                        {filtered.length} de {egresos.length} registros
+                    </CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-3">
+                    {isLoading ? (
+                        <div className="flex h-32 items-center justify-center">
+                            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
                         </div>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">Sin doc</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="max-w-xs">
-                        <p className="text-xs text-muted-foreground truncate">
-                          {egreso.motivo || egreso.observaciones || "Sin observaciones"}
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                    ) : (
+                        <>
+                            <div className="overflow-x-auto rounded-lg border">
+                                <Table className="min-w-[960px] text-sm">
+                                    <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur">
+                                        <TableRow>
+                                            <TableHead className="sticky left-0 z-20 bg-background text-center">Fecha</TableHead>
+                                            <TableHead className="text-center">Producto</TableHead>
+                                            <TableHead className="text-center">Peso neto</TableHead>
+                                            <TableHead className="text-center">Cliente</TableHead>
+                                            <TableHead className="text-center">Finca</TableHead>
+                                            <TableHead className="text-center">Remito</TableHead>
+                                            <TableHead className="text-center">Chofer</TableHead>
+                                            <TableHead className="text-center">Transporte</TableHead>
+                                            <TableHead className="text-center">Chasis</TableHead>
+                                            <TableHead className="text-center">Acoplado</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {pageRows.map((e) => (
+                                            <TableRow key={e.id} className="hover:bg-muted/50">
+                                                <TableCell className="sticky left-0 z-10 bg-background whitespace-nowrap py-2 text-center align-middle">
+                                                    {e.fecha ? new Date(e.fecha).toLocaleDateString() : ""}
+                                                </TableCell>
+                                                <TableCell className="py-2 text-center align-middle">{e.producto}</TableCell>
+                                                <TableCell className="py-2 text-center align-middle">{e.peso_neto}</TableCell>
+                                                <TableCell className="py-2 text-center align-middle">{e.cliente}</TableCell>
+                                                <TableCell className="py-2 text-center align-middle">{e.finca}</TableCell>
+                                                <TableCell className="py-2 text-center align-middle">{e.num_remito}</TableCell>
+                                                <TableCell className="py-2 text-center align-middle">{e.chofer}</TableCell>
+                                                <TableCell className="py-2 text-center align-middle">{e.transporte}</TableCell>
+                                                <TableCell className="py-2 text-center align-middle">{e.chasis}</TableCell>
+                                                <TableCell className="py-2 text-center align-middle">{e.acoplado}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
 
-          {!isLoading && filteredEgresos.length === 0 && (
-            <div className="text-center py-8">
-              <ArrowUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No se encontraron registros de egreso</p>
-              <p className="text-sm text-muted-foreground">Registra el primer egreso de fruta</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
+                            {/* Paginación */}
+                            <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+                                <div className="text-sm text-muted-foreground">
+                                    Mostrando <strong>{Math.min(end, totalRows)}</strong> de <strong>{totalRows}</strong> — página {page} de {totalPages}
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-sm text-muted-foreground">Filas por página</span>
+                                        <Select
+                                            value={String(pageSize)}
+                                            onValueChange={(v) => {
+                                                const ps = Number(v)
+                                                setPageSize(ps)
+                                                setPage(1)
+                                            }}
+                                        >
+                                            <SelectTrigger className="h-8 w-[90px]">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="10">10</SelectItem>
+                                                <SelectItem value="25">25</SelectItem>
+                                                <SelectItem value="50">50</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="flex items-center gap-1">
+                                        <Button variant="outline" size="sm" onClick={goPrev} disabled={page === 1}>
+                                            <ChevronLeft className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={goNext} disabled={page === totalPages}>
+                                            <ChevronRight className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {!isLoading && filtered.length === 0 && (
+                        <div className="py-8 text-center">
+                            <ArrowUp className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                            <p className="text-muted-foreground">No se encontraron registros de egreso</p>
+                            <p className="text-sm text-muted-foreground">Crea el primero para comenzar</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    )
 }

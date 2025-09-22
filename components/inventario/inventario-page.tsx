@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
 import { inventarioApi } from "@lib/api"
-import { authService } from "@lib/supabaseAuth"
+import { authService } from "@lib/auth"
 import type { ItemInventario } from "@lib/types"
 import { Search, Package, AlertTriangle, Plus, Minus, Warehouse, Truck, Box } from "lucide-react"
 

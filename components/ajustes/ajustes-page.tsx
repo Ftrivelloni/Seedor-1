@@ -6,7 +6,7 @@ import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
 import { Badge } from "@/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card"
-import { authService } from "@lib/supabaseAuth"
+import { authService } from "@lib/auth"
 import { User, Building, Shield, Settings, Info, CheckCircle, XCircle } from "lucide-react"
 
 const rolePermissions = {
