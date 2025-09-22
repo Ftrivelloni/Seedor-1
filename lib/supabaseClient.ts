@@ -9,7 +9,15 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string | un
 let supabase: any;
 
 if (supabaseUrl && supabaseAnonKey) {
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
+  supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      storageKey: 'seedor-auth-token',
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  });
 } else {
   if (typeof console !== 'undefined') {
     console.warn('[Supabase] NEXT_PUBLIC_SUPABASE_URL/ANON_KEY not set. Using mock client.');

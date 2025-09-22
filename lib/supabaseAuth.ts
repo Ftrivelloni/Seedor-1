@@ -4,8 +4,16 @@ import type { User } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Create client for regular operations
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create client for regular operations with proper session persistence
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    storageKey: 'seedor-auth-token',
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+});
 
 // Create admin client if service role key is available
 const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -93,6 +101,11 @@ class SupabaseAuthService {
 
       this.currentUser = authUser;
       
+      // Persist to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('seedor_user', JSON.stringify(authUser));
+      }
+      
       // Update last access time
       await supabase
         .from('workers')
@@ -130,6 +143,12 @@ class SupabaseAuthService {
     try {
       const { error } = await supabase.auth.signOut();
       this.currentUser = null;
+      
+      // Clear localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('seedor_user');
+      }
+      
       return { error: error?.message || null };
     } catch (error: any) {
       return { error: error.message || "Error inesperado durante el logout" };
@@ -173,6 +192,12 @@ class SupabaseAuthService {
       };
 
       this.currentUser = authUser;
+      
+      // Persist to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('seedor_user', JSON.stringify(authUser));
+      }
+      
       return authUser;
 
     } catch (error) {
@@ -183,7 +208,26 @@ class SupabaseAuthService {
   }
 
   getCurrentUser(): AuthUser | null {
-    return this.currentUser;
+    // If we have a current user in memory, return it
+    if (this.currentUser) {
+      return this.currentUser;
+    }
+
+    // Try to load from localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('seedor_user');
+        if (stored) {
+          const user = JSON.parse(stored);
+          this.currentUser = user;
+          return user;
+        }
+      } catch (error) {
+        console.error('Error loading user from localStorage:', error);
+      }
+    }
+
+    return null;
   }
 
   isAuthenticated(): boolean {

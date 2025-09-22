@@ -1,6 +1,5 @@
 "use client"
 
-import { supabase } from "../../lib/supabaseClient";
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/ui/button"
@@ -8,7 +7,7 @@ import { Input } from "@/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { EmpaqueFormModal } from "./empaque-form-modal"
-import { empaqueApi, ingresoFrutaApi, palletsApi, despachoApi } from "../../lib/api"
+import { empaqueApi, ingresoFrutaApi } from "../../lib/api"
 import { authService } from "../../lib/supabaseAuth"
 import type { RegistroEmpaque } from "../../lib/mocks"
 import { Plus, Search, Download, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
@@ -23,17 +22,7 @@ export function EmpaquePage() {
   // Filtro y datos para la tabla de ingreso de fruta
   const [filtroFecha, setFiltroFecha] = useState("");
   const [ingresosFruta, setIngresosFruta] = useState<any[]>([]);
-  const [pallets, setPallets] = useState<any[]>([]);
-  const [isLoadingPallets, setIsLoadingPallets] = useState(true);
   const [isLoadingIngresos, setIsLoadingIngresos] = useState(true);
-  const [despachos, setDespachos] = useState<any[]>([]);
-  const [isLoadingDespachos, setIsLoadingDespachos] = useState(true);
-  const [egresosFruta, setEgresosFruta] = useState<any[]>([]);
-  const [isLoadingEgresosFruta, setIsLoadingEgresosFruta] = useState(true);
-
-  // Estado para preprocesos
-  const [preprocesos, setPreprocesos] = useState<any[]>([]);
-  const [isLoadingPreprocesos, setIsLoadingPreprocesos] = useState(true);
 
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
@@ -55,40 +44,8 @@ export function EmpaquePage() {
     if (user) {
       loadRegistros();
       loadIngresosFruta();
-      loadPallets();
-      loadDespachos();
-      loadEgresosFruta();
-      loadPreprocesos();
     }
-    // Escuchar evento global para recargar preprocesos
-    const handler = () => { loadPreprocesos(); };
-    window.addEventListener('preproceso:created', handler);
-    return () => {
-      window.removeEventListener('preproceso:created', handler);
-    };
   }, [user])
-  // Cargar preprocesos desde Supabase
-  const loadPreprocesos = async () => {
-    if (!user?.tenantId) return;
-    try {
-      setIsLoadingPreprocesos(true);
-      const { data, error } = await supabase
-        .from("preseleccion")
-        .select("*")
-        .eq("tenant_id", user.tenantId);
-      if (error) {
-        console.error("Error al cargar preprocesos:", error);
-        setPreprocesos([]);
-      } else {
-        setPreprocesos(data || []);
-      }
-    } catch (error) {
-      console.error("Error al cargar preprocesos:", error);
-      setPreprocesos([]);
-    } finally {
-      setIsLoadingPreprocesos(false);
-    }
-  };
   const loadIngresosFruta = async () => {
     if (!user?.tenantId) return;
     try {
@@ -99,72 +56,6 @@ export function EmpaquePage() {
       setIngresosFruta([]);
     } finally {
       setIsLoadingIngresos(false);
-    }
-  };
-
-  const loadPallets = async () => {
-    if (!user?.tenantId) return;
-    try {
-      setIsLoadingPallets(true);
-      const { data, error } = await supabase
-        .from("pallets")
-        .select("*")
-        .eq("tenant_id", user.tenantId);
-      if (error) {
-        console.error("Error al cargar pallets:", error);
-        setPallets([]);
-      } else {
-        setPallets(data || []);
-      }
-    } catch (error) {
-      console.error("Error al cargar pallets:", error);
-      setPallets([]);
-    } finally {
-      setIsLoadingPallets(false);
-    }
-  };
-
-  const loadDespachos = async () => {
-    if (!user?.tenantId) return;
-    try {
-      setIsLoadingDespachos(true);
-      const { data, error } = await supabase
-        .from("despacho")
-        .select("*")
-        .eq("tenant_id", user.tenantId);
-      if (error) {
-        console.error("Error al cargar despachos:", error);
-        setDespachos([]);
-      } else {
-        setDespachos(data || []);
-      }
-    } catch (error) {
-      console.error("Error al cargar despachos:", error);
-      setDespachos([]);
-    } finally {
-      setIsLoadingDespachos(false);
-    }
-  };
-
-  const loadEgresosFruta = async () => {
-    if (!user?.tenantId) return;
-    try {
-      setIsLoadingEgresosFruta(true);
-      const { data, error } = await supabase
-        .from("egreso_fruta")
-        .select("*")
-        .eq("tenant_id", user.tenantId);
-      if (error) {
-        console.error("Error al cargar egresos de fruta:", error);
-        setEgresosFruta([]);
-      } else {
-        setEgresosFruta(data || []);
-      }
-    } catch (error) {
-      console.error("Error al cargar egresos de fruta:", error);
-      setEgresosFruta([]);
-    } finally {
-      setIsLoadingEgresosFruta(false);
     }
   };
 
@@ -213,36 +104,6 @@ export function EmpaquePage() {
     router.push(`/empaque/${subpage}`)
   }
 
-  const exportToCSV = () => {
-    const headers = ["Fecha", "Cultivo", "Kg Entraron", "Kg Salieron", "Kg Descartados", "% Descarte", "Notas"]
-    const csvData = [
-      headers.join(","),
-      ...filteredRegistros.map((registro) => {
-        const porcentajeDescarte = ((registro.kgDescartados / registro.kgEntraron) * 100).toFixed(1)
-        return [
-          registro.fecha,
-          `"${registro.cultivo}"`,
-          registro.kgEntraron,
-          registro.kgSalieron,
-          registro.kgDescartados,
-          `${porcentajeDescarte}%`,
-          `"${registro.notas || ""}"`,
-        ].join(",")
-      }),
-    ].join("\n")
-
-    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    const url = URL.createObjectURL(blob)
-    link.setAttribute("href", url)
-    const today = new Date().toISOString().split("T")[0]
-    link.setAttribute("download", `registros-empaque-${today}.csv`)
-    link.style.visibility = "hidden"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
-
   // Calculate statistics
   const totalKgEntraron = registros.reduce((sum, r) => sum + r.kgEntraron, 0)
   const totalKgSalieron = registros.reduce((sum, r) => sum + r.kgSalieron, 0)
@@ -276,10 +137,6 @@ export function EmpaquePage() {
           <p className="text-muted-foreground">Registros de procesamiento de fruta</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={exportToCSV} disabled={filteredRegistros.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            Exportar CSV
-          </Button>
           <Button onClick={() => setIsModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Registro
@@ -404,14 +261,10 @@ export function EmpaquePage() {
             <CardDescription>Resumen de preparación y limpieza</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingPreprocesos ? (
-              <div className="text-muted-foreground">Cargando...</div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <div><span className="font-medium">Total procesado:</span> {preprocesos.reduce((sum, p) => sum + (p.bin_volcados || 0), 0).toLocaleString()} bins</div>
-                <div><span className="font-medium">Última fecha:</span> {preprocesos.length > 0 ? new Date(preprocesos[0].fecha).toLocaleDateString() : '-'}</div>
-              </div>
-            )}
+            <div className="flex flex-col gap-2">
+              <div><span className="font-medium">Total procesado:</span> {totalKgEntraron.toLocaleString()} kg</div>
+              <div><span className="font-medium">Última fecha:</span> {registros.length > 0 ? new Date(registros[0].fecha).toLocaleDateString() : '-'}</div>
+            </div>
           </CardContent>
         </Card>
 
@@ -426,9 +279,8 @@ export function EmpaquePage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-2">
-              <div><span className="font-medium">Total empacado:</span> {pallets.reduce((sum, p) => sum + (p.peso || 0), 0).toLocaleString()} kg</div>
-              <div><span className="font-medium">Total pallets:</span> {pallets.length}</div>
-              <div><span className="font-medium">Última fecha:</span> {pallets.length > 0 ? new Date(pallets[0].created_at).toLocaleDateString() : '-'}</div>
+              <div><span className="font-medium">Total empacado:</span> {totalKgSalieron.toLocaleString()} kg</div>
+              <div><span className="font-medium">Última fecha:</span> {registros.length > 0 ? new Date(registros[0].fecha).toLocaleDateString() : '-'}</div>
             </div>
           </CardContent>
         </Card>
@@ -444,9 +296,8 @@ export function EmpaquePage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-2">
-              <div><span className="font-medium">Total despachado:</span> {despachos.reduce((sum, d) => sum + (d.total_cajas || 0), 0).toLocaleString()} cajas</div>
-              <div><span className="font-medium">Total pallets:</span> {despachos.reduce((sum, d) => sum + (d.total_pallets || 0), 0)}</div>
-              <div><span className="font-medium">Última fecha:</span> {despachos.length > 0 ? new Date(despachos[0].created_at).toLocaleDateString() : '-'}</div>
+              <div><span className="font-medium">Total despachado:</span> {totalKgDescartados.toLocaleString()} kg</div>
+              <div><span className="font-medium">Última fecha:</span> {registros.length > 0 ? new Date(registros[0].fecha).toLocaleDateString() : '-'}</div>
             </div>
           </CardContent>
         </Card>
@@ -462,9 +313,8 @@ export function EmpaquePage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-2">
-              <div><span className="font-medium">Total enviado:</span> {egresosFruta.reduce((sum, e) => sum + (e.peso_neto || 0), 0).toLocaleString()} kg</div>
-              <div><span className="font-medium">Total egresos:</span> {egresosFruta.length}</div>
-              <div><span className="font-medium">Última fecha:</span> {egresosFruta.length > 0 ? new Date(egresosFruta[0].created_at).toLocaleDateString() : '-'}</div>
+              <div><span className="font-medium">% descarte promedio:</span> {porcentajeDescartePromedio.toFixed(1)}%</div>
+              <div><span className="font-medium">Última fecha:</span> {registros.length > 0 ? new Date(registros[0].fecha).toLocaleDateString() : '-'}</div>
             </div>
           </CardContent>
         </Card>

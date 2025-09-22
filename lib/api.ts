@@ -297,18 +297,25 @@ export const campoApi = {
       const { data, error } = await supabase
         .from('tareas_campo')
         .select('*')
-        .eq('tenantId', tenantId);
+        .eq('tenant_id', tenantId);  // Fixed: using snake_case
       
       if (error) {
-        console.error('Error fetching tareas:', error);
-        // Fallback to mock data if there's an error
+        console.warn('Database table error - using mock data:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        
+        // If table doesn't exist (PGRST116) or other DB errors, use mock data
         await delay(500);
         return tareasCampo.filter((t) => t.tenantId === tenantId);
       }
       
-      return data as TareaCampo[];
+      // If data is null or empty, return empty array
+      return data || [];
     } catch (error) {
-      console.error('Error connecting to Supabase:', error);
+      console.error('Network or connection error - using mock data:', error);
       // Fallback to mock data
       await delay(500);
       return tareasCampo.filter((t) => t.tenantId === tenantId);

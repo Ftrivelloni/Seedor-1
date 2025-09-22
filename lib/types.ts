@@ -131,26 +131,27 @@ export interface Preproceso {
   ritmo_maquina: number
   duracion_proceso: number
   bin_pleno: number
-  bin_intermedio_I: number
-  bin_intermedio_II: number
+  bin_intermedio_l: number
+  bin_intermedio_ll: number
   bin_incipiente: number
   cant_personal: number
 }
 
 export interface Pallet {
   id: string
-  tenantId: string
-  codigo: string
-  fechaCreacion: string
-  tipoFruta: string
-  cantidadCajas: number
-  pesoTotal: number
-  loteOrigen: string
+  tenant_id: string
+  semana: number
+  fecha: string
+  num_pallet: number
+  producto: string
+  productor: string
+  categoria: string
+  cod_envase: string
   destino?: string
-  ubicacion: string
-  estado: "armado" | "en_camara" | "listo_despacho" | "despachado"
-  temperaturaAlmacen?: number
-  fechaVencimiento?: string
+  kilos: number
+  cant_cajas: number
+  peso: number
+  estado?: "armado" | "en_camara" | "listo_despacho" | "despachado"
   observaciones?: string
 }
 

@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
 import { TaskFormModal } from "./task-form-modal"
 import { campoApi } from "@lib/api"
-import { authService } from "@lib/auth"
+import { authService } from "@lib/supabaseAuth"
 import type { TareaCampo } from "@lib/types"
 import { Plus, Search, Filter, Edit, Trash2, Calendar, User } from "lucide-react"
 
