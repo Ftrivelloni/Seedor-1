@@ -9,7 +9,13 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string | un
 let supabase: any;
 
 if (supabaseUrl && supabaseAnonKey) {
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
+  supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true
+    }
+  });
 } else {
   if (typeof console !== 'undefined') {
     console.warn('[Supabase] NEXT_PUBLIC_SUPABASE_URL/ANON_KEY not set. Using mock client.');
@@ -28,6 +34,11 @@ if (supabaseUrl && supabaseAnonKey) {
   } as any;
   supabase = {
     from() { return tableBuilder; },
+    auth: {
+      onAuthStateChange() { return { data: { subscription: { unsubscribe: () => {} } } }; },
+      getSession() { return rejectPromise(); },
+      signOut() { return rejectPromise(); },
+    }
   } as any;
 }
 

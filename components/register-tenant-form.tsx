@@ -234,6 +234,26 @@ export default function RegisterTenantForm() {
                 return;
             }
 
+            // After successful tenant creation, try to log in the user automatically
+            try {
+                const { user: loginUser, error: loginError } = await authService.login(adminEmail, adminPassword);
+                
+                if (loginUser && !loginError) {
+                    // Clear form data from localStorage after successful registration
+                    if (typeof window !== "undefined") {
+                        localStorage.removeItem(FORM_DATA_KEY);
+                        localStorage.removeItem(OPTIONAL_KEY);
+                    }
+                    
+                    // Redirect to home instead of showing success page
+                    router.push("/home");
+                    return;
+                }
+            } catch (loginErr) {
+                console.error('Auto-login failed:', loginErr);
+                // Continue to success page if auto-login fails
+            }
+
             // Clear form data from localStorage after successful registration
             if (typeof window !== "undefined") {
                 localStorage.removeItem(FORM_DATA_KEY);

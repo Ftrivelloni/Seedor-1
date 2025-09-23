@@ -4,6 +4,7 @@ import { Sidebar } from "../../components/sidebar"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { authService, type AuthUser } from "../../lib/supabaseAuth"
+import { useUser } from "../../components/auth/UserContext"
 import { CampoPage } from "../../components/campo/campo-page"
 import { EmpaquePage } from "../../components/empaque/empaque-page"
 import { InventarioPage } from "../../components/inventario/inventario-page"
@@ -13,41 +14,27 @@ import TrabajadoresPage from "../../components/trabajadores/trabajadores-page"
 import ContactosPage from "../../components/contactos/contactos-page"
 
 export default function HomePage() {
-  const [user, setUser] = useState<AuthUser | null>(null)
+  const { user, loading } = useUser()
   const [currentPage, setCurrentPage] = useState("dashboard")
-  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
-    const checkAuth = async () => {
-      // First check for session
-      const sessionUser = await authService.checkSession()
-      if (sessionUser) {
-        setUser(sessionUser)
-        setIsLoading(false)
-        return
-      }
-
-      // If no session, check localStorage
-      const currentUser = authService.getCurrentUser()
-      if (!currentUser) {
-        router.push("/login")
-        return
-      }
-      
-      setUser(currentUser)
-      setIsLoading(false)
+    // Only redirect if not loading and no user
+    if (!loading && !user) {
+      router.push("/login")
     }
+  }, [loading, user, router])
 
-    checkAuth()
-  }, [router])
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     )
+  }
+
+  if (!user) {
+    return null // Will redirect to login
   }
 
   if (!user) {

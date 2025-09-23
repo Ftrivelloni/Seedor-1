@@ -9,11 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { empaqueApi, ingresoFrutaApi, palletsApi, despachoApi } from "../../lib/api"
 import { authService } from "../../lib/supabaseAuth"
+import { useUser } from "../auth/UserContext"
 import type { RegistroEmpaque } from "../../lib/mocks"
 import { Search, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
 
 
 export function EmpaquePage() {
+  const { user } = useUser()
   const [registros, setRegistros] = useState<RegistroEmpaque[]>([])
   const [filteredRegistros, setFilteredRegistros] = useState<RegistroEmpaque[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -33,21 +35,15 @@ export function EmpaquePage() {
   const [preprocesos, setPreprocesos] = useState<any[]>([]);
   const [isLoadingPreprocesos, setIsLoadingPreprocesos] = useState(true);
 
-  const [user, setUser] = useState<any>(null)
   const router = useRouter()
 
-  // Load user from Supabase auth
+  // Check if user is available from UserContext
   useEffect(() => {
-    const loadUser = async () => {
-      const sessionUser = await authService.checkSession()
-      if (!sessionUser) {
-        router.push("/login")
-        return
-      }
-      setUser(sessionUser)
+    if (!user) {
+      router.push("/login")
+      return
     }
-    loadUser()
-  }, [router])
+  }, [user, router])
 
   useEffect(() => {
     if (user) {

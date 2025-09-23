@@ -48,6 +48,7 @@ export interface AuthUser {
 
 class SupabaseAuthService {
   private currentUser: AuthUser | null = null;
+  private isCheckingSession: boolean = false;
 
   async login(email: string, password: string): Promise<{ user: AuthUser | null; error: string | null }> {
     try {
@@ -123,7 +124,10 @@ class SupabaseAuthService {
     };
     
     const normalizedKey = areaModule.toLowerCase().trim();
-    return roleMap[normalizedKey] || 'Campo';
+    const mappedRole = roleMap[normalizedKey] || 'Campo';
+    
+    console.log(`Role mapping: "${areaModule}" -> "${normalizedKey}" -> "${mappedRole}"`);
+    return mappedRole;
   }
 
   async logout(): Promise<{ error: string | null }> {
@@ -137,10 +141,35 @@ class SupabaseAuthService {
   }
 
   async checkSession(): Promise<AuthUser | null> {
+    // Prevent concurrent session checks
+    if (this.isCheckingSession) {
+      console.log('Session check already in progress, returning current user')
+      return this.currentUser;
+    }
+    
+    this.isCheckingSession = true;
+    
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
       
-      if (error || !session?.user) {
+      if (error) {
+        // Handle specific refresh token errors
+        if (error.message?.includes('refresh_token_not_found') || 
+            error.message?.includes('Invalid Refresh Token') ||
+            error.message?.includes('Refresh Token Not Found')) {
+          console.log('Refresh token expired or invalid, clearing session');
+          this.currentUser = null;
+          // Clear any stored auth state
+          await this.clearStoredSession();
+          return null;
+        }
+        
+        console.error('Session error:', error);
+        this.currentUser = null;
+        return null;
+      }
+
+      if (!session?.user) {
         this.currentUser = null;
         return null;
       }
@@ -157,6 +186,7 @@ class SupabaseAuthService {
         .single();
 
       if (workerError || !worker) {
+        console.error('Worker profile error:', workerError);
         this.currentUser = null;
         return null;
       }
@@ -175,10 +205,83 @@ class SupabaseAuthService {
       this.currentUser = authUser;
       return authUser;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Session check error:', error);
+      
+      // Handle refresh token errors specifically
+      if (error.message?.includes('refresh_token_not_found') || 
+          error.message?.includes('Invalid Refresh Token') ||
+          error.message?.includes('Refresh Token Not Found')) {
+        console.log('Clearing invalid session due to refresh token error');
+        await this.clearStoredSession();
+      }
+      
       this.currentUser = null;
       return null;
+    } finally {
+      this.isCheckingSession = false;
+    }
+  }
+
+  // Utility function to handle authentication errors gracefully
+  handleAuthError(error: any): { shouldRetry: boolean; shouldLogout: boolean } {
+    const errorMessage = error?.message || '';
+    
+    // Check for refresh token related errors
+    if (errorMessage.includes('refresh_token_not_found') || 
+        errorMessage.includes('Invalid Refresh Token') ||
+        errorMessage.includes('Refresh Token Not Found') ||
+        errorMessage.includes('JWT expired') ||
+        errorMessage.includes('session_not_found')) {
+      return { shouldRetry: false, shouldLogout: true };
+    }
+    
+    // Network or temporary errors
+    if (errorMessage.includes('network') || 
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('fetch')) {
+      return { shouldRetry: true, shouldLogout: false };
+    }
+    
+    // Unknown errors - don't logout but don't retry either
+    return { shouldRetry: false, shouldLogout: false };
+  }
+
+  // Enhanced method to safely get current session with retry logic
+  async getSafeSession(retryCount: number = 0): Promise<{ user: AuthUser | null; error: string | null }> {
+    // If we're already checking the session, return current user
+    if (this.isCheckingSession && retryCount === 0) {
+      return { user: this.currentUser, error: null };
+    }
+    
+    try {
+      const user = await this.checkSession();
+      return { user, error: null };
+    } catch (error: any) {
+      const { shouldRetry, shouldLogout } = this.handleAuthError(error);
+      
+      if (shouldLogout) {
+        await this.clearStoredSession();
+        return { user: null, error: 'Session expired. Please login again.' };
+      }
+      
+      if (shouldRetry && retryCount < 2) {
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+        return this.getSafeSession(retryCount + 1);
+      }
+      
+      return { user: null, error: error.message || 'Authentication error occurred' };
+    }
+  }
+
+  private async clearStoredSession(): Promise<void> {
+    try {
+      // Sign out to clear stored tokens
+      await supabase.auth.signOut();
+      this.currentUser = null;
+    } catch (error) {
+      console.error('Error clearing stored session:', error);
     }
   }
 

@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { authService } from "../../lib/supabaseAuth"
+import { useUser } from "../auth/UserContext"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 
 import { IngresoFrutaFormModal } from "./ingreso-fruta-form-modal"
@@ -14,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { ArrowLeft, ChevronLeft, ChevronRight, Download, Package, Scale, Search, Plus } from "lucide-react"
 
 export function IngresoFrutaPage() {
+    const { user, loading } = useUser()
     const [registros, setRegistros] = useState<any[]>([])
     const [filtered, setFiltered] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -24,21 +26,27 @@ export function IngresoFrutaPage() {
 
     const [modalOpen, setModalOpen] = useState(false)
     const [saving, setSaving] = useState(false)
-    const [user, setUser] = useState<any>(null)
     const router = useRouter()
 
     // ========= Auth =========
     useEffect(() => {
-        const loadUser = async () => {
-            const sessionUser = await authService.checkSession()
-            if (!sessionUser) {
-                router.push("/login")
-                return
-            }
-            setUser(sessionUser)
+        // Redirect to login if not loading and no user
+        if (!loading && !user) {
+            console.log('IngresoFrutaPage: No user found, redirecting to login')
+            router.push("/login")
+            return
         }
-        loadUser()
-    }, [router])
+        
+        // Debug user state
+        if (user) {
+            console.log('IngresoFrutaPage: User found:', {
+                email: user.email,
+                rol: user.rol,
+                tenantId: user.tenantId,
+                nombre: user.nombre
+            })
+        }
+    }, [loading, user, router])
 
     // ========= Carga =========
     const loadRegistros = async () => {
@@ -161,17 +169,22 @@ export function IngresoFrutaPage() {
         })
     }, [pageRows, start])
 
-    if (!user) {
+    if (loading || !user) {
         return (
             <div className="flex h-64 items-center justify-center">
                 <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
             </div>
         )
     }
+    
     if (!["Admin", "Empaque"].includes(user.rol)) {
         return (
             <div className="flex h-64 items-center justify-center">
-                <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
+                <div className="text-center space-y-2">
+                    <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
+                    <p className="text-sm text-muted-foreground">Rol actual: {user.rol}</p>
+                    <p className="text-sm text-muted-foreground">Roles permitidos: Admin, Empaque</p>
+                </div>
             </div>
         )
     }
