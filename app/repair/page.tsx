@@ -181,10 +181,10 @@ export default function RepairPage() {
     <div className="p-8 max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">🔧 Worker Profile Repair</h1>
       
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-        <h2 className="text-lg font-semibold text-yellow-800 mb-2">Problem Identified</h2>
-        <p className="text-yellow-700">
-          Your user account <code>admin10@empresa.com</code> exists in authentication but has no corresponding worker profile in the database.
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <h2 className="text-lg font-semibold text-blue-800 mb-2">Worker Profile Setup</h2>
+        <p className="text-blue-700">
+          Create a worker profile to access the application. This page is only needed if you don't have a worker record in the database.
         </p>
       </div>
 

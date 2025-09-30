@@ -178,58 +178,31 @@ class SupabaseAuthService {
       
       console.log('Session found for user:', session.user.email);
 
-      // Get fresh worker profile - try by membership_id first (more reliable), then by email
-      console.log('🔍 Auth session user details:', { 
-        userId: session.user.id, 
-        email: session.user.email,
-        userRole: session.user.role,
-        emailConfirmed: session.user.email_confirmed_at,
-        createdAt: session.user.created_at,
-        lastSignIn: session.user.last_sign_in_at
-      });
+      // Get worker profile
       
       console.log('🔍 Querying workers by membership_id:', session.user.id);
       
-      // Use admin functions to bypass RLS issues
+      // Get worker profile using admin functions
       const { getWorkerByUserId, getWorkerByEmail } = await import('./supabaseAdmin');
-      
-      console.log('🔍 Querying worker with admin functions to bypass RLS...');
       
       let { data: worker, error: workerError } = await getWorkerByUserId(session.user.id);
 
-      console.log('🔍 Membership ID query result:', {
-        worker: worker,
-        error: workerError,
-        hasWorker: !!worker,
-        hasError: !!workerError,
-        errorType: typeof workerError,
-        errorMessage: workerError?.message,
-        errorCode: workerError?.code,
-        queryUsed: `membership_id = ${session.user.id} AND status = active`
-      });
+      if (workerError) {
+        console.log('Worker lookup by membership_id failed:', workerError.message);
+      }
 
       // If not found by membership_id, try by email (fallback for older records)
       if (workerError || !worker) {
-        console.log('🔍 Worker not found by membership_id, trying by email:', session.user.email);
+        console.log('Worker not found by membership_id, trying by email');
         const { data: emailWorker, error: emailWorkerError } = await getWorkerByEmail(session.user.email!);
           
-        console.log('🔍 Email query result:', {
-          worker: emailWorker,
-          error: emailWorkerError,
-          hasWorker: !!emailWorker,
-          hasError: !!emailWorkerError
-        });
-          
         if (!emailWorkerError && emailWorker) {
-          console.log('🔧 Worker found by email, updating with membership_id...');
-          // Update the worker record to include membership_id for future lookups
+          console.log('Worker found by email, updating membership_id');
           const { updateWorkerMembership } = await import('./supabaseAdmin');
           const { data: updatedWorker, error: updateError } = await updateWorkerMembership(emailWorker.id, session.user.id);
             
           if (updateError) {
-            console.error('❌ Failed to update worker with membership_id:', updateError);
-          } else {
-            console.log('✅ Successfully updated worker with membership_id');
+            console.error('Failed to update worker membership_id:', updateError);
           }
             
           worker = updatedWorker || emailWorker;
@@ -238,83 +211,45 @@ class SupabaseAuthService {
       }
 
       if (workerError || !worker) {
-        console.error('❌ Worker profile error details:', {
-          error: workerError,
-          userEmail: session.user.email,
-          userId: session.user.id,
-          searchedFor: 'active worker with membership_id/email',
-          worker: worker,
-          errorMessage: workerError?.message,
-          errorCode: workerError?.code,
-          errorDetails: workerError?.details,
-          userMetadata: session.user.user_metadata,
-          appMetadata: session.user.app_metadata,
-          emailConfirmed: session.user.email_confirmed_at
-        });
+        console.error('Worker profile not found for user:', session.user.email);
         
-        // Try to find any worker record using admin functions to bypass RLS
-        console.log('🔍 Starting comprehensive worker search with admin access...');
+        // Final attempt: comprehensive worker search
         try {
-          // Use admin functions for comprehensive search
           const { data: emailWorkerResult, error: emailSearchError } = await getWorkerByEmail(session.user.email!);
           
-          console.log('🔍 Admin email search result:', {
-            worker: emailWorkerResult,
-            error: emailSearchError,
-            hasWorker: !!emailWorkerResult
-          });
-          
-          // If we found a worker by email, try to link it
           if (emailWorkerResult) {
-            console.log('🔧 Found worker by email, checking if needs membership_id update...');
-            
             if (!emailWorkerResult.membership_id || emailWorkerResult.membership_id !== session.user.id) {
-              console.log('🔧 Updating worker with correct membership_id...');
               const { updateWorkerMembership } = await import('./supabaseAdmin');
               const { data: updatedWorker, error: updateError } = await updateWorkerMembership(emailWorkerResult.id, session.user.id);
               
               if (!updateError && updatedWorker) {
-                console.log('✅ Successfully updated worker membership_id:', updatedWorker);
                 worker = updatedWorker;
                 workerError = null;
               } else {
-                console.error('❌ Failed to update worker membership_id:', updateError);
-                worker = emailWorkerResult; // Use found worker anyway
+                worker = emailWorkerResult;
                 workerError = null;
               }
             } else {
-              console.log('✅ Worker found and properly linked, using it');
               worker = emailWorkerResult;
               workerError = null;
             }
-          } else {
-            console.log('❌ No worker found for this user email');
-            console.log('❌ SOLUTION: No worker record exists for this user. Details:', {
-              userId: session.user.id,
-              email: session.user.email
-            });
           }
           
-        } catch (debugError) {
-          console.error('Debug query failed:', debugError);
+        } catch (searchError) {
+          console.error('Worker search failed:', searchError);
         }
         
-        // If we still don't have a worker after all attempts, provide clear guidance
+        // If no worker found, redirect to repair page
         if (workerError || !worker) {
-          console.log('❌ No worker profile found for user. Redirecting to repair page.');
-          
-          // Redirect to repair page
           if (typeof window !== 'undefined') {
             window.location.href = '/repair';
           }
-          
           this.currentUser = null;
           return null;
         }
       }
 
-      // Fetch tenant information separately to avoid 406 errors with joins
-      console.log('🔍 Fetching tenant information for worker...');
+      // Fetch tenant information
       const { data: tenant, error: tenantError } = await supabase
         .from('tenants')
         .select('*')
@@ -322,9 +257,7 @@ class SupabaseAuthService {
         .single();
 
       if (tenantError) {
-        console.error('❌ Failed to fetch tenant:', tenantError);
-      } else {
-        console.log('✅ Tenant fetched successfully:', tenant?.name);
+        console.error('Failed to fetch tenant:', tenantError);
       }
 
       const authUser: AuthUser = {
