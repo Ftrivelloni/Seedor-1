@@ -7,6 +7,8 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
 import { UserProvider } from "../components/auth/UserContext"
+import { AuthErrorHandler } from "../components/auth/AuthErrorHandler"
+import { SessionCleanup } from "../components/auth/SessionCleanup"
 
 export const metadata: Metadata = {
   title: "Seedor - Gestión Agropecuaria",
@@ -22,9 +24,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <UserProvider>
-          <Suspense fallback={null}>{children}</Suspense>
-        </UserProvider>
+        <SessionCleanup />
+        <AuthErrorHandler>
+          <UserProvider>
+            <Suspense fallback={null}>{children}</Suspense>
+          </UserProvider>
+        </AuthErrorHandler>
         <Analytics />
       </body>
     </html>

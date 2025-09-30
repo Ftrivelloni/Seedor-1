@@ -1,9 +1,9 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card"
-import { Badge } from "@/ui/badge"
-import { authService } from "@lib/supabaseAuth"
-import { tareasCampo, movimientosCaja, inventario } from "@lib/mocks"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
+import { Badge } from "./ui/badge"
+import { authService } from "../lib/supabaseAuth"
+import { tareasCampo, movimientosCaja, inventario } from "../lib/mocks"
 import { Calendar, TrendingUp, AlertTriangle, DollarSign } from "lucide-react"
 
 export function DashboardStats() {

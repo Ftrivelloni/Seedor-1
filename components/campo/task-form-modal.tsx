@@ -3,11 +3,11 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Button } from "@/ui/button"
-import { Input } from "@/ui/input"
-import { Label } from "@/ui/label"
-import { Textarea } from "@/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
+import { Button } from "../ui/button"
+import { Input } from "../ui/input"
+import { Label } from "../ui/label"
+import { Textarea } from "../ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import {
   Dialog,
   DialogContent,
@@ -15,9 +15,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/ui/dialog"
-import type { TareaCampo } from "@lib/types"
-import { TASK_TYPES, TASK_STATES } from "@lib/constants/campo"
+} from "../ui/dialog"
+import type { TareaCampo } from "../../lib/types"
+import { TASK_TYPES, TASK_STATES } from "../../lib/constants/campo"
 
 interface TaskFormModalProps {
   isOpen: boolean

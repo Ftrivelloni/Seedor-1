@@ -3,7 +3,7 @@
 import { supabase } from "../../lib/supabaseClient";
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Input } from "@/ui/input"
+import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"

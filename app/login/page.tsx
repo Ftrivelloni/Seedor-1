@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import LoginForm from "../../components/login-form";
 import Image from "next/image";
-import Header from "@/header";
+import Header from "../../components/header";
 
 export const metadata: Metadata = {
   title: "Ingresar — Seedor",

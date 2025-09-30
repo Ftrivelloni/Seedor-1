@@ -17,9 +17,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
       try {
         console.log('UserContext: Loading user session...')
         const { user: sessionUser, error } = await authService.getSafeSession()
+        
         if (error) {
           console.log('UserContext: Session error:', error)
+          // If it's a refresh token error, clear the session
+          if (typeof error === 'string' && (
+              error.includes('refresh_token_not_found') || 
+              error.includes('Invalid Refresh Token'))) {
+            console.log('UserContext: Invalid refresh token, clearing session')
+            await authService.logout()
+            setUser(null)
+            setLoading(false)
+            return
+          }
         }
+        
         if (sessionUser) {
           console.log('UserContext: User loaded successfully:', {
             email: sessionUser.email,
@@ -32,6 +44,24 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setUser(sessionUser)
       } catch (error: any) {
         console.error('UserContext: Error loading user session:', error)
+        
+        // Handle specific authentication errors
+        if ((error?.message && typeof error.message === 'string' && (
+            error.message.includes('refresh_token_not_found') || 
+            error.message.includes('Invalid Refresh Token') ||
+            error.message.includes('AuthApiError'))) ||
+            (typeof error === 'string' && (
+            error.includes('refresh_token_not_found') ||
+            error.includes('Invalid Refresh Token') ||
+            error.includes('AuthApiError')))) {
+          console.log('UserContext: Authentication error, clearing session')
+          try {
+            await authService.logout()
+          } catch (logoutError) {
+            console.error('UserContext: Error during logout:', logoutError)
+          }
+        }
+        
         setUser(null)
       } finally {
         setLoading(false)
@@ -67,12 +97,29 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 const { user: newUser } = await authService.getSafeSession()
                 setUser(newUser)
               } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-                console.log('Token refreshed, user should remain the same')
-                // Don't reload user data for token refresh - just log it
-                // The current user should still be valid
+                console.log('Token refreshed successfully')
+                // Optionally reload user data to ensure it's up to date
+                const { user: refreshedUser } = await authService.getSafeSession()
+                setUser(refreshedUser)
               }
-            } catch (error) {
+            } catch (error: any) {
               console.error('Error handling auth state change:', error)
+              
+              // Handle auth errors in state change
+              if ((error?.message && typeof error.message === 'string' && (
+                  error.message.includes('refresh_token_not_found') || 
+                  error.message.includes('Invalid Refresh Token'))) ||
+                  (typeof error === 'string' && (
+                  error.includes('refresh_token_not_found') ||
+                  error.includes('Invalid Refresh Token')))) {
+                console.log('Auth state change: Invalid refresh token, signing out')
+                setUser(null)
+                try {
+                  await authService.logout()
+                } catch (logoutError) {
+                  console.error('Error during logout in auth state change:', logoutError)
+                }
+              }
             } finally {
               isUpdatingRef.current = false
             }

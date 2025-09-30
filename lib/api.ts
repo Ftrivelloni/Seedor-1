@@ -2,32 +2,72 @@
 export const egresoFrutaApi = {
   async getEgresos(tenantId: string): Promise<any[]> {
     try {
+      // First verify the tenant exists to prevent orphaned reference errors
+      const { data: tenantCheck } = await supabase
+        .from('tenants')
+        .select('id')
+        .eq('id', tenantId)
+        .single();
+      
+      if (!tenantCheck) {
+        console.warn(`Tenant ${tenantId} not found, returning empty array`);
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('egreso_fruta')
         .select('*')
         .eq('tenant_id', tenantId)
         .order('fecha', { ascending: false });
+      
       if (error) {
         console.error('Error fetching egreso_fruta:', error);
+        // Handle specific Supabase errors
+        if (error.message?.includes('snippet') || error.message?.includes('doesn\'t exist')) {
+          console.warn('Detected orphaned data reference, clearing cache...');
+          return [];
+        }
         return [];
       }
       return data || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error connecting to Supabase:', error);
+      // Handle UUID/ID related errors that might cause "snippet doesn't exist"
+      if (error.message?.includes('invalid input syntax for type uuid')) {
+        console.warn('Invalid UUID detected, returning empty array');
+        return [];
+      }
       return [];
     }
   },
 
   async createEgreso(egreso: Omit<EgresoFruta, "id">): Promise<EgresoFruta> {
-    const { data, error } = await supabase
-      .from('egreso_fruta')
-      .insert([egreso])
-      .select()
-      .single();
-    if (error) {
-      throw new Error('Error al crear egreso: ' + error.message)
+    try {
+      // Verify tenant exists before creating
+      const { data: tenantCheck } = await supabase
+        .from('tenants')
+        .select('id')
+        .eq('id', egreso.tenantId)
+        .single();
+      
+      if (!tenantCheck) {
+        throw new Error(`Tenant ${egreso.tenantId} not found. Cannot create egreso.`);
+      }
+
+      const { data, error } = await supabase
+        .from('egreso_fruta')
+        .insert([egreso])
+        .select()
+        .single();
+      
+      if (error) {
+        throw new Error('Error al crear egreso: ' + error.message);
+      }
+      return data;
+    } catch (error: any) {
+      console.error('Error creating egreso:', error);
+      throw error;
     }
-    return data;
   },
 };
 import {

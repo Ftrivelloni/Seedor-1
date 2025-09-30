@@ -1,16 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/ui/button"
-import { Input } from "@/ui/input"
-import { Badge } from "@/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
+import { Button } from "../ui/button"
+import { Input } from "../ui/input"
+import { Badge } from "../ui/badge"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { TaskFormModal } from "./task-form-modal"
-import { campoApi } from "@lib/api"
-import { authService } from "@lib/supabaseAuth"
-import type { TareaCampo } from "@lib/types"
+import { campoApi } from "../../lib/api"
+import { authService } from "../../lib/supabaseAuth"
+import type { TareaCampo } from "../../lib/types"
 import { Plus, Search, Filter, Edit, Trash2, Calendar, User } from "lucide-react"
 import { 
   TASK_STATES, 
@@ -23,7 +23,7 @@ import {
   hasFieldPermission,
   getUniqueTaskTypes,
   getUniqueTaskStates
-} from "@lib/constants/campo"
+} from "../../lib/constants/campo"
 
 export function CampoPage() {
   const [tareas, setTareas] = useState<TareaCampo[]>([])

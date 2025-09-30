@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { authService, type AuthUser } from "../../lib/supabaseAuth"
 import { useUser } from "../../components/auth/UserContext"
+import { FeatureProvider } from "../../lib/features-context"
 import { CampoPage } from "../../components/campo/campo-page"
 import { EmpaquePage } from "../../components/empaque/empaque-page"
 import { InventarioPage } from "../../components/inventario/inventario-page"
@@ -58,6 +59,8 @@ export default function HomePage() {
         return <AjustesPage />
       case "trabajadores":
         return <TrabajadoresPage />
+      case "usuarios":
+        return <TrabajadoresPage /> // usuarios maps to TrabajadoresPage since it's user management
       case "contactos":
         return <ContactosPage />
       default:
@@ -71,29 +74,31 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <Sidebar user={user} onLogout={handleLogout} onNavigate={setCurrentPage} currentPage={currentPage} />
-      <div className="flex-1 flex flex-col">
-        <header className="border-b bg-card">
-          <div className="flex h-16 items-center justify-between px-6">
-            <div>
-              <h1 className="text-xl font-semibold">{currentPage.charAt(0).toUpperCase() + currentPage.slice(1)}</h1>
-              <p className="text-sm text-muted-foreground">Resumen general de {user.tenant.name}</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium">{user.nombre}</p>
-                <p className="text-xs text-muted-foreground">{user.rol}</p>
+    <FeatureProvider user={user}>
+      <div className="min-h-screen bg-background flex">
+        <Sidebar user={user} onLogout={handleLogout} onNavigate={setCurrentPage} currentPage={currentPage} />
+        <div className="flex-1 flex flex-col">
+          <header className="border-b bg-card">
+            <div className="flex h-16 items-center justify-between px-6">
+              <div>
+                <h1 className="text-xl font-semibold">{currentPage.charAt(0).toUpperCase() + currentPage.slice(1)}</h1>
+                <p className="text-sm text-muted-foreground">Resumen general de {user.tenant.name}</p>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="text-right">
+                  <p className="text-sm font-medium">{user.nombre}</p>
+                  <p className="text-xs text-muted-foreground">{user.rol}</p>
+                </div>
               </div>
             </div>
-          </div>
-        </header>
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="max-w-7xl mx-auto">
-            {renderPageContent()}
-          </div>
-        </main>
+          </header>
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="max-w-7xl mx-auto">
+              {renderPageContent()}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </FeatureProvider>
   )
 }

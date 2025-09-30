@@ -7,38 +7,46 @@ export type Feature = {
   };
   
   export const FEATURES: Feature[] = [
-    // Gestión de usuarios
-    { id: "roles",                title: "Asignación de roles/áreas.",                    module: "Gestión de usuarios", required: true },
-    { id: "acceso_roles",         title: "Control de acceso por roles.",                  module: "Gestión de usuarios", required: true },
-  
-    // Gestión de campo
-    { id: "rendimiento_lotes",    title: "Cálculo de rendimientos por lotes.",            module: "Gestión de campo",     required: true },
-    { id: "tareas_campo",         title: "Creación y asignación de tareas de campo.",     module: "Gestión de campo",     required: false },
-    { id: "calendario_campo",     title: "Calendario de actividades y recordatorios.",    module: "Gestión de campo",     required: false },
-    { id: "seguimiento_tareas",   title: "Seguimiento de estado de tareas.",              module: "Gestión de campo",     required: false },
-  
-    // Gestión de empaque
+    // Dashboard - Basic Plan
+    { id: "dashboard",            title: "Panel de control principal",                   module: "Dashboard",            required: true },
+    
+    // Gestión de empaque - Basic Plan
     { id: "registro_procesada",   title: "Registro de fruta/cosecha procesada.",          module: "Gestión de empaque",    required: true },
     { id: "clasificacion_mercado",title: "Clasificación de mercado vs. descarte.",        module: "Gestión de empaque",    required: true },
     { id: "control_lotes_emp",    title: "Control de lotes.",                             module: "Gestión de empaque",    required: true },
     { id: "export_excel",         title: "Exportación de datos a Excel.",                 module: "Gestión de empaque",    required: false },
     { id: "control_pallets",      title: "Control de pallets (código de barras/QR).",     module: "Gestión de empaque",    required: false },
   
-    // Módulo de inventario
+    // Módulo de inventario - Basic Plan
     { id: "registro_insumos",     title: "Registro de insumos, pallets, cajas, repuestos.", module: "Módulo de inventario", required: true },
     { id: "ajustes_stock",        title: "Ajustes rápidos de stock (+, −).",              module: "Módulo de inventario", required: true },
     { id: "alertas_stock",        title: "Alertas de bajo stock.",                        module: "Módulo de inventario", required: false },
   
-    // Gestión de finanzas
-    { id: "ingresos_egresos",     title: "Registro de ingresos y egresos.",               module: "Gestión de finanzas",  required: true },
-    { id: "caja_chica",           title: "Manejo de la caja chica.",                      module: "Gestión de finanzas",  required: false },
-  
-    // Gestión de trabajadores
+    // Gestión de trabajadores - Basic Plan
     { id: "creacion_trab",        title: "Creación de trabajadores.",                     module: "Gestión de trabajadores", required: true },
     { id: "rol_trabajador",       title: "Asignación de rol del trabajador.",             module: "Gestión de trabajadores", required: true },
     { id: "stats_asistencia",     title: "Stats de asistencia.",                          module: "Gestión de trabajadores", required: false },
+    
+    // Gestión de usuarios - Basic Plan (Admin only)
+    { id: "roles",                title: "Asignación de roles/áreas.",                    module: "Gestión de usuarios", required: true },
+    { id: "acceso_roles",         title: "Control de acceso por roles.",                  module: "Gestión de usuarios", required: true },
+    { id: "user_management",      title: "Gestión completa de usuarios.",                 module: "Gestión de usuarios", required: true },
+    
+    // Configuración - Basic Plan
+    { id: "ajustes",              title: "Configuración del sistema.",                    module: "Configuración", required: true },
+
+    // Gestión de campo - Pro Plan
+    { id: "rendimiento_lotes",    title: "Cálculo de rendimientos por lotes.",            module: "Gestión de campo",     required: false },
+    { id: "tareas_campo",         title: "Creación y asignación de tareas de campo.",     module: "Gestión de campo",     required: false },
+    { id: "calendario_campo",     title: "Calendario de actividades y recordatorios.",    module: "Gestión de campo",     required: false },
+    { id: "seguimiento_tareas",   title: "Seguimiento de estado de tareas.",              module: "Gestión de campo",     required: false },
   
-    // Apartado de contactos
+    // Gestión de finanzas - Enterprise Plan
+    { id: "ingresos_egresos",     title: "Registro de ingresos y egresos.",               module: "Gestión de finanzas",  required: false },
+    { id: "caja_chica",           title: "Manejo de la caja chica.",                      module: "Gestión de finanzas",  required: false },
+    { id: "reportes_financieros", title: "Reportes financieros avanzados.",               module: "Gestión de finanzas",  required: false },
+  
+    // Apartado de contactos - Enterprise Plan
     { id: "contactos_crm",        title: "Registrar y consultar contactos asociados.",    module: "Apartado de contactos", required: false },
   ];
   

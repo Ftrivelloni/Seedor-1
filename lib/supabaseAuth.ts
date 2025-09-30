@@ -150,6 +150,7 @@ class SupabaseAuthService {
     this.isCheckingSession = true;
     
     try {
+      console.log('Starting checkSession...');
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
@@ -170,25 +171,160 @@ class SupabaseAuthService {
       }
 
       if (!session?.user) {
+        console.log('No session user found');
         this.currentUser = null;
         return null;
       }
+      
+      console.log('Session found for user:', session.user.email);
 
-      // Get fresh worker profile
-      const { data: worker, error: workerError } = await supabase
-        .from('workers')
-        .select(`
-          *,
-          tenant:tenants(*)
-        `)
-        .eq('email', session.user.email)
-        .eq('status', 'active')
-        .single();
+      // Get fresh worker profile - try by membership_id first (more reliable), then by email
+      console.log('🔍 Auth session user details:', { 
+        userId: session.user.id, 
+        email: session.user.email,
+        userRole: session.user.role,
+        emailConfirmed: session.user.email_confirmed_at,
+        createdAt: session.user.created_at,
+        lastSignIn: session.user.last_sign_in_at
+      });
+      
+      console.log('🔍 Querying workers by membership_id:', session.user.id);
+      
+      // Use admin functions to bypass RLS issues
+      const { getWorkerByUserId, getWorkerByEmail } = await import('./supabaseAdmin');
+      
+      console.log('🔍 Querying worker with admin functions to bypass RLS...');
+      
+      let { data: worker, error: workerError } = await getWorkerByUserId(session.user.id);
+
+      console.log('🔍 Membership ID query result:', {
+        worker: worker,
+        error: workerError,
+        hasWorker: !!worker,
+        hasError: !!workerError,
+        errorType: typeof workerError,
+        errorMessage: workerError?.message,
+        errorCode: workerError?.code,
+        queryUsed: `membership_id = ${session.user.id} AND status = active`
+      });
+
+      // If not found by membership_id, try by email (fallback for older records)
+      if (workerError || !worker) {
+        console.log('🔍 Worker not found by membership_id, trying by email:', session.user.email);
+        const { data: emailWorker, error: emailWorkerError } = await getWorkerByEmail(session.user.email!);
+          
+        console.log('🔍 Email query result:', {
+          worker: emailWorker,
+          error: emailWorkerError,
+          hasWorker: !!emailWorker,
+          hasError: !!emailWorkerError
+        });
+          
+        if (!emailWorkerError && emailWorker) {
+          console.log('🔧 Worker found by email, updating with membership_id...');
+          // Update the worker record to include membership_id for future lookups
+          const { updateWorkerMembership } = await import('./supabaseAdmin');
+          const { data: updatedWorker, error: updateError } = await updateWorkerMembership(emailWorker.id, session.user.id);
+            
+          if (updateError) {
+            console.error('❌ Failed to update worker with membership_id:', updateError);
+          } else {
+            console.log('✅ Successfully updated worker with membership_id');
+          }
+            
+          worker = updatedWorker || emailWorker;
+          workerError = null;
+        }
+      }
 
       if (workerError || !worker) {
-        console.error('Worker profile error:', workerError);
-        this.currentUser = null;
-        return null;
+        console.error('❌ Worker profile error details:', {
+          error: workerError,
+          userEmail: session.user.email,
+          userId: session.user.id,
+          searchedFor: 'active worker with membership_id/email',
+          worker: worker,
+          errorMessage: workerError?.message,
+          errorCode: workerError?.code,
+          errorDetails: workerError?.details,
+          userMetadata: session.user.user_metadata,
+          appMetadata: session.user.app_metadata,
+          emailConfirmed: session.user.email_confirmed_at
+        });
+        
+        // Try to find any worker record using admin functions to bypass RLS
+        console.log('🔍 Starting comprehensive worker search with admin access...');
+        try {
+          // Use admin functions for comprehensive search
+          const { data: emailWorkerResult, error: emailSearchError } = await getWorkerByEmail(session.user.email!);
+          
+          console.log('🔍 Admin email search result:', {
+            worker: emailWorkerResult,
+            error: emailSearchError,
+            hasWorker: !!emailWorkerResult
+          });
+          
+          // If we found a worker by email, try to link it
+          if (emailWorkerResult) {
+            console.log('🔧 Found worker by email, checking if needs membership_id update...');
+            
+            if (!emailWorkerResult.membership_id || emailWorkerResult.membership_id !== session.user.id) {
+              console.log('🔧 Updating worker with correct membership_id...');
+              const { updateWorkerMembership } = await import('./supabaseAdmin');
+              const { data: updatedWorker, error: updateError } = await updateWorkerMembership(emailWorkerResult.id, session.user.id);
+              
+              if (!updateError && updatedWorker) {
+                console.log('✅ Successfully updated worker membership_id:', updatedWorker);
+                worker = updatedWorker;
+                workerError = null;
+              } else {
+                console.error('❌ Failed to update worker membership_id:', updateError);
+                worker = emailWorkerResult; // Use found worker anyway
+                workerError = null;
+              }
+            } else {
+              console.log('✅ Worker found and properly linked, using it');
+              worker = emailWorkerResult;
+              workerError = null;
+            }
+          } else {
+            console.log('❌ No worker found for this user email');
+            console.log('❌ SOLUTION: No worker record exists for this user. Details:', {
+              userId: session.user.id,
+              email: session.user.email
+            });
+          }
+          
+        } catch (debugError) {
+          console.error('Debug query failed:', debugError);
+        }
+        
+        // If we still don't have a worker after all attempts, provide clear guidance
+        if (workerError || !worker) {
+          console.log('❌ No worker profile found for user. Redirecting to repair page.');
+          
+          // Redirect to repair page
+          if (typeof window !== 'undefined') {
+            window.location.href = '/repair';
+          }
+          
+          this.currentUser = null;
+          return null;
+        }
+      }
+
+      // Fetch tenant information separately to avoid 406 errors with joins
+      console.log('🔍 Fetching tenant information for worker...');
+      const { data: tenant, error: tenantError } = await supabase
+        .from('tenants')
+        .select('*')
+        .eq('id', worker.tenant_id)
+        .single();
+
+      if (tenantError) {
+        console.error('❌ Failed to fetch tenant:', tenantError);
+      } else {
+        console.log('✅ Tenant fetched successfully:', tenant?.name);
       }
 
       const authUser: AuthUser = {
@@ -198,7 +334,7 @@ class SupabaseAuthService {
         tenantId: worker.tenant_id,
         rol: this.mapAreaModuleToRole(worker.area_module),
         activo: worker.status === 'active',
-        tenant: worker.tenant,
+        tenant: tenant || null,
         worker: worker,
       };
 
@@ -407,7 +543,7 @@ class SupabaseAuthService {
         email: data.adminEmail,
         phone: data.adminPhone || null, // Explicitly handle null for optional field
         area_module: 'administracion',
-        membership_id: authData.user.id,
+        membership_id: authData.user.id, // Link to auth user
         status: 'active',
       };
 
@@ -431,6 +567,45 @@ class SupabaseAuthService {
         });
         throw new Error(`Error al crear el perfil del administrador: ${workerError.message}`);
       }
+
+      if (!workerResult || workerResult.length === 0) {
+        throw new Error("No se pudo crear el perfil del administrador - no se devolvió ningún registro");
+      }
+
+      console.log('Worker created successfully:', workerResult[0]);
+
+      // Verify that the worker can be found immediately with tenant relationship
+      const { data: verifyWorker, error: verifyError } = await supabase
+        .from('workers')
+        .select('*')
+        .eq('email', data.adminEmail)
+        .eq('tenant_id', tenant.id)
+        .eq('status', 'active')
+        .single();
+
+      if (verifyError || !verifyWorker) {
+        console.error('Worker verification failed:', verifyError);
+        
+        // Try one more time to get the worker with just basic fields
+        const { data: basicWorker, error: basicError } = await supabase
+          .from('workers')
+          .select('*')
+          .eq('email', data.adminEmail)
+          .eq('tenant_id', tenant.id);
+          
+        console.log('Basic worker query result:', { basicWorker, basicError });
+        
+        if (!basicWorker || basicWorker.length === 0) {
+          throw new Error("El perfil del administrador no fue creado correctamente. Contacta con soporte técnico.");
+        } else {
+          console.log('Worker found in basic query, continuing...');
+        }
+      } else {
+        console.log('Worker verification successful:', verifyWorker);
+      }
+
+      // Add a small delay to ensure database consistency
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       return { success: true, error: null, tenant };
 
@@ -611,7 +786,7 @@ class SupabaseAuthService {
           email: data.email,
           phone: data.phone,
           area_module: data.areaModule,
-          membership_id: data.membershipId,
+          membership_id: authData.user.id, // Link to auth user
           status: 'active',
         }]);
 
@@ -695,6 +870,25 @@ class SupabaseAuthService {
       return { success: false, error: "Usuario no encontrado" };
     } catch (error: any) {
       return { success: false, error: error.message || "Error inesperado" };
+    }
+  }
+
+  // Utility function to clear corrupted session
+  async clearCorruptedSession(): Promise<void> {
+    try {
+      console.log('Clearing corrupted session...')
+      
+      // Sign out from Supabase (this will clear the corrupted tokens)
+      await supabase.auth.signOut();
+      
+      // Clear current user cache
+      this.currentUser = null;
+      
+      console.log('Corrupted session cleared successfully')
+    } catch (error) {
+      console.error('Error clearing corrupted session:', error)
+      // Even if signOut fails, clear the local state
+      this.currentUser = null;
     }
   }
 }
