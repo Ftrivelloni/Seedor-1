@@ -6,18 +6,16 @@ export function SessionCleanup() {
   useEffect(() => {
     const cleanupCorruptedSession = async () => {
       try {
-        console.log('SessionCleanup: Checking for corrupted session...')
-        
         // Try to get the current session
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
-          console.log('SessionCleanup: Session error detected:', error.message)
+          console.error('SessionCleanup: Session error detected:', error.message)
           
           // If it's a refresh token error, clear everything
           if (error.message.includes('refresh_token_not_found') || 
               error.message.includes('Invalid Refresh Token')) {
-            console.log('SessionCleanup: Clearing corrupted session...')
+            console.warn('SessionCleanup: Clearing corrupted session...')
             
             // Sign out (this will clear the tokens)
             await supabase.auth.signOut()
@@ -38,7 +36,6 @@ export function SessionCleanup() {
               }
               
               keysToRemove.forEach(key => {
-                console.log(`SessionCleanup: Removing ${key} from localStorage`)
                 localStorage.removeItem(key)
               })
               
@@ -57,7 +54,6 @@ export function SessionCleanup() {
               }
               
               sessionKeysToRemove.forEach(key => {
-                console.log(`SessionCleanup: Removing ${key} from sessionStorage`)
                 sessionStorage.removeItem(key)
               })
             }
@@ -67,9 +63,8 @@ export function SessionCleanup() {
             // Force a page reload to ensure clean state
             window.location.reload()
           }
-        } else {
-          console.log('SessionCleanup: Session is valid or no session found')
         }
+        // Silently pass if session is valid
       } catch (error: any) {
         console.error('SessionCleanup: Error during cleanup:', error)
         
@@ -82,7 +77,7 @@ export function SessionCleanup() {
           try {
             await supabase.auth.signOut()
           } catch (signOutError) {
-            console.log('SessionCleanup: SignOut also failed, clearing storage manually')
+            // Silent fallback
           }
           
           // Clear all possible auth-related storage

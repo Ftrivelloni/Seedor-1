@@ -6,6 +6,11 @@ import { authService } from "../lib/supabaseAuth"
 import { tareasCampo, movimientosCaja, inventario } from "../lib/mocks"
 import { Calendar, TrendingUp, AlertTriangle, DollarSign } from "lucide-react"
 
+// Utility function for conditional class names
+function cn(...classes: (string | undefined)[]) {
+  return classes.filter(Boolean).join(" ")
+}
+
 export function DashboardStats() {
   const user = authService.getCurrentUser()
   if (!user) return null
@@ -33,9 +38,12 @@ export function DashboardStats() {
   const movimientosRecientes = tenantMovimientos
     .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
     .slice(0, 3)
+    
+  // Total items in inventory
+  const totalInventario = tenantInventario.length
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 py-6 max-w-5xl mx-auto">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -66,7 +74,7 @@ export function DashboardStats() {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">{itemsBajoStock.length}</div>
+            <div className="text-2xl font-bold text-red-500">{itemsBajoStock.length}</div>
             <p className="text-xs text-muted-foreground">Requieren atención</p>
           </CardContent>
         </Card>
@@ -87,7 +95,7 @@ export function DashboardStats() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Próximas Tareas */}
         <Card>
-          <CardHeader>
+          <CardHeader className="gap-1">
             <CardTitle>Próximas Tareas en Campo</CardTitle>
             <CardDescription>Tareas programadas para los próximos días</CardDescription>
           </CardHeader>
@@ -112,7 +120,7 @@ export function DashboardStats() {
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground text-center py-4">No hay tareas pendientes</p>
+                <p className="text-muted-foreground text-center py-6">No hay tareas pendientes</p>
               )}
             </div>
           </CardContent>
@@ -120,7 +128,7 @@ export function DashboardStats() {
 
         {/* Movimientos Recientes */}
         <Card>
-          <CardHeader>
+          <CardHeader className="gap-1">
             <CardTitle>Movimientos Recientes</CardTitle>
             <CardDescription>Últimos movimientos de caja chica</CardDescription>
           </CardHeader>
@@ -147,7 +155,7 @@ export function DashboardStats() {
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground text-center py-4">No hay movimientos registrados</p>
+                <p className="text-muted-foreground text-center py-6">No hay movimientos registrados</p>
               )}
             </div>
           </CardContent>
@@ -157,7 +165,7 @@ export function DashboardStats() {
       {/* Items Bajo Stock */}
       {itemsBajoStock.length > 0 && (
         <Card>
-          <CardHeader>
+          <CardHeader className="gap-1">
             <CardTitle className="flex items-center space-x-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
               <span>Items con Bajo Stock</span>
@@ -187,8 +195,4 @@ export function DashboardStats() {
       )}
     </div>
   )
-}
-
-function cn(...classes: (string | undefined)[]) {
-  return classes.filter(Boolean).join(" ")
 }

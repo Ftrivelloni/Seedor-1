@@ -52,6 +52,7 @@ class SupabaseAuthService {
 
   async login(email: string, password: string): Promise<{ user: AuthUser | null; error: string | null }> {
     try {
+      console.log('🔐 LOGIN FUNCTION CALLED - CODE UPDATED v2');
       // Sign in with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
@@ -71,14 +72,87 @@ class SupabaseAuthService {
         .from('workers')
         .select(`
           *,
-          tenant:tenants(*)
+          tenant:tenants(*),
+          membership:tenant_memberships!workers_membership_id_fkey(*)
         `)
         .eq('email', email)
         .eq('status', 'active')
-        .single();
+        .maybeSingle();
+
+      console.log('Worker lookup result:', { worker, workerError });
 
       if (workerError || !worker) {
+        console.error('Worker not found:', { email, workerError });
         return { user: null, error: "Usuario no encontrado o inactivo" };
+      }
+
+      // If worker doesn't have a membership, create one and link it
+      if (!worker.membership_id || !worker.membership) {
+        console.log('Worker has no membership, creating one...');
+        
+        // First check if a membership already exists for this user
+        const { data: existingMembership } = await supabase
+          .from('tenant_memberships')
+          .select('*')
+          .eq('user_id', authData.user.id)
+          .eq('tenant_id', worker.tenant_id)
+          .single();
+
+        let membershipId: string;
+
+        if (existingMembership) {
+          membershipId = existingMembership.id;
+          console.log('Found existing membership:', membershipId);
+        } else {
+          // Create new membership
+          const { data: newMembership, error: membershipError } = await supabase
+            .from('tenant_memberships')
+            .insert({
+              tenant_id: worker.tenant_id,
+              user_id: authData.user.id,
+              role_code: worker.area_module,
+              status: 'active',
+              accepted_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+          if (membershipError || !newMembership) {
+            console.error('Failed to create membership:', membershipError);
+            return { user: null, error: "Error al crear membresía del usuario" };
+          }
+
+          membershipId = newMembership.id;
+          console.log('Created new membership:', membershipId);
+        }
+
+        // Link worker to membership
+        const { error: updateError } = await supabase
+          .from('workers')
+          .update({ membership_id: membershipId })
+          .eq('id', worker.id);
+
+        if (updateError) {
+          console.error('Failed to link worker to membership:', updateError);
+        } else {
+          console.log('Successfully linked worker to membership');
+        }
+
+        // Refresh worker data with the new membership
+        const { data: updatedWorker } = await supabase
+          .from('workers')
+          .select(`
+            *,
+            tenant:tenants(*),
+            membership:tenant_memberships!workers_membership_id_fkey(*)
+          `)
+          .eq('id', worker.id)
+          .single();
+
+        if (updatedWorker) {
+          worker.membership = updatedWorker.membership;
+          worker.membership_id = membershipId;
+        }
       }
 
       const authUser: AuthUser = {
@@ -93,16 +167,15 @@ class SupabaseAuthService {
       };
 
       this.currentUser = authUser;
+      console.log('✅ LOGIN SUCCESS - currentUser set:', { email: authUser.email, rol: authUser.rol });
       
-      // Update last access time
-      await supabase
-        .from('workers')
-        .update({ last_access: new Date().toISOString() })
-        .eq('id', worker.id);
+      // Note: last_access tracking removed - column doesn't exist in workers table
+      // If needed in future, add: last_access TIMESTAMPTZ to workers table
 
       return { user: authUser, error: null };
 
     } catch (error: any) {
+      console.error('Login error:', error);
       return { user: null, error: error.message || "Error inesperado durante el login" };
     }
   }
@@ -147,6 +220,12 @@ class SupabaseAuthService {
       return this.currentUser;
     }
     
+    // Return current user immediately if it exists (for consistency after login)
+    if (this.currentUser) {
+      console.log('🔑 checkSession: Using existing currentUser:', this.currentUser.email);
+      return this.currentUser;
+    }
+    
     this.isCheckingSession = true;
     
     try {
@@ -178,10 +257,6 @@ class SupabaseAuthService {
       
       console.log('Session found for user:', session.user.email);
 
-      // Get worker profile
-      
-      console.log('🔍 Querying workers by membership_id:', session.user.id);
-      
       // Get worker profile using admin functions
       const { getWorkerByUserId, getWorkerByEmail } = await import('./supabaseAdmin');
       
@@ -197,56 +272,83 @@ class SupabaseAuthService {
         const { data: emailWorker, error: emailWorkerError } = await getWorkerByEmail(session.user.email!);
           
         if (!emailWorkerError && emailWorker) {
-          console.log('Worker found by email, updating membership_id');
-          const { updateWorkerMembership } = await import('./supabaseAdmin');
-          const { data: updatedWorker, error: updateError } = await updateWorkerMembership(emailWorker.id, session.user.id);
+          console.log('Worker found by email, checking/creating membership...');
+          
+          // Check if worker needs membership
+          if (!emailWorker.membership_id || !emailWorker.membership) {
+            console.log('Worker has no membership, creating one...');
             
-          if (updateError) {
-            console.error('Failed to update worker membership_id:', updateError);
+            // Check if membership already exists
+            const { data: existingMembership } = await supabase
+              .from('tenant_memberships')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .eq('tenant_id', emailWorker.tenant_id)
+              .single();
+
+            let membershipId: string;
+
+            if (existingMembership) {
+              membershipId = existingMembership.id;
+              console.log('Found existing membership:', membershipId);
+            } else {
+              // Create new membership
+              const { data: newMembership, error: membershipError } = await supabase
+                .from('tenant_memberships')
+                .insert({
+                  tenant_id: emailWorker.tenant_id,
+                  user_id: session.user.id,
+                  role_code: emailWorker.area_module,
+                  status: 'active',
+                  accepted_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+
+              if (membershipError || !newMembership) {
+                console.error('Failed to create membership:', membershipError);
+              } else {
+                membershipId = newMembership.id;
+                console.log('Created new membership:', membershipId);
+                
+                // Link worker to membership
+                const { error: updateError } = await supabase
+                  .from('workers')
+                  .update({ membership_id: membershipId })
+                  .eq('id', emailWorker.id);
+
+                if (updateError) {
+                  console.error('Failed to link worker to membership:', updateError);
+                } else {
+                  console.log('Successfully linked worker to membership');
+                }
+              }
+            }
           }
-            
-          worker = updatedWorker || emailWorker;
+          
+          // Try to fetch worker again with membership
+          const { data: refreshedWorker } = await getWorkerByEmail(session.user.email!);
+          worker = refreshedWorker || emailWorker;
           workerError = null;
         }
       }
 
+      // If still no worker found, log them out gracefully
+      // This user has auth but no worker profile (incomplete registration)
       if (workerError || !worker) {
-        console.error('Worker profile not found for user:', session.user.email);
+        console.warn('⚠️ User has auth session but no worker profile:', session.user.email);
+        console.log('Clearing session - user needs to complete registration');
         
-        // Final attempt: comprehensive worker search
-        try {
-          const { data: emailWorkerResult, error: emailSearchError } = await getWorkerByEmail(session.user.email!);
-          
-          if (emailWorkerResult) {
-            if (!emailWorkerResult.membership_id || emailWorkerResult.membership_id !== session.user.id) {
-              const { updateWorkerMembership } = await import('./supabaseAdmin');
-              const { data: updatedWorker, error: updateError } = await updateWorkerMembership(emailWorkerResult.id, session.user.id);
-              
-              if (!updateError && updatedWorker) {
-                worker = updatedWorker;
-                workerError = null;
-              } else {
-                worker = emailWorkerResult;
-                workerError = null;
-              }
-            } else {
-              worker = emailWorkerResult;
-              workerError = null;
-            }
-          }
-          
-        } catch (searchError) {
-          console.error('Worker search failed:', searchError);
+        // Clear the session since it's incomplete
+        await supabase.auth.signOut();
+        this.currentUser = null;
+        
+        // Redirect to login with a message
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+          window.location.href = '/login?error=incomplete_profile';
         }
         
-        // If no worker found, redirect to repair page
-        if (workerError || !worker) {
-          if (typeof window !== 'undefined') {
-            window.location.href = '/repair';
-          }
-          this.currentUser = null;
-          return null;
-        }
+        return null;
       }
 
       // Fetch tenant information
@@ -318,13 +420,38 @@ class SupabaseAuthService {
 
   // Enhanced method to safely get current session with retry logic
   async getSafeSession(retryCount: number = 0): Promise<{ user: AuthUser | null; error: string | null }> {
+    console.log('🔍 getSafeSession CALLED - retry:', retryCount, 'currentUser:', this.currentUser?.email || 'null');
+    
     // If we're already checking the session, return current user
     if (this.isCheckingSession && retryCount === 0) {
+      console.log('getSafeSession: Already checking session, returning cached user:', this.currentUser?.email);
       return { user: this.currentUser, error: null };
     }
     
+    // If we already have a current user and this is the first call, verify the session is still valid
+    if (this.currentUser && retryCount === 0) {
+      console.log('getSafeSession: Current user exists, verifying session:', this.currentUser.email);
+      
+      try {
+        // Quick session check without full worker lookup
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user && session.user.id === this.currentUser.id) {
+          console.log('✅ getSafeSession: Session valid, returning cached user');
+          return { user: this.currentUser, error: null };
+        }
+        
+        console.log('⚠️ getSafeSession: Session invalid or expired, rechecking...');
+      } catch (error) {
+        console.log('❌ getSafeSession: Error checking session, will do full check:', error);
+      }
+    }
+    
+    console.log('🔄 getSafeSession: Performing full session check...');
+    
     try {
       const user = await this.checkSession();
+      console.log('✅ getSafeSession: checkSession returned:', user?.email || 'null');
       return { user, error: null };
     } catch (error: any) {
       const { shouldRetry, shouldLogout } = this.handleAuthError(error);
@@ -389,7 +516,7 @@ class SupabaseAuthService {
         .from('workers')
         .select('email')
         .eq('email', data.adminEmail)
-        .single();
+        .maybeSingle();
 
       if (existingWorker) {
         return { success: false, error: "Ya existe un usuario registrado con este email" };
@@ -415,10 +542,10 @@ class SupabaseAuthService {
         .from('tenants')
         .select('slug')
         .eq('slug', data.slug)
-        .single();
+        .maybeSingle();
 
       if (existingTenant) {
-        return { success: false, error: "Ya existe una empresa con este identificador" };
+        return { success: false, error: `Ya existe una empresa con el identificador "${data.slug}". Por favor, cambia el nombre de tu empresa o edita el identificador manualmente.` };
       }
 
       // 1. Create the admin user in Supabase Auth
@@ -468,26 +595,85 @@ class SupabaseAuthService {
 
       createdTenantId = tenant.id;
 
-      // 3. Create the worker profile
+      // 3. Create the tenant_membership first (using admin client to bypass RLS)
+      let membership;
+      let membershipError;
+      
+      if (supabaseAdmin) {
+        const result = await supabaseAdmin
+          .from('tenant_memberships')
+          .insert([{
+            tenant_id: tenant.id,
+            user_id: authData.user.id,
+            role_code: 'admin',
+            status: 'active',
+            accepted_at: new Date().toISOString()
+          }])
+          .select()
+          .single();
+        membership = result.data;
+        membershipError = result.error;
+      } else {
+        const result = await supabase
+          .from('tenant_memberships')
+          .insert([{
+            tenant_id: tenant.id,
+            user_id: authData.user.id,
+            role_code: 'admin',
+            status: 'active',
+            accepted_at: new Date().toISOString()
+          }])
+          .select()
+          .single();
+        membership = result.data;
+        membershipError = result.error;
+      }
+
+      if (membershipError) {
+        console.error('Membership error:', membershipError);
+        throw new Error(`Error al crear la membresía: ${membershipError.message} (Código: ${membershipError.code}, Detalles: ${membershipError.details})`);
+      }
+
+      if (!membership) {
+        throw new Error("No se pudo crear la membresía del administrador");
+      }
+
+      console.log('Membership created successfully:', membership.id);
+
+      // 4. Create the worker profile linked to the membership (using admin client to bypass RLS)
       const workerData = {
         tenant_id: tenant.id,
         full_name: data.adminFullName,
-        document_id: data.adminDocumentId,
+        document_id: data.adminDocumentId || '',
         email: data.adminEmail,
-        phone: data.adminPhone || null, // Explicitly handle null for optional field
-        area_module: 'administracion',
-        membership_id: authData.user.id, // Link to auth user
+        phone: data.adminPhone || null,
+        area_module: 'admin',
+        membership_id: membership.id, // Link to tenant_membership
         status: 'active',
       };
 
       console.log('Creating worker with data:', workerData);
       console.log('Tenant ID:', tenant.id);
-      console.log('Auth User ID:', authData.user.id);
+      console.log('Membership ID:', membership.id);
 
-      const { error: workerError, data: workerResult } = await supabase
-        .from('workers')
-        .insert([workerData])
-        .select(); // Add select to see what was created
+      let workerResult;
+      let workerError;
+      
+      if (supabaseAdmin) {
+        const result = await supabaseAdmin
+          .from('workers')
+          .insert([workerData])
+          .select();
+        workerResult = result.data;
+        workerError = result.error;
+      } else {
+        const result = await supabase
+          .from('workers')
+          .insert([workerData])
+          .select();
+        workerResult = result.data;
+        workerError = result.error;
+      }
 
       console.log('Worker insert result:', workerResult);
 
@@ -498,7 +684,7 @@ class SupabaseAuthService {
           hint: workerError.hint,
           code: workerError.code
         });
-        throw new Error(`Error al crear el perfil del administrador: ${workerError.message}`);
+        throw new Error(`Error al crear el perfil del administrador: ${workerError.message} (Código: ${workerError.code}, Detalles: ${workerError.details})`);
       }
 
       if (!workerResult || workerResult.length === 0) {
@@ -507,10 +693,47 @@ class SupabaseAuthService {
 
       console.log('Worker created successfully:', workerResult[0]);
 
+      // 5. Enable default modules for the tenant based on plan (using admin client to bypass RLS)
+      const defaultModules = ['campo', 'empaque', 'finanzas', 'inventario'];
+      const moduleRecords = defaultModules.map(module => ({
+        tenant_id: tenant.id,
+        module_code: module,
+        enabled: true
+      }));
+
+      let modulesError;
+      if (supabaseAdmin) {
+        const result = await supabaseAdmin
+          .from('tenant_modules')
+          .insert(moduleRecords);
+        modulesError = result.error;
+      } else {
+        const result = await supabase
+          .from('tenant_modules')
+          .insert(moduleRecords);
+        modulesError = result.error;
+      }
+
+      if (modulesError) {
+        console.error('Modules error details:', {
+          message: modulesError.message,
+          details: modulesError.details,
+          hint: modulesError.hint,
+          code: modulesError.code
+        });
+        throw new Error(`Error al crear los módulos: ${modulesError.message} (Código: ${modulesError.code})`);
+      } else {
+        console.log('Default modules created successfully');
+      }
+
       // Verify that the worker can be found immediately with tenant relationship
       const { data: verifyWorker, error: verifyError } = await supabase
         .from('workers')
-        .select('*')
+        .select(`
+          *,
+          tenant:tenants(*),
+          membership:tenant_memberships!workers_membership_id_fkey(*)
+        `)
         .eq('email', data.adminEmail)
         .eq('tenant_id', tenant.id)
         .eq('status', 'active')
@@ -564,7 +787,37 @@ class SupabaseAuthService {
           }
         }
 
-        // 2. Delete tenant if it was created
+        // 2. Delete tenant memberships if created
+        if (createdTenantId) {
+          console.log('Cleaning up tenant memberships...');
+          const { error: membershipCleanupError } = await supabase
+            .from('tenant_memberships')
+            .delete()
+            .eq('tenant_id', createdTenantId);
+          
+          if (membershipCleanupError) {
+            console.error('Membership cleanup error:', membershipCleanupError);
+          } else {
+            console.log('Memberships cleaned up successfully');
+          }
+        }
+
+        // 3. Delete tenant modules if created
+        if (createdTenantId) {
+          console.log('Cleaning up tenant modules...');
+          const { error: modulesCleanupError } = await supabase
+            .from('tenant_modules')
+            .delete()
+            .eq('tenant_id', createdTenantId);
+          
+          if (modulesCleanupError) {
+            console.error('Modules cleanup error:', modulesCleanupError);
+          } else {
+            console.log('Modules cleaned up successfully');
+          }
+        }
+
+        // 4. Delete tenant if it was created
         if (createdTenantId) {
           console.log('Cleaning up tenant...');
           const { error: tenantCleanupError } = await supabase
@@ -579,7 +832,7 @@ class SupabaseAuthService {
           }
         }
 
-        // 3. Delete auth user if it was created
+        // 5. Delete auth user if it was created
         if (createdUserId) {
           console.log('Cleaning up auth user...');
           

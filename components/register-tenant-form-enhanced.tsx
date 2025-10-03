@@ -163,37 +163,44 @@ export default function RegisterTenantFormEnhanced() {
         setLoading(true);
 
         try {
-            // First check if user already exists
-            const userCheck = await authService.checkUserExists(adminEmail);
-
-            if (userCheck.exists) {
-                setError(
-                    `Ya existe un usuario registrado con el email ${adminEmail}. Si creaste esta cuenta anteriormente y hubo un error, contacta con soporte.`
-                );
-                return;
-            }
-
-            const { success, error: createError } = await authService.createTenantWithAdmin({
-                tenantName: companyName,
-                slug: slug,
-                plan: selectedPlan,
-                primaryCrop: mainCrop || "general",
-                contactEmail: adminEmail,
-                adminFullName: adminFullName,
-                adminEmail: adminEmail,
-                adminPassword: adminPassword,
-                adminPhone: adminPhone,
-                adminDocumentId: adminDocumentId,
+            console.log('Creating tenant via API...');
+            
+            // Call the server-side API to create tenant (bypasses RLS)
+            const response = await fetch('/api/tenant/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    tenantName: companyName,
+                    slug: slug,
+                    plan: selectedPlan,
+                    primaryCrop: mainCrop || "general",
+                    contactEmail: adminEmail,
+                    adminFullName: adminFullName,
+                    adminEmail: adminEmail,
+                    adminPassword: adminPassword,
+                    adminPhone: adminPhone,
+                    adminDocumentId: adminDocumentId,
+                }),
             });
 
-            if (!success || createError) {
-                setError(createError || "Error al crear la cuenta");
+            const result = await response.json();
+            console.log('Tenant creation result:', result);
+
+            if (!result.success || result.error) {
+                setError(result.error || "Error al crear la cuenta");
+                setLoading(false);
                 return;
             }
+
+            console.log('Tenant created successfully, attempting auto-login...');
 
             // After successful tenant creation, try to log in the user automatically
             try {
                 const { user: loginUser, error: loginError } = await authService.login(adminEmail, adminPassword);
+                
+                console.log('Auto-login result:', { user: loginUser?.email, error: loginError });
                 
                 if (loginUser && !loginError) {
                     // Clear form data from localStorage after successful registration
@@ -201,12 +208,15 @@ export default function RegisterTenantFormEnhanced() {
                         localStorage.removeItem(FORM_DATA_KEY);
                     }
                     
+                    console.log('Auto-login successful, redirecting to /home');
                     // Redirect to home instead of showing success page
                     router.push("/home");
                     return;
+                } else {
+                    console.warn('Auto-login failed, showing success page instead');
                 }
             } catch (loginErr) {
-                console.error('Auto-login failed:', loginErr);
+                console.error('Auto-login exception:', loginErr);
                 // Continue to success page if auto-login fails
             }
 
@@ -217,8 +227,8 @@ export default function RegisterTenantFormEnhanced() {
 
             setDone(true);
         } catch (err: any) {
+            console.error('Registration error:', err);
             setError(err.message || "Error inesperado");
-        } finally {
             setLoading(false);
         }
     }

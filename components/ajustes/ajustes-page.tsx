@@ -107,7 +107,7 @@ export function AjustesPage() {
 
   return (
     <FeatureProvider user={user}>
-      <div className="space-y-6">
+      <div className="space-y-6 px-4 py-6 max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

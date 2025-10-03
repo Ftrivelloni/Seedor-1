@@ -58,10 +58,24 @@ export interface TenantMembership {
   id: string
   tenant_id: string
   user_id: string
-  role_code: 'admin' | 'campo' | 'empaque' | 'finanzas'
-  status: 'active' | 'pending' | 'inactive'
+  role_code: string // 'admin' | 'campo' | 'empaque' | 'finanzas'
+  status: string // 'active' | 'pending' | 'inactive'
   invited_by?: string
   accepted_at?: string
+}
+
+export interface Worker {
+  id: string
+  tenant_id: string
+  full_name: string
+  document_id: string
+  email: string
+  phone?: string
+  area_module: string // 'campo' | 'empaque' | 'finanzas' | 'admin'
+  membership_id?: string // References tenant_memberships.id
+  status: string // 'active' | 'inactive'
+  created_at?: string
+  updated_at?: string
 }
 
 export interface CreateWorkerRequest {
@@ -78,7 +92,7 @@ export interface TenantModule {
   tenant_id: string
   module_code: string
   enabled: boolean
-  created_at: string
+  created_at?: string
 }
 
 export interface CreateTenantRequest {

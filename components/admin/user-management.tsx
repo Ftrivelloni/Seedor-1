@@ -98,47 +98,55 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     try {
       setLoading(true)
       
-      // This would be your API call to get tenant users
-      // For now, using mock data structure
-      const response = await fetch(`/api/tenants/${currentUser.tenantId}/users`, {
+      // Get session token from Supabase
+      const { supabase } = await import('../../lib/supabaseClient')
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        toast({
+          title: 'Error',
+          description: 'No se encontró una sesión activa',
+          variant: 'destructive'
+        })
+        return
+      }
+      
+      // Call the new admin API
+      const response = await fetch('/api/admin/users', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         }
       })
       
       if (response.ok) {
         const data = await response.json()
-        setUsers(data.users || [])
+        // Transform workers data to match TenantUser interface
+        const transformedUsers = (data.users || []).map((worker: any) => ({
+          id: worker.id,
+          email: worker.email,
+          full_name: worker.full_name,
+          role_code: worker.membership?.role_code || worker.area_module,
+          status: worker.status,
+          created_at: worker.created_at,
+          accepted_at: worker.membership?.accepted_at
+        }))
+        setUsers(transformedUsers)
       } else {
-        console.error('Failed to load users')
-        // Fallback to mock data for development
-        setUsers([
-          {
-            id: '1',
-            email: currentUser.email,
-            full_name: currentUser.nombre,
-            role_code: 'admin',
-            status: 'active',
-            created_at: new Date().toISOString(),
-            accepted_at: new Date().toISOString()
-          }
-        ])
+        const errorData = await response.json()
+        toast({
+          title: 'Error al cargar usuarios',
+          description: errorData.error || 'No se pudieron cargar los usuarios',
+          variant: 'destructive'
+        })
       }
     } catch (error) {
       console.error('Error loading users:', error)
-      // Fallback for development
-      setUsers([
-        {
-          id: '1',
-          email: currentUser.email,
-          full_name: currentUser.nombre,
-          role_code: 'admin',
-          status: 'active',
-          created_at: new Date().toISOString(),
-          accepted_at: new Date().toISOString()
-        }
-      ])
+      toast({
+        title: 'Error',
+        description: 'Ocurrió un error al cargar los usuarios',
+        variant: 'destructive'
+      })
     } finally {
       setLoading(false)
     }
@@ -211,21 +219,40 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     setSubmitting(true)
     
     try {
-      const response = await fetch(`/api/tenants/${currentUser.tenantId}/users`, {
+      // Get session token
+      const { supabase } = await import('../../lib/supabaseClient')
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        toast({
+          title: 'Error',
+          description: 'No se encontró una sesión activa',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      const response = await fetch('/api/admin/users/invite', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          ...formData,
-          tenant_id: currentUser.tenantId
+          email: formData.email,
+          fullName: formData.full_name,
+          role: formData.role,
+          documentId: formData.document_id,
+          phone: formData.phone
         })
       })
 
       if (response.ok) {
-        const newUser = await response.json()
-        setUsers(prev => [...prev, newUser.user])
+        const result = await response.json()
+        toast({
+          title: "Usuario invitado",
+          description: result.message || "El usuario ha sido invitado exitosamente."
+        })
         setIsCreateModalOpen(false)
         setFormData({
           email: '',
@@ -235,16 +262,13 @@ export function UserManagement({ currentUser }: UserManagementProps) {
           phone: '',
           role: 'campo'
         })
-        toast({
-          title: "Usuario creado",
-          description: "El usuario ha sido creado exitosamente."
-        })
+        loadUsers() // Reload the user list
         checkUserLimits()
       } else {
         const error = await response.json()
         toast({
           title: "Error",
-          description: error.message || "Error al crear el usuario",
+          description: error.error || "Error al invitar al usuario",
           variant: "destructive"
         })
       }
@@ -252,7 +276,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
       console.error('Error creating user:', error)
       toast({
         title: "Error",
-        description: "Error de conexión al crear el usuario",
+        description: "Error de conexión al invitar al usuario",
         variant: "destructive"
       })
     } finally {
@@ -261,29 +285,43 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   }
 
   const handleDeleteUser = async (userId: string) => {
-    if (!window.confirm('¿Estás seguro de que quieres eliminar este usuario?')) {
+    if (!window.confirm('¿Estás seguro de que quieres desactivar este usuario?')) {
       return
     }
 
     try {
-      const response = await fetch(`/api/tenants/${currentUser.tenantId}/users/${userId}`, {
+      // Get session token
+      const { supabase } = await import('../../lib/supabaseClient')
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        toast({
+          title: 'Error',
+          description: 'No se encontró una sesión activa',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      const response = await fetch(`/api/admin/users?id=${userId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${session.access_token}`,
         }
       })
 
       if (response.ok) {
-        setUsers(prev => prev.filter(user => user.id !== userId))
         toast({
-          title: "Usuario eliminado",
-          description: "El usuario ha sido eliminado exitosamente."
+          title: "Usuario desactivado",
+          description: "El usuario ha sido desactivado exitosamente."
         })
+        loadUsers() // Reload the user list
         checkUserLimits()
       } else {
+        const error = await response.json()
         toast({
           title: "Error",
-          description: "Error al eliminar el usuario",
+          description: error.error || "Error al desactivar el usuario",
           variant: "destructive"
         })
       }
@@ -304,31 +342,42 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
   const handleUpdateUserRole = async (userId: string, newRole: string) => {
     try {
-      const response = await fetch(`/api/tenants/${currentUser.tenantId}/users/${userId}`, {
-        method: 'PATCH',
+      // Get session token
+      const { supabase } = await import('../../lib/supabaseClient')
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        toast({
+          title: 'Error',
+          description: 'No se encontró una sesión activa',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      const response = await fetch('/api/admin/users', {
+        method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ role_code: newRole })
+        body: JSON.stringify({ 
+          workerId: userId,
+          role: newRole 
+        })
       })
 
       if (response.ok) {
-        setUsers(prev => 
-          prev.map(user => 
-            user.id === userId 
-              ? { ...user, role_code: newRole as any }
-              : user
-          )
-        )
         toast({
           title: "Rol actualizado",
           description: "El rol del usuario ha sido actualizado exitosamente."
         })
+        loadUsers() // Reload the user list
       } else {
+        const error = await response.json()
         toast({
           title: "Error",
-          description: "Error al actualizar el rol del usuario",
+          description: error.error || "Error al actualizar el rol del usuario",
           variant: "destructive"
         })
       }

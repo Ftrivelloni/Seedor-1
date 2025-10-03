@@ -1,16 +1,59 @@
 "use client"
 
+import { ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import { Sidebar } from "../../components/sidebar"
-import { InventarioPage } from "../../components/inventario/inventario-page";
-import { useAuth } from "../../hooks/use-auth";
-import { FeatureProvider } from "../../lib/features-context";
+import { Sidebar } from "../sidebar"
+import { FeatureProvider } from "../../lib/features-context"
+import { useAuth } from "../../hooks/use-auth"
 
-export default function InventarioRoutePage() {
+interface HeaderProps {
+  title: string
+  subtitle?: string
+  user: any
+  handleLogout: () => Promise<void>
+}
+
+function Header({ title, subtitle, user, handleLogout }: HeaderProps) {
+  return (
+    <header className="border-b bg-card">
+      <div className="flex h-16 items-center justify-between px-6">
+        <div>
+          <h1 className="text-xl font-semibold">{title}</h1>
+          <p className="text-sm text-muted-foreground">
+            {subtitle || `${title} - ${user?.tenant?.name || 'Tu Empresa'}`}
+          </p>
+        </div>
+        <div className="flex items-center space-x-4">
+          <div className="text-right">
+            <p className="text-sm font-medium">{user?.nombre || user?.email}</p>
+            <p className="text-xs text-muted-foreground">{user?.rol || 'Usuario'}</p>
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+interface ProtectedLayoutProps {
+  children: ReactNode
+  title: string
+  subtitle?: string
+  currentPage: string
+  requiredRoles?: string[]
+}
+
+export function ProtectedLayout({
+  children,
+  title,
+  subtitle,
+  currentPage,
+  requiredRoles = ["Admin"]
+}: ProtectedLayoutProps) {
   const { user, loading, handleLogout } = useAuth({
     redirectToLogin: true,
-    requireRoles: ["Admin", "Inventario"]
+    requireRoles: requiredRoles
   });
+  
   const router = useRouter();
 
   if (loading) {
@@ -51,26 +94,18 @@ export default function InventarioRoutePage() {
             const targetRoute = pageRoutes[page] || "/home";
             router.push(targetRoute);
           }} 
-          currentPage="inventario" 
+          currentPage={currentPage} 
         />
         <div className="flex-1 flex flex-col">
-          <header className="border-b bg-card">
-            <div className="flex h-16 items-center justify-between px-6">
-              <div>
-                <h1 className="text-xl font-semibold">Inventario</h1>
-                <p className="text-sm text-muted-foreground">Control de stock e inventario - {user?.tenant?.name || 'Tu Empresa'}</p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="text-right">
-                  <p className="text-sm font-medium">{user?.nombre || user?.email}</p>
-                  <p className="text-xs text-muted-foreground">{user?.rol || 'Usuario'}</p>
-                </div>
-              </div>
-            </div>
-          </header>
+          <Header 
+            user={user} 
+            handleLogout={handleLogout}
+            title={title} 
+            subtitle={subtitle}
+          />
           <main className="flex-1 p-6 overflow-auto">
             <div className="max-w-7xl mx-auto">
-              <InventarioPage />
+              {children}
             </div>
           </main>
         </div>

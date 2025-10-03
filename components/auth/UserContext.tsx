@@ -13,35 +13,52 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const loadUser = async () => {
       if (isUpdatingRef.current) return
       
+      // Check if we're on a public page that doesn't need auth
+      if (typeof window !== 'undefined') {
+        const publicPaths = ['/', '/login', '/register-tenant', '/forgot-password', '/reset-password', '/contacto', '/funcionalidades']
+        const currentPath = window.location.pathname
+        
+        // If we're on a public page, don't check session
+        if (publicPaths.includes(currentPath) || publicPaths.some(path => currentPath.startsWith(path))) {
+          setLoading(false)
+          setUser(null)
+          return
+        }
+      }
+      
+      console.log('🔄 UserContext: Loading user...');
       setLoading(true)
+      
+      // IMPORTANT FIX: First check if we have a currentUser in authService already
+      // This handles the case where we just logged in and currentUser is set
+      const directUser = authService.getCurrentUser();
+      if (directUser) {
+        console.log('✅ UserContext: Using existing user from authService:', directUser.email);
+        setUser(directUser);
+        setLoading(false);
+        return;
+      }
+      
       try {
-        console.log('UserContext: Loading user session...')
-        const { user: sessionUser, error } = await authService.getSafeSession()
+        console.log('🔍 UserContext: No cached user, calling getSafeSession...');
+        const { user: sessionUser, error } = await authService.getSafeSession();
+        
+        console.log('🔍 UserContext: getSafeSession result:', { user: sessionUser?.email, error });
         
         if (error) {
-          console.log('UserContext: Session error:', error)
           // If it's a refresh token error, clear the session
           if (typeof error === 'string' && (
               error.includes('refresh_token_not_found') || 
               error.includes('Invalid Refresh Token'))) {
-            console.log('UserContext: Invalid refresh token, clearing session')
-            await authService.logout()
-            setUser(null)
-            setLoading(false)
-            return
+            console.warn('⚠️ UserContext: Invalid refresh token, clearing session');
+            await authService.logout();
+            setUser(null);
+            setLoading(false);
+            return;
           }
         }
         
-        if (sessionUser) {
-          console.log('UserContext: User loaded successfully:', {
-            email: sessionUser.email,
-            rol: sessionUser.rol,
-            tenantId: sessionUser.tenantId
-          })
-        } else {
-          console.log('UserContext: No user session found')
-        }
-        setUser(sessionUser)
+        setUser(sessionUser);
       } catch (error: any) {
         console.error('UserContext: Error loading user session:', error)
         
@@ -78,11 +95,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
         
         if (supabase?.auth?.onAuthStateChange) {
           const { data: authListener } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
-            console.log('Auth state changed:', event, session?.user?.email)
+            // Only log important auth events in production
+            if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
+              console.log('Auth state changed:', event, session?.user?.email)
+            }
             
             // Prevent recursive updates
             if (isUpdatingRef.current) {
-              console.log('Skipping auth state change - already updating')
               return
             }
             
@@ -90,14 +109,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
             
             try {
               if (event === 'SIGNED_OUT') {
-                console.log('User signed out')
                 setUser(null)
               } else if (event === 'SIGNED_IN' && session?.user) {
-                console.log('User signed in, loading profile...')
                 const { user: newUser } = await authService.getSafeSession()
                 setUser(newUser)
               } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-                console.log('Token refreshed successfully')
                 // Optionally reload user data to ensure it's up to date
                 const { user: refreshedUser } = await authService.getSafeSession()
                 setUser(refreshedUser)

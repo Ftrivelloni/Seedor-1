@@ -10,12 +10,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { empaqueApi, ingresoFrutaApi, palletsApi, despachoApi } from "../../lib/api"
 import { authService } from "../../lib/supabaseAuth"
 import { useUser } from "../auth/UserContext"
+import { useAuth } from "../../hooks/use-auth"
 import type { RegistroEmpaque } from "../../lib/mocks"
 import { Search, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
 
 
 export function EmpaquePage() {
-  const { user } = useUser()
+  // Use the layout's authentication instead of a direct approach
+  const { user, loading } = useAuth({
+    redirectToLogin: false, // Let the parent layout handle redirects
+    requireRoles: ["Admin", "Empaque"],
+    useLayoutSession: true // Use parent layout's authentication
+  });
+  
   const [registros, setRegistros] = useState<RegistroEmpaque[]>([])
   const [filteredRegistros, setFilteredRegistros] = useState<RegistroEmpaque[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -37,14 +44,6 @@ export function EmpaquePage() {
 
   const router = useRouter()
 
-  // Check if user is available from UserContext
-  useEffect(() => {
-    if (!user) {
-      router.push("/login")
-      return
-    }
-  }, [user, router])
-
   useEffect(() => {
     if (user) {
       loadRegistros();
@@ -54,6 +53,7 @@ export function EmpaquePage() {
       loadEgresosFruta();
       loadPreprocesos();
     }
+    
     // Escuchar evento global para recargar preprocesos
     const handler = () => { loadPreprocesos(); };
     window.addEventListener('preproceso:created', handler);
@@ -63,7 +63,11 @@ export function EmpaquePage() {
   }, [user])
   // Cargar preprocesos desde Supabase
   const loadPreprocesos = async () => {
-    if (!user?.tenantId) return;
+    if (!user?.tenantId) {
+      console.error('No se encontró la sesión del usuario o el tenant ID');
+      return;
+    }
+    
     try {
       setIsLoadingPreprocesos(true);
       const { data, error } = await supabase
@@ -83,6 +87,7 @@ export function EmpaquePage() {
       setIsLoadingPreprocesos(false);
     }
   };
+  
   const loadIngresosFruta = async () => {
     if (!user?.tenantId) return;
     try {
@@ -209,7 +214,7 @@ export function EmpaquePage() {
   const porcentajeDescartePromedio = totalKgEntraron > 0 ? (totalKgDescartados / totalKgEntraron) * 100 : 0
 
   // Show loading while user is being loaded
-  if (!user) {
+  if (loading || !user) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -217,7 +222,7 @@ export function EmpaquePage() {
     )
   }
 
-  if (!["Admin", "Empaque"].includes(user.rol)) {
+  if (!['Admin', 'Empaque'].includes(user.rol)) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
@@ -226,7 +231,7 @@ export function EmpaquePage() {
   }
 
   return (
-  <div className="space-y-10">
+  <div className="space-y-10 px-4 py-6 max-w-5xl mx-auto">
 
       {/* Header */}
   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-0">

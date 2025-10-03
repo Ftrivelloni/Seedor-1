@@ -1,45 +1,64 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+// Global singleton key for admin client
+const GLOBAL_ADMIN_KEY = '__seedor_supabase_admin_client__';
+
+// Declare global type for TypeScript
+declare global {
+  var __seedor_supabase_admin_client__: SupabaseClient | undefined;
+}
 
 // Service role client for administrative operations
-let supabaseAdmin: any = null;
+let supabaseAdmin: SupabaseClient | null = null;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (supabaseUrl && supabaseServiceKey) {
-  supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
+  // Use global singleton (works across module re-evaluations)
+  if (typeof globalThis !== 'undefined' && globalThis[GLOBAL_ADMIN_KEY]) {
+    supabaseAdmin = globalThis[GLOBAL_ADMIN_KEY];
+  } else {
+    supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+    
+    // Store in globalThis to prevent multiple instances
+    if (typeof globalThis !== 'undefined') {
+      globalThis[GLOBAL_ADMIN_KEY] = supabaseAdmin;
     }
-  });
+  }
 }
 
-// Function to get worker by user ID with proper permissions
+// Function to get worker by user ID (membership user_id) with proper permissions
 export async function getWorkerByUserId(userId: string): Promise<{ data: any | null; error: any }> {
   if (!supabaseAdmin) {
     console.log('📝 Service role not available, using regular client with RLS');
-    // Import regular client
     const { supabase } = await import('./supabaseClient');
     
-    // Try a different approach - get user profile first, then worker
     try {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
+      // First get the membership
+      const { data: membership, error: membershipError } = await supabase
+        .from('tenant_memberships')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
       
-      if (userError || !userData.user) {
-        return { data: null, error: userError || new Error('No authenticated user') };
+      if (membershipError || !membership) {
+        return { data: null, error: membershipError || new Error('No membership found') };
       }
       
-      // Use the authenticated context to query workers
-      const { data: workers, error: workersError } = await supabase
+      // Then get the worker using membership_id
+      const { data: worker, error: workerError } = await supabase
         .from('workers')
-        .select('*')
-        .eq('membership_id', userId);
+        .select('*, membership:tenant_memberships!workers_membership_id_fkey(*)')
+        .eq('membership_id', membership.id)
+        .single();
         
-      return { 
-        data: workers && workers.length > 0 ? workers[0] : null, 
-        error: workersError 
-      };
+      return { data: worker, error: workerError };
     } catch (error) {
       return { data: null, error };
     }
@@ -47,13 +66,25 @@ export async function getWorkerByUserId(userId: string): Promise<{ data: any | n
     console.log('🔧 Using service role client to bypass RLS');
     
     try {
-      const { data: worker, error } = await supabaseAdmin
-        .from('workers')
+      // Get membership first
+      const { data: membership, error: membershipError } = await supabaseAdmin
+        .from('tenant_memberships')
         .select('*')
-        .eq('membership_id', userId)
+        .eq('user_id', userId)
+        .single();
+      
+      if (membershipError || !membership) {
+        return { data: null, error: membershipError || new Error('No membership found') };
+      }
+      
+      // Get worker with membership data
+      const { data: worker, error: workerError } = await supabaseAdmin
+        .from('workers')
+        .select('*, membership:tenant_memberships!workers_membership_id_fkey(*)')
+        .eq('membership_id', membership.id)
         .single();
         
-      return { data: worker, error };
+      return { data: worker, error: workerError };
     } catch (error) {
       return { data: null, error };
     }
@@ -67,13 +98,13 @@ export async function getWorkerByEmail(email: string): Promise<{ data: any | nul
     const { supabase } = await import('./supabaseClient');
     
     try {
-      const { data: workers, error } = await supabase
+      const { data: worker, error } = await supabase
         .from('workers')
-        .select('*')
-        .or(`email.eq.${email},membership_id.is.null`);
+        .select('*, membership:tenant_memberships!workers_membership_id_fkey(*), tenant:tenants(*)')
+        .eq('email', email)
+        .single();
         
-      const emailWorker = workers?.find((w: any) => w.email === email);
-      return { data: emailWorker || null, error };
+      return { data: worker, error };
     } catch (error) {
       return { data: null, error };
     }
@@ -81,15 +112,13 @@ export async function getWorkerByEmail(email: string): Promise<{ data: any | nul
     console.log('🔧 Using service role client for email lookup');
     
     try {
-      const { data: workers, error } = await supabaseAdmin
+      const { data: worker, error } = await supabaseAdmin
         .from('workers')
-        .select('*')
-        .eq('email', email);
+        .select('*, membership:tenant_memberships!workers_membership_id_fkey(*), tenant:tenants(*)')
+        .eq('email', email)
+        .single();
         
-      return { 
-        data: workers && workers.length > 0 ? workers[0] : null, 
-        error 
-      };
+      return { data: worker, error };
     } catch (error) {
       return { data: null, error };
     }

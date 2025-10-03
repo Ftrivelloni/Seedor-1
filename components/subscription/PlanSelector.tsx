@@ -162,6 +162,7 @@ export function PlanSelector({ selectedPlan, onPlanSelect }: PlanSelectorProps) 
               </div>
 
               <Button 
+                type="button"
                 variant={selectedPlan === plan.id ? "default" : "outline"}
                 className="w-full mt-4"
                 onClick={(e) => {

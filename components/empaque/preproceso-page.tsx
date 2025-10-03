@@ -8,8 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Input } from "../ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { authService } from "../../lib/supabaseAuth"
 import { supabase } from "../../lib/supabaseClient"
+import { useAuth } from "../../hooks/use-auth"
 import { Plus, Download, ArrowLeft, Cog, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 
@@ -19,29 +19,26 @@ export function PreprocesoPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
     const [modalOpen, setModalOpen] = useState(false)
-    const [user, setUser] = useState<any>(null)
 
     // paginación
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
 
     const router = useRouter()
+    
+    // Use the layout's authentication, since we're in a subpage
+    const { user, loading } = useAuth({
+        redirectToLogin: true,
+        requireRoles: ["Admin", "Empaque"],
+        useLayoutSession: true // Use parent layout's authentication
+    });
 
+    // Load data when user is available
     useEffect(() => {
-        const loadUser = async () => {
-            const sessionUser = await authService.checkSession()
-            if (!sessionUser) {
-                router.push("/login")
-                return
-            }
-            setUser(sessionUser)
+        if (user?.tenantId) {
+            loadRegistros();
         }
-        loadUser()
-    }, [router])
-
-    useEffect(() => {
-        if (user) loadRegistros()
-    }, [user])
+    }, [user?.tenantId]);
 
     useEffect(() => {
         let filtered = registros
@@ -58,7 +55,11 @@ export function PreprocesoPage() {
     }, [registros, searchTerm])
 
     const loadRegistros = async () => {
-        if (!user?.tenantId) return
+        if (!user?.tenantId) {
+            console.error('No se encontró ID del tenant');
+            return;
+        }
+        
         setIsLoading(true)
         const { data, error } = await supabase
             .from("preseleccion")
@@ -101,12 +102,16 @@ export function PreprocesoPage() {
     const goPrev = () => setPage(p => Math.max(1, p - 1))
     const goNext = () => setPage(p => Math.min(totalPages, p + 1))
 
-    if (!user || !["Admin", "Empaque"].includes(user.rol)) {
+    if (loading || isLoading) {
         return (
             <div className="flex h-64 items-center justify-center">
-                <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
+                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
             </div>
         )
+    }
+    
+    if (!user) {
+        return null; // Let the authentication redirect handle it
     }
 
     return (
@@ -146,7 +151,7 @@ export function PreprocesoPage() {
                         open={modalOpen}
                         onClose={() => setModalOpen(false)}
                         onCreated={loadRegistros}
-                        tenantId={user.tenantId}
+                        tenantId={user?.tenantId || ''}
                     />
                 </div>
             </div>

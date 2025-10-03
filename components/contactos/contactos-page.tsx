@@ -1,6 +1,6 @@
 export default function ContactosPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 py-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Gestión de Contactos</h1>
