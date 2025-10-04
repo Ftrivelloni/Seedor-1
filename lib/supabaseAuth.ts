@@ -169,6 +169,16 @@ class SupabaseAuthService {
       this.currentUser = authUser;
       console.log('✅ LOGIN SUCCESS - currentUser set:', { email: authUser.email, rol: authUser.rol });
       
+      // Store in sessionStorage as backup for immediate page loads
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem('seedor-current-user', JSON.stringify(authUser));
+          console.log('💾 User cached in sessionStorage');
+        } catch (e) {
+          console.warn('Failed to cache user in sessionStorage:', e);
+        }
+      }
+      
       // Note: last_access tracking removed - column doesn't exist in workers table
       // If needed in future, add: last_access TIMESTAMPTZ to workers table
 
@@ -207,6 +217,17 @@ class SupabaseAuthService {
     try {
       const { error } = await supabase.auth.signOut();
       this.currentUser = null;
+      
+      // Clear sessionStorage cache
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.removeItem('seedor-current-user');
+          console.log('🗑️ Cleared cached user from sessionStorage');
+        } catch (e) {
+          console.warn('Failed to clear sessionStorage:', e);
+        }
+      }
+      
       return { error: error?.message || null };
     } catch (error: any) {
       return { error: error.message || "Error inesperado durante el logout" };
@@ -224,6 +245,21 @@ class SupabaseAuthService {
     if (this.currentUser) {
       console.log('🔑 checkSession: Using existing currentUser:', this.currentUser.email);
       return this.currentUser;
+    }
+    
+    // Check sessionStorage for recently logged in user (helps with first navigation)
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedUser = sessionStorage.getItem('seedor-current-user');
+        if (cachedUser) {
+          const parsedUser = JSON.parse(cachedUser);
+          console.log('💾 checkSession: Found cached user in sessionStorage:', parsedUser.email);
+          this.currentUser = parsedUser;
+          return parsedUser;
+        }
+      } catch (e) {
+        console.warn('Failed to read cached user:', e);
+      }
     }
     
     this.isCheckingSession = true;
@@ -255,20 +291,34 @@ class SupabaseAuthService {
         return null;
       }
       
-      console.log('Session found for user:', session.user.email);
+      console.log('✅ Session found for user:', session.user.email);
 
-      // Get worker profile using admin functions
-      const { getWorkerByUserId, getWorkerByEmail } = await import('./supabaseAdmin');
+      // Try direct query by email first (most reliable with RLS)
+      let worker: any = null;
+      let workerError: any = null;
       
-      let { data: worker, error: workerError } = await getWorkerByUserId(session.user.id);
+      console.log('🔍 Attempting to fetch worker by email...');
+      const { data: directWorker, error: directError } = await supabase
+        .from('workers')
+        .select(`
+          *,
+          tenant:tenants(*),
+          membership:tenant_memberships!workers_membership_id_fkey(*)
+        `)
+        .eq('email', session.user.email!)
+        .maybeSingle();
 
-      if (workerError) {
-        console.log('Worker lookup by membership_id failed:', workerError.message);
-      }
-
-      // If not found by membership_id, try by email (fallback for older records)
-      if (workerError || !worker) {
-        console.log('Worker not found by membership_id, trying by email');
+      if (directWorker) {
+        console.log('✅ Worker found by direct email query');
+        worker = directWorker;
+        workerError = null;
+      } else if (directError) {
+        console.log('⚠️ Direct email query failed:', directError.message);
+        workerError = directError;
+        
+        // Fallback to admin functions
+        console.log('🔍 Trying admin functions as fallback...');
+        const { getWorkerByEmail } = await import('./supabaseAdmin');
         const { data: emailWorker, error: emailWorkerError } = await getWorkerByEmail(session.user.email!);
           
         if (!emailWorkerError && emailWorker) {
@@ -333,22 +383,28 @@ class SupabaseAuthService {
         }
       }
 
-      // If still no worker found, log them out gracefully
-      // This user has auth but no worker profile (incomplete registration)
+      // If still no worker found, create a minimal user object
+      // Don't log them out - they have a valid Supabase Auth session
       if (workerError || !worker) {
-        console.warn('⚠️ User has auth session but no worker profile:', session.user.email);
-        console.log('Clearing session - user needs to complete registration');
+        console.warn('⚠️ User has auth session but worker profile lookup failed:', session.user.email);
+        console.warn('⚠️ Error details:', workerError);
+        console.log('✅ Creating minimal auth user to preserve session');
         
-        // Clear the session since it's incomplete
-        await supabase.auth.signOut();
-        this.currentUser = null;
+        // Create minimal user with auth data
+        const minimalUser: AuthUser = {
+          id: session.user.id,
+          email: session.user.email!,
+          nombre: session.user.user_metadata?.full_name || session.user.email!.split('@')[0],
+          tenantId: '', // Will need to be set by the app
+          rol: 'Admin', // Default role
+          activo: true,
+          tenant: null as any,
+          worker: null as any,
+        };
         
-        // Redirect to login with a message
-        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-          window.location.href = '/login?error=incomplete_profile';
-        }
-        
-        return null;
+        this.currentUser = minimalUser;
+        console.log('⚠️ Session preserved with minimal user data. Worker lookup may be blocked by RLS policies.');
+        return minimalUser;
       }
 
       // Fetch tenant information

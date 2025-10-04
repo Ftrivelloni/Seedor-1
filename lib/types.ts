@@ -88,6 +88,51 @@ export interface CreateWorkerRequest {
   tenant_id: string
 }
 
+// Tipos para Farms (Campos)
+export interface Farm {
+  id: string
+  tenant_id: string
+  name: string
+  location: string | null
+  area_ha: number | null
+  default_crop: string | null
+  notes: string | null
+  created_at: string
+  created_by: string
+}
+
+export interface CreateFarmData {
+  name: string
+  location?: string
+  area_ha?: number
+  default_crop?: string
+  notes?: string
+}
+
+// Tipos para Lots (Lotes)
+export interface Lot {
+  id: string
+  tenant_id: string
+  farm_id: string
+  code: string
+  crop: string
+  variety: string | null
+  area_ha: number | null
+  plant_date: string | null
+  status: string
+  created_at: string
+}
+
+export interface CreateLotData {
+  farm_id: string
+  code: string
+  crop: string
+  variety?: string
+  area_ha?: number
+  plant_date?: string
+  status: string
+}
+
 export interface TenantModule {
   tenant_id: string
   module_code: string

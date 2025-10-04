@@ -1,20 +1,19 @@
 "use client"
 
+import { use } from "react"
 import { useRouter } from "next/navigation"
-import { Sidebar } from "../../components/sidebar"
-import { FarmsList } from "../../components/campo/farms-list";
-import { useAuth } from "../../hooks/use-auth";
-import { FeatureProvider } from "../../lib/features-context";
+import { Sidebar } from "../../../components/sidebar"
+import { FarmDetailPage } from "../../../components/campo/farm-detail-page"
+import { useAuth } from "../../../hooks/use-auth"
+import { FeatureProvider } from "../../../lib/features-context"
 
-export default function CampoRoutePage() {
+export default function FarmPage({ params }: { params: Promise<{ farmId: string }> }) {
+  const { farmId } = use(params)
   const { user, loading, handleLogout } = useAuth({
     redirectToLogin: true,
     requireRoles: ["Admin", "Campo"]
-  });
-  const router = useRouter();
-
-  // Debug logs
-  console.log('🌾 Campo Page - User:', user?.email, 'Rol:', user?.rol, 'Loading:', loading);
+  })
+  const router = useRouter()
 
   if (loading) {
     return (
@@ -39,7 +38,6 @@ export default function CampoRoutePage() {
           user={user} 
           onLogout={handleLogout} 
           onNavigate={(page) => {
-            // Map page names to their correct routes
             const pageRoutes: Record<string, string> = {
               dashboard: "/home",
               campo: "/campo",
@@ -49,15 +47,14 @@ export default function CampoRoutePage() {
               ajustes: "/ajustes",
               trabajadores: "/trabajadores",
               contactos: "/contactos",
-            };
-
-            const targetRoute = pageRoutes[page] || "/home";
-            router.push(targetRoute);
+            }
+            const targetRoute = pageRoutes[page] || "/home"
+            router.push(targetRoute)
           }} 
           currentPage="campo" 
         />
         <div className="flex-1 flex flex-col">
-          <FarmsList />
+          <FarmDetailPage farmId={farmId} />
         </div>
       </div>
     </FeatureProvider>

@@ -80,8 +80,20 @@ import {
   type ItemInventario,
   type MovimientoCaja,
 } from "./mocks"
-import { supabase } from './supabaseClient'
+import { createClient } from '@supabase/supabase-js'
 import type { IngresoFruta, Preproceso, Pallet, Despacho, EgresoFruta, Tenant, TenantMembership, TenantModule, CreateTenantRequest } from './types'
+
+// Create Supabase client - use singleton instance to maintain session
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  }
+})
 
 // Simulate API delay
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -657,5 +669,157 @@ export const despachoApi = {
     await delay(400)
     // TODO: Implement actual delete logic
   },
+}
+
+// Farms API
+export const farmsApi = {
+  async getFarms(tenantId: string): Promise<import('./types').Farm[]> {
+    const { data, error } = await supabase
+      .from('farms')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data || []
+  },
+
+  async getFarmById(farmId: string): Promise<import('./types').Farm | null> {
+    const { data, error } = await supabase
+      .from('farms')
+      .select('*')
+      .eq('id', farmId)
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async createFarm(tenantId: string, userId: string, farmData: import('./types').CreateFarmData): Promise<import('./types').Farm> {
+    const { data, error } = await supabase
+      .from('farms')
+      .insert({
+        tenant_id: tenantId,
+        created_by: userId,
+        name: farmData.name,
+        location: farmData.location || null,
+        area_ha: farmData.area_ha || null,
+        default_crop: farmData.default_crop || null,
+        notes: farmData.notes || null
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error creating farm in Supabase:', error)
+      throw error
+    }
+    return data
+  },
+
+  async updateFarm(farmId: string, farmData: Partial<import('./types').CreateFarmData>): Promise<import('./types').Farm> {
+    const { data, error } = await supabase
+      .from('farms')
+      .update(farmData)
+      .eq('id', farmId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async deleteFarm(farmId: string): Promise<void> {
+    const { error } = await supabase
+      .from('farms')
+      .delete()
+      .eq('id', farmId)
+
+    if (error) throw error
+  }
+}
+
+// Lots API
+export const lotsApi = {
+  async getLotsByFarm(farmId: string): Promise<import('./types').Lot[]> {
+    const { data, error } = await supabase
+      .from('lots')
+      .select('*')
+      .eq('farm_id', farmId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data || []
+  },
+
+  async getLotById(lotId: string): Promise<import('./types').Lot | null> {
+    const { data, error } = await supabase
+      .from('lots')
+      .select('*')
+      .eq('id', lotId)
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async createLot(tenantId: string, lotData: import('./types').CreateLotData): Promise<import('./types').Lot> {
+    console.log('🔍 Creating lot with data:', { tenantId, lotData });
+    
+    const { data, error } = await supabase
+      .from('lots')
+      .insert({
+        tenant_id: tenantId,
+        farm_id: lotData.farm_id,
+        code: lotData.code,
+        crop: lotData.crop,
+        variety: lotData.variety || null,
+        area_ha: lotData.area_ha || null,
+        plant_date: lotData.plant_date || null,
+        status: lotData.status
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('❌ Error creating lot in Supabase:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      throw new Error(error.message || 'Error al crear el lote en la base de datos');
+    }
+    
+    console.log('✅ Lot created successfully:', data);
+    return data
+  },
+
+  async updateLot(lotId: string, lotData: Partial<import('./types').CreateLotData>): Promise<import('./types').Lot> {
+    const { data, error } = await supabase
+      .from('lots')
+      .update(lotData)
+      .eq('id', lotId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async deleteLot(lotId: string): Promise<void> {
+    const { error } = await supabase
+      .from('lots')
+      .delete()
+      .eq('id', lotId)
+
+    if (error) throw error
+  },
+
+  async getLotStatuses(): Promise<{ code: string; name: string }[]> {
+    const { data, error } = await supabase
+      .from('lot_statuses')
+      .select('*')
+      .order('code')
+
+    if (error) throw error
+    return data || []
+  }
 }
 

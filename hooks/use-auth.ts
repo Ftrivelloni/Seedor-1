@@ -191,12 +191,23 @@ export function useAuth(options: {
     requireRoles.includes(currentUser.rol)
   );
   
+  // Debug role checking
+  if (requireRoles.length > 0 && currentUser) {
+    console.log('🔐 Role Check:', {
+      userRole: currentUser.rol,
+      requiredRoles: requireRoles,
+      hasAccess: hasRequiredRole,
+      redirecting: !hasRequiredRole
+    });
+  }
+  
   // Redirect if user doesn't have required role
   useEffect(() => {
     // Skip for subpages using layout auth since parent layout will handle this
     if (isSubpageUsingLayout.current) return;
     
     if (currentUser && requireRoles.length > 0 && !hasRequiredRole) {
+      console.warn('⚠️ User does not have required role, redirecting to /home');
       router.push("/home");
     }
   }, [currentUser, hasRequiredRole, requireRoles, router]);

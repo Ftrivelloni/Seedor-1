@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation"
 import { authService, type AuthUser } from "../../lib/supabaseAuth"
 import { useUser } from "../../components/auth/UserContext"
 import { FeatureProvider } from "../../lib/features-context"
-import { CampoPage } from "../../components/campo/campo-page"
 import { EmpaquePage } from "../../components/empaque/empaque-page"
 import { InventarioPage } from "../../components/inventario/inventario-page"
 import { FinanzasPage } from "../../components/finanzas/finanzas-page"
@@ -124,8 +123,6 @@ const HomePage = () => {
   // Render the appropriate section based on currentPage
   const renderPageContent = () => {
     switch (currentPage) {
-      case "campo":
-        return <CampoPage />
       case "empaque":
         return <EmpaquePage />
       case "inventario":
@@ -154,7 +151,14 @@ const HomePage = () => {
             authService.logout();
             router.push("/login");
           }} 
-          onNavigate={(page) => setCurrentPage(page)}
+          onNavigate={(page) => {
+            // Redirect to Campo route instead of rendering inline
+            if (page === "campo") {
+              router.push("/campo")
+            } else {
+              setCurrentPage(page)
+            }
+          }}
           currentPage={currentPage}
         />
         {renderPageContent()}
