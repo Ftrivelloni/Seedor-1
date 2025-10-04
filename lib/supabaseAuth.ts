@@ -7,9 +7,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 // Create client for regular operations
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Create admin client if service role key is available
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseAdmin = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : null;
+const supabaseAdmin = null as any;
 
 export interface Tenant {
   id: string;
@@ -526,7 +524,11 @@ class SupabaseAuthService {
       if (supabaseAdmin) {
         try {
           const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
-          const existingAuthUser = authUsers.users.find(user => user.email === data.adminEmail);
+          // Tipamos el elemento del find para evitar 'any'
+          const existingAuthUser = authUsers?.users?.find(
+          (u: { email?: string }) => u.email === data.adminEmail
+);
+
           
           if (existingAuthUser) {
             return { success: false, error: "Este email ya está registrado en el sistema de autenticación. Use la opción de recuperar contraseña o contacte soporte." };
@@ -1036,12 +1038,16 @@ class SupabaseAuthService {
     try {
       // Find and delete user from auth
       const { data: users, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-      
-      if (listError) {
-        return { success: false, error: "Error al buscar usuarios" };
-      }
 
-      const userToDelete = users.users.find(u => u.email === email);
+        if (listError) {
+          return { success: false, error: "Error al buscar usuarios" };
+        }
+
+        // Tipamos el elemento del find
+        const userToDelete = users?.users?.find(
+          (u: { email?: string; id?: string }) => u.email === email
+        );
+
       
       if (userToDelete) {
         const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userToDelete.id);
