@@ -3,10 +3,10 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/ui/button"
-import { Input } from "@/ui/input"
-import { Label } from "@/ui/label"
-import { Textarea } from "@/ui/textarea"
+import { Button } from "../ui/button"
+import { Input } from "../ui/input"
+import { Label } from "../ui/label"
+import { Textarea } from "../ui/textarea"
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/ui/dialog"
+} from "../ui/dialog"
 import type { RegistroEmpaque } from "../../lib/mocks"
 
 interface EmpaqueFormModalProps {

@@ -4,8 +4,8 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
-import { authService } from "../../lib/supabaseAuth"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
+import { useAuth } from "../../hooks/use-auth"
 
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -17,6 +17,13 @@ import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, Search }
 import EgresoFrutaFormModal from "./egreso-fruta-form-modal"
 
 export function EgresoFrutaPage() {
+    // Use the layout's authentication, since we're in a subpage
+    const { user, loading } = useAuth({
+        redirectToLogin: true,
+        requireRoles: ["Admin", "Empaque"],
+        useLayoutSession: true // Use parent layout's authentication
+    });
+    
     const [egresos, setEgresos] = useState<any[]>([])
     const [filtered, setFiltered] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -26,28 +33,21 @@ export function EgresoFrutaPage() {
     const [pageSize, setPageSize] = useState(10)
 
     const [modalOpen, setModalOpen] = useState(false)
-    const [user, setUser] = useState<any>(null)
     const router = useRouter()
 
     // ========= Auth & carga =========
     useEffect(() => {
-        const loadUser = async () => {
-            const sessionUser = await authService.checkSession()
-            if (!sessionUser) {
-                router.push("/login")
-                return
-            }
-            setUser(sessionUser)
+        if (user?.tenantId) {
+            loadEgresos();
         }
-        loadUser()
-    }, [router])
-
-    useEffect(() => {
-        if (user) loadEgresos()
-    }, [user])
+    }, [user?.tenantId])
 
     const loadEgresos = async () => {
-        if (!user?.tenantId) return
+        if (!user?.tenantId) {
+            console.error('No tenant ID found for user');
+            return;
+        }
+        
         setIsLoading(true)
         const { data, error } = await supabase
             .from("egreso_fruta")
@@ -117,19 +117,16 @@ export function EgresoFrutaPage() {
     const goPrev = () => setPage((p) => Math.max(1, p - 1))
     const goNext = () => setPage((p) => Math.min(totalPages, p + 1))
 
-    if (!user) {
+    if (loading || isLoading) {
         return (
             <div className="flex h-64 items-center justify-center">
                 <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
             </div>
         )
     }
-    if (!["Admin", "Empaque"].includes(user.rol)) {
-        return (
-            <div className="flex h-64 items-center justify-center">
-                <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
-            </div>
-        )
+    
+    if (!user) {
+        return null; // Let the authentication redirect handle it
     }
 
     return (

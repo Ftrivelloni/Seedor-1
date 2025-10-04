@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/ui/card";
-import { Input } from "@/ui/input";
-import { Label } from "@/ui/label";
-import { Button } from "@/ui/button";
-import { Checkbox } from "@/ui/checkbox";
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/ui/select";
-import { Textarea } from "@/ui/textarea";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../ui/card";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "../ui/select";
+import { Textarea } from "../ui/textarea";
 
 type Step = 0 | 1 | 2;
 

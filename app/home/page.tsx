@@ -2,9 +2,11 @@
 import { DashboardStats } from "../../components/dashboard-stats"
 import { Sidebar } from "../../components/sidebar"
 import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { authService, type AuthUser } from "../../lib/supabaseAuth"
 import { useUser } from "../../components/auth/UserContext"
+import { FeatureProvider } from "../../lib/features-context"
 import { CampoPage } from "../../components/campo/campo-page"
 import { EmpaquePage } from "../../components/empaque/empaque-page"
 import { InventarioPage } from "../../components/inventario/inventario-page"
@@ -12,40 +14,116 @@ import { FinanzasPage } from "../../components/finanzas/finanzas-page"
 import { AjustesPage } from "../../components/ajustes/ajustes-page"
 import TrabajadoresPage from "../../components/trabajadores/trabajadores-page"
 import ContactosPage from "../../components/contactos/contactos-page"
+import { UserManagement } from "../../components/admin/user-management"
 
-export default function HomePage() {
+// Use dynamic import with SSR disabled to avoid hydration errors
+const HomePage = () => {
   const { user, loading } = useUser()
+  const [activeUser, setActiveUser] = useState<any>(null)
   const [currentPage, setCurrentPage] = useState("dashboard")
   const router = useRouter()
-
+  // Client-side only state
+  const [isMounted, setIsMounted] = useState(false)
+  
+  // This effect runs only on the client
   useEffect(() => {
-    // Only redirect if not loading and no user
-    if (!loading && !user) {
-      router.push("/login")
-    }
-  }, [loading, user, router])
+    setIsMounted(true)
+  }, [])
 
-  if (loading) {
+  // Check if user is available from UserContext or authService
+  useEffect(() => {
+    // Try to get user from direct authService if UserContext doesn't have it
+    if (user) {
+      setActiveUser(user);
+      return;
+    }
+    
+    const directUser = authService.getCurrentUser();
+    if (directUser) {
+      setActiveUser(directUser);
+      return;
+    } 
+    
+    // If no user in either place, try to get a session
+    authService.checkSession().then(sessionUser => {
+      if (sessionUser) {
+        setActiveUser(sessionUser);
+      } else {
+        router.push('/login');
+      }
+    });
+  }, [user, router]);
+
+  // Once loading is complete, if no user, redirect to login
+  useEffect(() => {
+    if (isMounted && !loading && !user && !activeUser) {
+      // Check if we can find a user from the authService as a fallback
+      const currentUser = authService.getCurrentUser();
+      
+      if (currentUser) {
+        // Found user in authService, no need to redirect
+        setActiveUser(currentUser);
+      } else {
+        // No user found in any source, redirect to login
+        router.push("/login");
+      }
+    }
+  }, [loading, user, activeUser, isMounted, router]);
+
+  const currentUser = activeUser || user || null;
+  
+  if (!isMounted || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
-    )
+    );
   }
 
-  if (!user) {
-    return null // Will redirect to login
+  // If no user is available, show a simple error state
+  if (!currentUser) {
+    // This is an emergency fallback in case the redirect hasn't happened yet
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+        <h1 className="text-2xl font-bold mb-4">Dashboard Temporal</h1>
+        <p className="mb-4">No se ha podido verificar tu sesión.</p>
+        <button 
+          onClick={() => router.push("/login")}
+          className="px-4 py-2 bg-primary text-white rounded"
+        >
+          Ir al Login
+        </button>
+      </div>
+    );
+  }
+  
+  // Ensure the user has tenant information
+  if (!currentUser.tenant) {
+    currentUser.tenant = {
+      name: 'Tu Empresa',
+      id: currentUser.tenantId || '',
+      plan: 'enterprise',
+      status: 'active',
+      created_at: new Date().toISOString(),
+      slug: 'empresa'
+    };
   }
 
-  if (!user) {
-    return null
+  // Ensure the user has worker information
+  if (!currentUser.worker) {
+    currentUser.worker = {
+      id: currentUser.id || 'temp-id',
+      full_name: currentUser.nombre || 'Usuario',
+      email: currentUser.email,
+      tenant_id: currentUser.tenantId || '',
+      area_module: currentUser.rol?.toLowerCase() || 'general',
+      status: 'active'
+    };
   }
-
-  // Renderiza el componente correspondiente según currentPage
+  
+  // Render the appropriate section based on currentPage
   const renderPageContent = () => {
     switch (currentPage) {
-      case "dashboard":
-        return <DashboardStats />
       case "campo":
         return <CampoPage />
       case "empaque":
@@ -60,40 +138,35 @@ export default function HomePage() {
         return <TrabajadoresPage />
       case "contactos":
         return <ContactosPage />
+      case "usuarios":
+        return <div className="max-w-5xl mx-auto px-4 py-6">
+          <UserManagement currentUser={currentUser} />
+        </div>
       default:
         return <DashboardStats />
     }
   }
 
-  const handleLogout = async () => {
-    await authService.logout()
-    router.push("/login")
-  }
-
   return (
-    <div className="min-h-screen bg-background flex">
-      <Sidebar user={user} onLogout={handleLogout} onNavigate={setCurrentPage} currentPage={currentPage} />
-      <div className="flex-1 flex flex-col">
-        <header className="border-b bg-card">
-          <div className="flex h-16 items-center justify-between px-6">
-            <div>
-              <h1 className="text-xl font-semibold">{currentPage.charAt(0).toUpperCase() + currentPage.slice(1)}</h1>
-              <p className="text-sm text-muted-foreground">Resumen general de {user.tenant.name}</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium">{user.nombre}</p>
-                <p className="text-xs text-muted-foreground">{user.rol}</p>
-              </div>
-            </div>
-          </div>
-        </header>
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="max-w-7xl mx-auto">
+    <FeatureProvider user={currentUser}>
+      <div className="min-h-screen bg-background flex">
+        <Sidebar 
+          user={currentUser} 
+          onLogout={() => {
+            authService.logout();
+            router.push("/login");
+          }} 
+          onNavigate={(page) => setCurrentPage(page)}
+          currentPage={currentPage}
+        />
+        <div className="flex-1 overflow-auto flex justify-center">
+          <div className="w-full max-w-6xl">
             {renderPageContent()}
           </div>
-        </main>
+        </div>
       </div>
-    </div>
+    </FeatureProvider>
   )
 }
+
+export default HomePage

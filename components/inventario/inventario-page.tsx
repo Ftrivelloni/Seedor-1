@@ -1,15 +1,15 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/ui/button"
-import { Input } from "@/ui/input"
-import { Badge } from "@/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
-import { inventarioApi } from "@lib/api"
-import { authService } from "@lib/supabaseAuth"
-import type { ItemInventario } from "@lib/types"
+import { Button } from "../ui/button"
+import { Input } from "../ui/input"
+import { Badge } from "../ui/badge"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import { inventarioApi } from "../../lib/api"
+import { authService } from "../../lib/supabaseAuth"
+import type { ItemInventario } from "../../lib/types"
 import { Search, Package, AlertTriangle, Plus, Minus, Warehouse, Truck, Box } from "lucide-react"
 
 const categoriaIcons = {
@@ -128,7 +128,7 @@ export function InventarioPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 py-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

@@ -6,6 +6,7 @@ import { useState } from "react"
 import { Button } from "./ui/button"
 import { cn } from "../lib/utils"
 import type { AuthUser } from "../lib/supabaseAuth"
+import { useFeatures, ModuleGate } from "../lib/features-context"
 import {
   LayoutDashboard,
   Sprout,
@@ -18,6 +19,8 @@ import {
   LogOut,
   Users,
   Contact2,
+  UserPlus,
+  Crown,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -31,7 +34,9 @@ interface NavItem {
   title: string
   icon: React.ComponentType<{ className?: string }>
   page: string
-  roles: string[]
+  module: string
+  requiresFeature?: string
+  adminOnly?: boolean
 }
 
 const navItems: NavItem[] = [
@@ -39,56 +44,76 @@ const navItems: NavItem[] = [
     title: "Dashboard",
     icon: LayoutDashboard,
     page: "dashboard",
-    roles: ["Admin", "Campo", "Empaque", "Finanzas"],
-  },
-  {
-    title: "Campo",
-    icon: Sprout,
-    page: "campo",
-    roles: ["Admin", "Campo"],
+    module: "dashboard"
   },
   {
     title: "Empaque",
     icon: Package,
     page: "empaque",
-    roles: ["Admin", "Empaque"],
+    module: "empaque"
   },
   {
     title: "Inventario",
     icon: Warehouse,
     page: "inventario",
-    roles: ["Admin", "Campo", "Empaque"],
-  },
-  {
-    title: "Finanzas",
-    icon: DollarSign,
-    page: "finanzas",
-    roles: ["Admin", "Finanzas"],
+    module: "inventario"
   },
   {
     title: "Trabajadores",
     icon: Users,
     page: "trabajadores",
-    roles: ["Admin", "Campo"],
+    module: "trabajadores"
+  },
+  {
+    title: "Usuarios",
+    icon: UserPlus,
+    page: "usuarios",
+    module: "user_management",
+    adminOnly: true
+  },
+  {
+    title: "Campo",
+    icon: Sprout,
+    page: "campo",
+    module: "campo"
+  },
+  {
+    title: "Finanzas",
+    icon: DollarSign,
+    page: "finanzas",
+    module: "finanzas"
   },
   {
     title: "Contactos",
     icon: Contact2,
     page: "contactos",
-    roles: ["Admin", "Campo", "Empaque", "Finanzas"],
+    module: "contactos"
   },
   {
     title: "Ajustes",
     icon: Settings,
     page: "ajustes",
-    roles: ["Admin", "Campo", "Empaque", "Finanzas"],
+    module: "ajustes"
   },
 ]
 
 export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const { canAccessModule, planInfo } = useFeatures()
 
-  const filteredNavItems = navItems.filter((item) => item.roles.includes(user.rol))
+  const filteredNavItems = navItems.filter((item) => {
+    // Check if user can access this module based on role and plan
+    if (!canAccessModule(item.module, user.rol)) {
+      return false
+    }
+    
+    // Check admin-only restrictions
+    if (item.adminOnly && user.rol.toLowerCase() !== 'admin') {
+      return false
+    }
+    
+    return true
+  })
 
   return (
     <div
@@ -109,6 +134,14 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
             <div>
               <h2 className="font-semibold text-sidebar-foreground">{user.tenant.name}</h2>
               <p className="text-xs text-sidebar-foreground/70">{user.nombre}</p>
+              {planInfo && (
+                <div className="flex items-center gap-1 mt-1">
+                  <Crown className="h-3 w-3 text-yellow-500" />
+                  <span className="text-xs text-sidebar-foreground/60">
+                    {planInfo.plan_display_name}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}

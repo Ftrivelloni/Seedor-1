@@ -10,23 +10,89 @@ export interface Tenant {
   contact_email: string
   created_by: string
   created_at: string
+  plan_id?: string
+  plan_expires_at?: string
+  billing_cycle?: 'monthly' | 'yearly'
+}
+
+export interface Plan {
+  id: string
+  name: string
+  display_name: string
+  description: string
+  price_monthly: number
+  price_yearly: number
+  max_users: number
+  max_storage_gb: number
+  features: Record<string, boolean | number>
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface PlanFeature {
+  id: string
+  plan_id: string
+  feature_code: string
+  feature_name: string
+  is_enabled: boolean
+  limit_value?: number
+  created_at: string
+}
+
+export interface SubscriptionHistory {
+  id: string
+  tenant_id: string
+  from_plan_id?: string
+  to_plan_id: string
+  change_type: 'upgrade' | 'downgrade' | 'renewal' | 'cancellation'
+  effective_date: string
+  billing_amount?: number
+  notes?: string
+  created_by?: string
+  created_at: string
 }
 
 export interface TenantMembership {
   id: string
   tenant_id: string
   user_id: string
-  role_code: 'admin' | 'user' | 'viewer'
-  status: 'active' | 'pending' | 'inactive'
+  role_code: string // 'admin' | 'campo' | 'empaque' | 'finanzas'
+  status: string // 'active' | 'pending' | 'inactive'
   invited_by?: string
   accepted_at?: string
+}
+
+export interface Worker {
+  id: string
+  tenant_id: string
+  full_name: string
+  document_id: string
+  email: string
+  phone?: string
+  area_module: string // 'campo' | 'empaque' | 'finanzas' | 'admin'
+  membership_id?: string // References tenant_memberships.id
+  status: string // 'active' | 'inactive'
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CreateWorkerRequest {
+  email: string
+  password: string
+  full_name: string
+  document_id: string
+  phone: string
+  role: 'admin' | 'campo' | 'empaque' | 'finanzas'
+  tenant_id: string
 }
 
 export interface TenantModule {
   tenant_id: string
   module_code: string
   enabled: boolean
-  created_at: string
+  created_at?: string
 }
 
 export interface CreateTenantRequest {

@@ -1,11 +1,11 @@
 // components/empaque/ingreso-fruta-page.tsx
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { authService } from "../../lib/supabaseAuth"
-import { useUser } from "../auth/UserContext"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
+import { useAuth } from "../../hooks/use-auth"
+import { useEmpaqueAuth } from "./EmpaqueAuthContext"
 
 import { IngresoFrutaFormModal } from "./ingreso-fruta-form-modal"
 import { Button } from "../ui/button"
@@ -15,10 +15,78 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { ArrowLeft, ChevronLeft, ChevronRight, Download, Package, Scale, Search, Plus } from "lucide-react"
 
 export function IngresoFrutaPage() {
-    const { user, loading } = useUser()
+    // Use a ref to store the most current user reference
+    const userRef = useRef<any>(null);
+    
+    // State to track if we have a valid user
+    const [hasValidUser, setHasValidUser] = useState(false);
+    
+    // Track loading state
+    const [authLoading, setAuthLoading] = useState(true);
+    
+    // Use this simpler approach to directly check the window object
+    useEffect(() => {
+        // Function to check for user
+        const checkForUser = () => {
+            // 1. Check window object directly
+            if (typeof window !== 'undefined' && window.empaqueLayoutUser) {
+                userRef.current = window.empaqueLayoutUser;
+                setHasValidUser(true);
+                setAuthLoading(false);
+                return true;
+            }
+            return false;
+        };
+        
+        // Check immediately
+        if (!checkForUser()) {
+            
+            // Set up interval to keep trying
+            let attempts = 0;
+            const maxAttempts = 10;
+            
+            const checkInterval = setInterval(() => {
+                attempts++;
+                if (checkForUser() || attempts >= maxAttempts) {
+                    if (attempts >= maxAttempts && !userRef.current) {
+                        // Let's try a last-ditch attempt at authentication
+                        import("../../lib/supabaseAuth").then(({ authService }) => {
+                            const directUser = authService.getCurrentUser();
+                            if (directUser) {
+                                userRef.current = directUser;
+                                if (typeof window !== 'undefined') {
+                                    window.empaqueLayoutUser = directUser;
+                                }
+                                setHasValidUser(true);
+                            }
+                            setAuthLoading(false);
+                        });
+                    }
+                    clearInterval(checkInterval);
+                }
+            }, 200);
+            
+            return () => clearInterval(checkInterval);
+        }
+    }, []);
+    
+    // Access context as a final fallback but don't rely on it
+    const { empaqueUser } = useEmpaqueAuth();
+    if (empaqueUser && !userRef.current) {
+        userRef.current = empaqueUser;
+        setHasValidUser(true);
+        setAuthLoading(false);
+    }
+    
+    // currentUser comes from our ref for stability
+    const currentUser = userRef.current;
+    
+
     const [registros, setRegistros] = useState<any[]>([])
     const [filtered, setFiltered] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    
+    // Current user comes from our ref for stability
 
     const [searchTerm, setSearchTerm] = useState("")
     const [page, setPage] = useState(1)
@@ -28,33 +96,18 @@ export function IngresoFrutaPage() {
     const [saving, setSaving] = useState(false)
     const router = useRouter()
 
-    // ========= Auth =========
-    useEffect(() => {
-        // Redirect to login if not loading and no user
-        if (!loading && !user) {
-            console.log('IngresoFrutaPage: No user found, redirecting to login')
-            router.push("/login")
-            return
-        }
-        
-        // Debug user state
-        if (user) {
-            console.log('IngresoFrutaPage: User found:', {
-                email: user.email,
-                rol: user.rol,
-                tenantId: user.tenantId,
-                nombre: user.nombre
-            })
-        }
-    }, [loading, user, router])
-
     // ========= Carga =========
     const loadRegistros = async () => {
-        if (!user?.tenantId) return
+        if (!currentUser?.tenantId) {
+            console.error('No se encontró el ID del tenant');
+            setIsLoading(false);
+            return;
+        }
+        
         try {
             setIsLoading(true)
             const { ingresoFrutaApi } = await import("../../lib/api")
-            const data = await ingresoFrutaApi.getIngresos(user.tenantId)
+            const data = await ingresoFrutaApi.getIngresos(currentUser.tenantId)
             setRegistros(data || [])
         } catch (error) {
             console.error("Error al cargar registros:", error)
@@ -65,8 +118,10 @@ export function IngresoFrutaPage() {
     }
 
     useEffect(() => {
-        if (user) loadRegistros()
-    }, [user])
+        if (currentUser?.tenantId) {
+            loadRegistros();
+        }
+    }, [currentUser?.tenantId])
 
     // ========= Filtro/orden =========
     useEffect(() => {
@@ -169,7 +224,7 @@ export function IngresoFrutaPage() {
         })
     }, [pageRows, start])
 
-    if (loading || !user) {
+    if (authLoading || isLoading) {
         return (
             <div className="flex h-64 items-center justify-center">
                 <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
@@ -177,20 +232,12 @@ export function IngresoFrutaPage() {
         )
     }
     
-    if (!["Admin", "Empaque"].includes(user.rol)) {
-        return (
-            <div className="flex h-64 items-center justify-center">
-                <div className="text-center space-y-2">
-                    <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
-                    <p className="text-sm text-muted-foreground">Rol actual: {user.rol}</p>
-                    <p className="text-sm text-muted-foreground">Roles permitidos: Admin, Empaque</p>
-                </div>
-            </div>
-        )
+    if (!currentUser) {
+        return null; // No render if no user, let the authentication redirect handle it
     }
 
     return (
-        <div className="mx-auto w-full max-w-4xl md:max-w-5xl px-3 md:px-6 py-6 space-y-6">
+        <div className="mx-auto w-full max-w-4xl px-3 md:px-6 py-6 space-y-6">
             {/* Header */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
@@ -229,15 +276,16 @@ export function IngresoFrutaPage() {
                         isOpen={modalOpen}
                         onClose={() => setModalOpen(false)}
                         onSubmit={async (data) => {
-                            if (!user?.tenantId) {
+                            if (!currentUser?.tenantId) {
                                 alert("No se pudo obtener el ID del tenant. Contacte a soporte.")
                                 return
                             }
+                            
                             setSaving(true)
                             try {
                                 const { ingresoFrutaApi } = await import("../../lib/api")
-                                await ingresoFrutaApi.createIngreso({ ...data, tenant_id: user.tenantId })
-                                const nuevos = await ingresoFrutaApi.getIngresos(user.tenantId)
+                                await ingresoFrutaApi.createIngreso({ ...data, tenant_id: currentUser.tenantId })
+                                const nuevos = await ingresoFrutaApi.getIngresos(currentUser.tenantId)
                                 setRegistros(nuevos)
                                 setModalOpen(false)
                             } catch (e: any) {

@@ -1,13 +1,12 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Button } from "@/ui/button"
-import { Input } from "@/ui/input"
-import { Label } from "@/ui/label"
-import { Textarea } from "@/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
+import type React from "react";
+import { useState } from "react";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import {
   Dialog,
   DialogContent,
@@ -15,16 +14,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/ui/dialog"
-import type { TareaCampo } from "@lib/types"
-import { TASK_TYPES, TASK_STATES } from "@lib/constants/campo"
+} from "../ui/dialog";
+import type { TareaCampo } from "../../lib/types";
+import { TASK_TYPES, TASK_STATES } from "../../lib/constants/campo";
+
+type NuevaTarea = Omit<TareaCampo, "id" | "fechaCreacion">;
 
 interface TaskFormModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSubmit: (tarea: Omit<TareaCampo, "id" | "fechaCreacion">) => Promise<void>
-  task?: TareaCampo
-  tenantId: string
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (tarea: NuevaTarea) => Promise<void>;
+  task?: TareaCampo | undefined;
+  tenantId: string;
 }
 
 export function TaskFormModal({ isOpen, onClose, onSubmit, task, tenantId }: TaskFormModalProps) {
@@ -37,22 +38,23 @@ export function TaskFormModal({ isOpen, onClose, onSubmit, task, tenantId }: Tas
     responsable: task?.responsable || "",
     estado: task?.estado || "pendiente",
     notas: task?.notas || "",
-  })
-  const [isLoading, setIsLoading] = useState(false)
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+    e.preventDefault();
+    setIsLoading(true);
 
     try {
-      await onSubmit({
+      const payload: NuevaTarea = {
         ...formData,
-        tenantId,
+        tenantId, // quita si tu tabla no lo usa
         tipo: formData.tipo as TareaCampo["tipo"],
         estado: formData.estado as TareaCampo["estado"],
-      })
-      onClose()
-      // Reset form
+      };
+      await onSubmit(payload);
+      onClose();
+      // reset
       setFormData({
         lote: "",
         cultivo: "",
@@ -62,17 +64,17 @@ export function TaskFormModal({ isOpen, onClose, onSubmit, task, tenantId }: Tas
         responsable: "",
         estado: "pendiente",
         notas: "",
-      })
+      });
     } catch (error) {
-      console.error("Error al guardar tarea:", error)
+      console.error("Error al guardar tarea:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -112,14 +114,10 @@ export function TaskFormModal({ isOpen, onClose, onSubmit, task, tenantId }: Tas
             <div className="space-y-2">
               <Label htmlFor="tipo">Tipo de Tarea</Label>
               <Select value={formData.tipo} onValueChange={(value) => handleChange("tipo", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Seleccioná tipo" /></SelectTrigger>
                 <SelectContent>
                   {TASK_TYPES.map((tipo) => (
-                    <SelectItem key={tipo.value} value={tipo.value}>
-                      {tipo.label}
-                    </SelectItem>
+                    <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -127,14 +125,10 @@ export function TaskFormModal({ isOpen, onClose, onSubmit, task, tenantId }: Tas
             <div className="space-y-2">
               <Label htmlFor="estado">Estado</Label>
               <Select value={formData.estado} onValueChange={(value) => handleChange("estado", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Seleccioná estado" /></SelectTrigger>
                 <SelectContent>
                   {TASK_STATES.map((estado) => (
-                    <SelectItem key={estado.value} value={estado.value}>
-                      {estado.label}
-                    </SelectItem>
+                    <SelectItem key={estado.value} value={estado.value}>{estado.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -187,9 +181,7 @@ export function TaskFormModal({ isOpen, onClose, onSubmit, task, tenantId }: Tas
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading ? "Guardando..." : task ? "Actualizar" : "Crear Tarea"}
             </Button>
@@ -197,5 +189,5 @@ export function TaskFormModal({ isOpen, onClose, onSubmit, task, tenantId }: Tas
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

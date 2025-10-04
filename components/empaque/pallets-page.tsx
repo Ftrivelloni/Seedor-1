@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
 import PalletsFormModal from "./pallets-form-modal"
-import { authService } from "../../lib/supabaseAuth"
+import { useAuth } from "../../hooks/use-auth"
+import { useEmpaqueAuth } from "./EmpaqueAuthContext"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 // Si tenés un tipo Pallet propio, podés mantenerlo; acá uso uno derivado.
 type Pallet = {
@@ -89,21 +90,49 @@ export function PalletsPage() {
     const [pageSize, setPageSize] = useState(10)
 
     const [modalOpen, setModalOpen] = useState(false)
-    const [user, setUser] = useState<any>(null)
     const router = useRouter()
-
-    // --- auth
+    
+    // First try to get user directly from window to avoid context issues
+    const [directUser, setDirectUser] = useState(() => {
+      if (typeof window !== 'undefined' && window.empaqueLayoutUser) {
+        return window.empaqueLayoutUser;
+      }
+      return null;
+    });
+    
+    // Fallback to context
+    const { empaqueUser } = useEmpaqueAuth();
+    
+    // Use the layout's authentication as final fallback
+    const { user, loading } = useAuth({
+        redirectToLogin: false, // Let the parent layout handle redirects
+        requireRoles: ["Admin", "Empaque"],
+        useLayoutSession: true // Use parent layout's authentication
+    });
+    
+    // Keep checking window for user if we don't have one yet
     useEffect(() => {
-        const loadUser = async () => {
-            const sessionUser = await authService.checkSession()
-            if (!sessionUser) { router.push("/login"); return }
-            setUser(sessionUser)
-        }
-        loadUser()
-    }, [router])
+      if (!directUser && !empaqueUser && !user && typeof window !== 'undefined') {
+        const checkInterval = setInterval(() => {
+          if (window.empaqueLayoutUser) {
+            setDirectUser(window.empaqueLayoutUser);
+            clearInterval(checkInterval);
+          }
+        }, 100);
+        
+        return () => clearInterval(checkInterval);
+      }
+    }, [directUser, empaqueUser, user]);
+    
+    // Use the first available user
+    const currentUser = directUser || empaqueUser || user;
 
     // --- fetch
     const fetchPallets = async (tenantId: string) => {
+        if (!tenantId) {
+            console.error('No se encontró ID del tenant');
+            return;
+        }
         setIsLoading(true)
         const { data, error } = await supabase
             .from("pallets")
@@ -121,8 +150,10 @@ export function PalletsPage() {
     }
 
     useEffect(() => {
-        if (user?.tenantId) fetchPallets(user.tenantId)
-    }, [user])
+        if (currentUser?.tenantId) {
+            fetchPallets(currentUser.tenantId);
+        }
+    }, [currentUser?.tenantId])
 
     // --- filtros / búsqueda / orden
     useEffect(() => {
@@ -203,19 +234,16 @@ export function PalletsPage() {
     const goPrev = () => setPage((p) => Math.max(1, p - 1))
     const goNext = () => setPage((p) => Math.min(totalPages, p + 1))
 
-    if (!user) {
+    if (loading || isLoading) {
         return (
             <div className="flex h-64 items-center justify-center">
                 <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
             </div>
         )
     }
-    if (!["Admin", "Empaque"].includes(user.rol)) {
-        return (
-            <div className="flex h-64 items-center justify-center">
-                <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
-            </div>
-        )
+    
+    if (!currentUser) {
+        return null; // Let the authentication redirect handle it
     }
 
     return (
@@ -257,8 +285,8 @@ export function PalletsPage() {
                     <PalletsFormModal
                         open={modalOpen}
                         onClose={() => setModalOpen(false)}
-                        onCreated={() => { if (user?.tenantId) fetchPallets(user.tenantId) }}
-                        tenantId={user.tenantId}
+                        onCreated={() => { if (currentUser?.tenantId) fetchPallets(currentUser.tenantId) }}
+                        tenantId={currentUser?.tenantId || ''}
                     />
                 </div>
             </div>

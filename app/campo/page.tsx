@@ -1,71 +1,39 @@
-"use client"
+"use client";
 
-import { useRouter } from "next/navigation"
-import { Sidebar } from "../../components/sidebar"
-import { useUser } from "../../components/auth/UserContext"
-import { CampoPage } from "../../components/campo/campo-page";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
-export default function CampoRoutePage() {
-  const { user, loading } = useUser()
-  const router = useRouter()
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    router.push("/login")
-    return null
-  }
+export default function CampoHome() {
+  // Maqueta (reemplazá por datos reales)
+  const items = [
+    { id: "P-1", nombre: "Parcela 1", estado: "Activa" },
+    { id: "P-2", nombre: "Parcela 2", estado: "En descanso" },
+  ];
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <Sidebar 
-        user={user} 
-        onLogout={() => { router.push("/login") }} 
-        onNavigate={(page) => {
-          // Map page names to their correct routes
-          const pageRoutes: Record<string, string> = {
-            dashboard: "/home",
-            campo: "/campo",
-            empaque: "/empaque",
-            inventario: "/inventario",
-            finanzas: "/finanzas",
-            ajustes: "/ajustes",
-            trabajadores: "/trabajadores",
-            contactos: "/contactos",
-          };
+    <div className="container mx-auto py-6">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-semibold">Campo</h1>
+        <Button asChild>
+          <Link href="/campo/nuevo">Nueva parcela</Link>
+        </Button>
+      </div>
 
-          const targetRoute = pageRoutes[page] || "/home";
-          router.push(targetRoute);
-        }} 
-        currentPage="campo" 
-      />
-      <div className="flex-1 flex flex-col">
-        <header className="border-b bg-card">
-          <div className="flex h-16 items-center justify-between px-6">
-            <div>
-              <h1 className="text-xl font-semibold">Campo</h1>
-              <p className="text-sm text-muted-foreground">Gestión de campo y cultivos - {user.tenant.name}</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium">{user.nombre}</p>
-                <p className="text-xs text-muted-foreground">{user.rol}</p>
+      <div className="grid gap-3">
+        {items.map((it) => (
+          <div key={it.id} className="rounded-2xl border p-4 hover:shadow-md transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">{it.nombre}</p>
+                <p className="text-sm text-muted-foreground">Estado: {it.estado}</p>
               </div>
+              <Button variant="secondary" asChild>
+                <Link href="#">Abrir</Link>
+              </Button>
             </div>
           </div>
-        </header>
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="max-w-7xl mx-auto">
-            <CampoPage />
-          </div>
-        </main>
+        ))}
       </div>
     </div>
-  )
+  );
 }

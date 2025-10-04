@@ -186,6 +186,37 @@ export const inventario: ItemInventario[] = [
     unidad: "unidades",
     ubicacion: "Bodega B",
   },
+  // Items for the current user's tenant
+  {
+    id: "inv3",
+    tenantId: "3cf2ce34-75e0-46f9-96e3-928391552291",
+    nombre: "Insecticida orgánico",
+    categoria: "insumos",
+    stock: 10,
+    stockMinimo: 15,
+    unidad: "litros",
+    ubicacion: "Depósito 1",
+  },
+  {
+    id: "inv4",
+    tenantId: "3cf2ce34-75e0-46f9-96e3-928391552291",
+    nombre: "Cajas para frutillas",
+    categoria: "cajas",
+    stock: 120,
+    stockMinimo: 50,
+    unidad: "unidades",
+    ubicacion: "Depósito 2",
+  },
+  {
+    id: "inv5",
+    tenantId: "3cf2ce34-75e0-46f9-96e3-928391552291",
+    nombre: "Fertilizante especial",
+    categoria: "insumos",
+    stock: 30,
+    stockMinimo: 20,
+    unidad: "kg",
+    ubicacion: "Depósito 1",
+  },
 ]
 
 export const movimientosCaja: MovimientoCaja[] = [
@@ -207,5 +238,34 @@ export const movimientosCaja: MovimientoCaja[] = [
     monto: 150000,
     concepto: "Venta de naranjas",
     categoria: "Ventas",
+  },
+  // Movements for the current user's tenant
+  {
+    id: "mc3",
+    tenantId: "3cf2ce34-75e0-46f9-96e3-928391552291",
+    fecha: "2025-09-30",
+    tipo: "ingreso",
+    monto: 75000,
+    concepto: "Venta de frutillas",
+    categoria: "Ventas",
+  },
+  {
+    id: "mc4",
+    tenantId: "3cf2ce34-75e0-46f9-96e3-928391552291",
+    fecha: "2025-09-29",
+    tipo: "egreso",
+    monto: 15000,
+    concepto: "Compra de insumos",
+    categoria: "Insumos",
+    comprobante: "factura-2025-003.pdf",
+  },
+  {
+    id: "mc5",
+    tenantId: "3cf2ce34-75e0-46f9-96e3-928391552291",
+    fecha: "2025-09-28",
+    tipo: "egreso",
+    monto: 8000,
+    concepto: "Combustible",
+    categoria: "Operaciones",
   },
 ]

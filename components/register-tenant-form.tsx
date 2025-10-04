@@ -17,6 +17,7 @@ import { Button } from "./ui/button";
 import { MODULES, FEATURES, REQUIRED_IDS } from "../lib/features";
 import { authService } from "../lib/supabaseAuth";
 import { useRouter } from "next/navigation";
+import { PlanSelector } from "./subscription/PlanSelector";
 
 // ====== Precios (editables) ======
 const BASE_PRICE = 99;
@@ -50,6 +51,9 @@ export default function RegisterTenantForm() {
 
     // Usuarios
     const [users, setUsers] = useState<number>(BASE_USERS_INCLUDED);
+    
+    // Plan selection
+    const [selectedPlan, setSelectedPlan] = useState<string>("basic");
 
     // Helpers usuarios (+/-)
     const MIN_USERS = BASE_USERS_INCLUDED;
@@ -74,6 +78,7 @@ export default function RegisterTenantForm() {
                     setAdminPhone(formData.adminPhone || "");
                     setAdminDocumentId(formData.adminDocumentId || "");
                     setUsers(formData.users || BASE_USERS_INCLUDED);
+                    setSelectedPlan(formData.selectedPlan || "basic");
                 } catch (error) {
                     console.error("Error loading saved form data:", error);
                 }
@@ -95,6 +100,7 @@ export default function RegisterTenantForm() {
                 adminPhone,
                 adminDocumentId,
                 users,
+                selectedPlan,
             };
             localStorage.setItem(FORM_DATA_KEY, JSON.stringify(formData));
         }
@@ -114,6 +120,7 @@ export default function RegisterTenantForm() {
         adminPhone,
         adminDocumentId,
         users,
+        selectedPlan,
     ]);
 
     // Auto-generate slug from company name
@@ -219,7 +226,7 @@ export default function RegisterTenantForm() {
             const { success, error: createError } = await authService.createTenantWithAdmin({
                 tenantName: companyName,
                 slug: slug,
-                plan: "basico",
+                plan: selectedPlan === "basic" ? "basico" : selectedPlan, // Map "basic" to "basico" for database consistency
                 primaryCrop: mainCrop || "general",
                 contactEmail: adminEmail,
                 adminFullName: adminFullName,
@@ -234,25 +241,8 @@ export default function RegisterTenantForm() {
                 return;
             }
 
-            // After successful tenant creation, try to log in the user automatically
-            try {
-                const { user: loginUser, error: loginError } = await authService.login(adminEmail, adminPassword);
-                
-                if (loginUser && !loginError) {
-                    // Clear form data from localStorage after successful registration
-                    if (typeof window !== "undefined") {
-                        localStorage.removeItem(FORM_DATA_KEY);
-                        localStorage.removeItem(OPTIONAL_KEY);
-                    }
-                    
-                    // Redirect to home instead of showing success page
-                    router.push("/home");
-                    return;
-                }
-            } catch (loginErr) {
-                console.error('Auto-login failed:', loginErr);
-                // Continue to success page if auto-login fails
-            }
+            // Don't attempt auto-login, redirect to login page with success message
+            console.log('Tenant created successfully, redirecting to login');
 
             // Clear form data from localStorage after successful registration
             if (typeof window !== "undefined") {
@@ -277,7 +267,7 @@ export default function RegisterTenantForm() {
                     </div>
                     <CardTitle className="text-2xl">¡Empresa creada!</CardTitle>
                     <CardDescription>
-                        Tu cuenta ha sido creada exitosamente. Ahora puedes acceder con tu email y contraseña.
+                        Tu cuenta ha sido creada exitosamente. Ya podés acceder con tu email (<strong>{adminEmail}</strong>) y la contraseña que configuraste.
                     </CardDescription>
                 </CardHeader>
                 <CardFooter className="justify-center gap-3">
@@ -435,6 +425,15 @@ export default function RegisterTenantForm() {
                                 placeholder="DNI, CUIT, etc."
                             />
                         </div>
+                    </section>
+
+                    {/* Plan selection */}
+                    <section className="space-y-4">
+                        <h3 className="text-lg font-semibold">Selección de plan</h3>
+                        <PlanSelector 
+                            selectedPlan={selectedPlan} 
+                            onPlanSelect={setSelectedPlan}
+                        />
                     </section>
 
                     {/* Usuarios + funcionalidades */}
