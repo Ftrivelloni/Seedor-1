@@ -186,31 +186,64 @@ export function useAuth(options: {
   const currentUser = parentUser || activeUser || contextUser || authService.getCurrentUser();
   
   // Check role-based access if required
-  const hasRequiredRole = currentUser && (
-    requireRoles.length === 0 || // No specific roles required
-    requireRoles.includes(currentUser.rol)
+  // Skip role checking entirely if using layout session (layout handles it)
+  const hasRequiredRole = isSubpageUsingLayout.current ? true : (
+    !currentUser ? false : (
+      requireRoles.length === 0 || // No specific roles required
+      requireRoles.includes(currentUser.rol)
+    )
   );
   
   // Debug role checking
-  if (requireRoles.length > 0 && currentUser) {
+  if (requireRoles.length > 0 && currentUser && !isSubpageUsingLayout.current) {
     console.log('🔐 Role Check:', {
+      userEmail: currentUser.email,
       userRole: currentUser.rol,
       requiredRoles: requireRoles,
       hasAccess: hasRequiredRole,
-      redirecting: !hasRequiredRole
+      authChecking: authChecking,
+      contextLoading: contextLoading,
+      willRedirect: !authChecking && !contextLoading && !hasRequiredRole
     });
+  } else if (isSubpageUsingLayout.current) {
+    console.log('🔐 Role Check: Skipped (using layout session, layout will handle role verification)');
   }
   
   // Redirect if user doesn't have required role
   useEffect(() => {
+    console.log('🔄 useEffect triggered:', {
+      isSubpage: isSubpageUsingLayout.current,
+      hasUser: !!currentUser,
+      userEmail: currentUser?.email,
+      userRol: currentUser?.rol,
+      requireRolesLength: requireRoles.length,
+      hasRequiredRole,
+      authChecking: authChecking,
+      contextLoading: contextLoading,
+      willRedirect: currentUser && requireRoles.length > 0 && !hasRequiredRole && !authChecking && !contextLoading
+    });
+    
     // Skip for subpages using layout auth since parent layout will handle this
     if (isSubpageUsingLayout.current) return;
     
-    if (currentUser && requireRoles.length > 0 && !hasRequiredRole) {
-      console.warn('⚠️ User does not have required role, redirecting to /home');
+    // Don't redirect while still loading
+    if (authChecking || contextLoading) {
+      console.log('⏳ Still loading, skipping role check');
+      return;
+    }
+    
+    // Only redirect if we have a fully loaded user with a role that doesn't match
+    if (currentUser && currentUser.rol && requireRoles.length > 0 && !hasRequiredRole) {
+      console.error('⚠️⚠️⚠️ REDIRECTING TO /HOME - User does not have required role');
+      console.error('Current user:', {
+        email: currentUser.email,
+        rol: currentUser.rol,
+        tenantId: currentUser.tenantId
+      });
+      console.error('Required roles:', requireRoles);
       router.push("/home");
     }
-  }, [currentUser, hasRequiredRole, requireRoles, router]);
+  }, [currentUser, hasRequiredRole, requireRoles, router, authChecking, contextLoading]);
 
   // Ensure tenant information exists
   if (currentUser && !currentUser.tenant) {

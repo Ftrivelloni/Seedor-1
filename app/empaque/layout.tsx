@@ -68,6 +68,27 @@ export default function EmpaqueLayout({
   // Get the user from all sources
   const currentUser = activeUser || user || authService.getCurrentUser();
   
+  // Check if user has required role for Empaque module
+  useEffect(() => {
+    if (!isAuthCheckComplete || !currentUser) return;
+    
+    const requiredRoles = ["Admin", "Empaque"];
+    const hasRequiredRole = requiredRoles.includes(currentUser.rol);
+    
+    console.log('🔐 EmpaqueLayout - Role Check:', {
+      userEmail: currentUser.email,
+      userRole: currentUser.rol,
+      requiredRoles: requiredRoles,
+      hasAccess: hasRequiredRole
+    });
+    
+    if (!hasRequiredRole) {
+      console.error('⚠️ EmpaqueLayout: User does not have required role for Empaque module');
+      console.error('Redirecting to /home');
+      router.push("/home");
+    }
+  }, [currentUser, isAuthCheckComplete, router]);
+  
   // Share the authenticated user with child components
   useEffect(() => {    
     if (currentUser && typeof window !== 'undefined') {

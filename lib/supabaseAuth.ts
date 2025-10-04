@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import type { User } from '@supabase/supabase-js';
+// Use the singleton supabase client to avoid multiple instances
+import { supabase as supabaseClientSingleton } from './supabaseClient';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Create client for regular operations
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Use the singleton client for regular operations
+const supabase = supabaseClientSingleton;
 
 // Create admin client if service role key is available
 const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;

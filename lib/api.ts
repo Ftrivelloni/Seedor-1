@@ -80,20 +80,9 @@ import {
   type ItemInventario,
   type MovimientoCaja,
 } from "./mocks"
-import { createClient } from '@supabase/supabase-js'
 import type { IngresoFruta, Preproceso, Pallet, Despacho, EgresoFruta, Tenant, TenantMembership, TenantModule, CreateTenantRequest } from './types'
-
-// Create Supabase client - use singleton instance to maintain session
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-  }
-})
+// Use the singleton supabase client to avoid multiple instances
+import { supabase } from './supabaseClient'
 
 // Simulate API delay
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
