@@ -43,7 +43,23 @@ export function DashboardStats() {
   const totalInventario = tenantInventario.length
 
   return (
-    <div className="space-y-6 px-4 py-6 max-w-5xl mx-auto">
+    <div className="flex-1 flex flex-col">
+      <header className="border-b bg-card">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div>
+            <h1 className="text-xl font-semibold">Resumen</h1>
+            <p className="text-sm text-muted-foreground">Panel de control y estadísticas - {user?.tenant?.name || 'Tu Empresa'}</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="text-right">
+              <p className="text-sm font-medium">{user?.nombre || user?.email}</p>
+              <p className="text-xs text-muted-foreground">{user?.rol || 'Usuario'}</p>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main className="flex-1 p-6 overflow-auto">
+        <div className="max-w-7xl mx-auto space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -193,6 +209,8 @@ export function DashboardStats() {
           </CardContent>
         </Card>
       )}
+        </div>
+      </main>
     </div>
   )
 }

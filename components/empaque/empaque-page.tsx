@@ -232,15 +232,23 @@ export function EmpaquePage() {
     }
 
     return (
-        <div className="space-y-10 px-4 py-6 max-w-5xl mx-auto">
-
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-0">
-                <div>
-                    <h1 className="text-2xl font-bold">Gestión de Empaque</h1>
-                    <p className="text-muted-foreground">Registros de procesamiento de fruta</p>
+        <div className="flex-1 flex flex-col">
+            <header className="border-b bg-card">
+                <div className="flex h-16 items-center justify-between px-6">
+                    <div>
+                        <h1 className="text-xl font-semibold">Gestión de Empaque</h1>
+                        <p className="text-sm text-muted-foreground">Registros de procesamiento de fruta - {user?.tenant?.name || 'Tu Empresa'}</p>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                            <p className="text-sm font-medium">{user?.nombre || user?.email}</p>
+                            <p className="text-xs text-muted-foreground">{user?.rol || 'Usuario'}</p>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </header>
+            <main className="flex-1 p-6 overflow-auto">
+                <div className="max-w-7xl mx-auto space-y-6">
 
             {/* Botones de navegación de módulos */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6 my-8">
@@ -433,6 +441,8 @@ export function EmpaquePage() {
                     </CardContent>
                 </Card>
             </div>
+                </div>
+            </main>
         </div>
     )
 }

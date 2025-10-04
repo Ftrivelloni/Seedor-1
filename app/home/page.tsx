@@ -139,9 +139,7 @@ const HomePage = () => {
       case "contactos":
         return <ContactosPage />
       case "usuarios":
-        return <div className="max-w-5xl mx-auto px-4 py-6">
-          <UserManagement currentUser={currentUser} />
-        </div>
+        return <UserManagement currentUser={currentUser} />
       default:
         return <DashboardStats />
     }
@@ -159,11 +157,7 @@ const HomePage = () => {
           onNavigate={(page) => setCurrentPage(page)}
           currentPage={currentPage}
         />
-        <div className="flex-1 overflow-auto flex justify-center">
-          <div className="w-full max-w-6xl">
-            {renderPageContent()}
-          </div>
-        </div>
+        {renderPageContent()}
       </div>
     </FeatureProvider>
   )

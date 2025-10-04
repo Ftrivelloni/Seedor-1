@@ -124,24 +124,31 @@ export function FinanzasPage() {
   }
 
   return (
-    <div className="space-y-6 px-4 py-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Gestión Financiera</h1>
-          <p className="text-muted-foreground">Control de caja chica y movimientos</p>
+    <div className="flex-1 flex flex-col">
+      <header className="border-b bg-card">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div>
+            <h1 className="text-xl font-semibold">Gestión Financiera</h1>
+            <p className="text-sm text-muted-foreground">Control de caja chica y movimientos - {user?.tenant?.name || 'Tu Empresa'}</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <Button variant="outline" onClick={exportToCSV} disabled={filteredMovimientos.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Exportar CSV
+            </Button>
+            <Button onClick={() => setIsModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Movimiento
+            </Button>
+            <div className="text-right">
+              <p className="text-sm font-medium">{user?.nombre || user?.email}</p>
+              <p className="text-xs text-muted-foreground">{user?.rol || 'Usuario'}</p>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={exportToCSV} disabled={filteredMovimientos.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            Exportar CSV
-          </Button>
-          <Button onClick={() => setIsModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Movimiento
-          </Button>
-        </div>
-      </div>
+      </header>
+      <main className="flex-1 p-6 overflow-auto">
+        <div className="max-w-7xl mx-auto space-y-6">
 
       {/* Balance Card */}
       <Card className={balance >= 0 ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
@@ -345,6 +352,8 @@ export function FinanzasPage() {
         onSubmit={handleCreateMovimiento}
         tenantId={user.tenantId}
       />
+        </div>
+      </main>
     </div>
   )
 }

@@ -423,16 +423,28 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with user limits info */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-semibold">Gestión de Usuarios</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Usuarios activos: {userLimits.current} de {userLimits.max}
-          </p>
+    <div className="flex-1 flex flex-col">
+      <header className="border-b bg-card">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div>
+            <h1 className="text-xl font-semibold">Gestión de Usuarios</h1>
+            <p className="text-sm text-muted-foreground">
+              Usuarios activos: {userLimits.current} de {userLimits.max} - {currentUser?.tenant?.name || 'Tu Empresa'}
+            </p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="text-right">
+              <p className="text-sm font-medium">{currentUser?.nombre || currentUser?.email}</p>
+              <p className="text-xs text-muted-foreground">{currentUser?.rol || 'Usuario'}</p>
+            </div>
+          </div>
         </div>
-        
+      </header>
+      <main className="flex-1 p-6 overflow-auto">
+        <div className="max-w-7xl mx-auto space-y-6">
+          
+      {/* Botón Crear Usuario y alertas */}
+      <div className="flex justify-end">
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
             <Button 
@@ -621,6 +633,8 @@ export function UserManagement({ currentUser }: UserManagementProps) {
           </CardContent>
         </Card>
       )}
+        </div>
+      </main>
     </div>
   )
 }

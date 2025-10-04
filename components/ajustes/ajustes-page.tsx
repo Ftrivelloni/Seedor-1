@@ -107,16 +107,25 @@ export function AjustesPage() {
 
   return (
     <FeatureProvider user={user}>
-      <div className="space-y-6 px-4 py-6 max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Configuración</h1>
-            <p className="text-muted-foreground">
-              Gestiona tu perfil, configuración personal y {isAdmin ? 'plan de suscripción' : 'permisos'}
-            </p>
+      <div className="flex-1 flex flex-col">
+        <header className="border-b bg-card">
+          <div className="flex h-16 items-center justify-between px-6">
+            <div>
+              <h1 className="text-xl font-semibold">Configuración</h1>
+              <p className="text-sm text-muted-foreground">
+                Gestiona tu perfil, configuración personal y {isAdmin ? 'plan de suscripción' : 'permisos'} - {user?.tenant?.name || 'Tu Empresa'}
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <p className="text-sm font-medium">{user?.nombre || user?.email}</p>
+                <p className="text-xs text-muted-foreground">{user?.rol || 'Usuario'}</p>
+              </div>
+            </div>
           </div>
-        </div>
+        </header>
+        <main className="flex-1 p-6 overflow-auto">
+          <div className="max-w-7xl mx-auto space-y-6">
 
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
@@ -321,6 +330,8 @@ export function AjustesPage() {
             </TabsContent>
           )}
         </Tabs>
+          </div>
+        </main>
       </div>
     </FeatureProvider>
   )

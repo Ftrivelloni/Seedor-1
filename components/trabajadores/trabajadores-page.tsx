@@ -1,14 +1,16 @@
 export default function TrabajadoresPage() {
   return (
-  <div className="space-y-6 px-4 py-6 max-w-5xl mx-auto">
-      {/* Header principal igual que Finanzas, Campo, Empaque y Ajustes */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Gestión de Trabajadores</h1>
-          <p className="text-muted-foreground">Control y administración de los trabajadores del campo</p>
+    <div className="flex-1 flex flex-col">
+      <header className="border-b bg-card">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div>
+            <h1 className="text-xl font-semibold">Gestión de Trabajadores</h1>
+            <p className="text-sm text-muted-foreground">Control y administración de los trabajadores del campo</p>
+          </div>
         </div>
-        {/* Aquí podrías agregar acciones futuras */}
-      </div>
+      </header>
+      <main className="flex-1 p-6 overflow-auto">
+        <div className="max-w-7xl mx-auto space-y-6">
 
       {/* Tarjetas con estilo unificado */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
@@ -26,6 +28,8 @@ export default function TrabajadoresPage() {
         </div>
       </div>
       {/* Aquí irán los formularios y tablas de gestión */}
+        </div>
+      </main>
     </div>
   );
 }
