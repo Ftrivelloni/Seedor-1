@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation"
 import { Sidebar } from "../../components/sidebar"
 import { useUser } from "../../components/auth/UserContext"
-import ContactosPage from "../../components/contactos/contactos-page";
+import ContactosPage from "../../components/contactos/contactos-page"
+import { FeatureProvider } from "../../lib/features-context"
 
 export default function ContactosRoutePage() {
   const { user, loading } = useUser()
@@ -23,7 +24,8 @@ export default function ContactosRoutePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <FeatureProvider user={user}>
+      <div className="min-h-screen bg-background flex">
       <Sidebar 
         user={user} 
         onLogout={() => { router.push("/login") }} 
@@ -66,6 +68,7 @@ export default function ContactosRoutePage() {
           </div>
         </main>
       </div>
-    </div>
+      </div>
+    </FeatureProvider>
   )
 }
