@@ -54,7 +54,7 @@ export default function FarmPage({ params }: { params: Promise<{ farmId: string 
           currentPage="campo" 
         />
         <div className="flex-1 flex flex-col">
-          <FarmDetailPage farmId={farmId} />
+          <FarmDetailPage farmId={farmId} user={user} />
         </div>
       </div>
     </FeatureProvider>

@@ -92,40 +92,8 @@ export function PalletsPage() {
     const [modalOpen, setModalOpen] = useState(false)
     const router = useRouter()
     
-    // First try to get user directly from window to avoid context issues
-    const [directUser, setDirectUser] = useState(() => {
-      if (typeof window !== 'undefined' && window.empaqueLayoutUser) {
-        return window.empaqueLayoutUser;
-      }
-      return null;
-    });
-    
-    // Fallback to context
-    const { empaqueUser } = useEmpaqueAuth();
-    
-    // Use the layout's authentication as final fallback
-    const { user, loading } = useAuth({
-        redirectToLogin: false, // Let the parent layout handle redirects
-        requireRoles: ["Admin", "Empaque"],
-        useLayoutSession: true // Use parent layout's authentication
-    });
-    
-    // Keep checking window for user if we don't have one yet
-    useEffect(() => {
-      if (!directUser && !empaqueUser && !user && typeof window !== 'undefined') {
-        const checkInterval = setInterval(() => {
-          if (window.empaqueLayoutUser) {
-            setDirectUser(window.empaqueLayoutUser);
-            clearInterval(checkInterval);
-          }
-        }, 100);
-        
-        return () => clearInterval(checkInterval);
-      }
-    }, [directUser, empaqueUser, user]);
-    
-    // Use the first available user
-    const currentUser = directUser || empaqueUser || user;
+    // Get user from EmpaqueAuthContext (provided by layout)
+    const { empaqueUser: currentUser } = useEmpaqueAuth();
 
     // --- fetch
     const fetchPallets = async (tenantId: string) => {
@@ -234,16 +202,12 @@ export function PalletsPage() {
     const goPrev = () => setPage((p) => Math.max(1, p - 1))
     const goNext = () => setPage((p) => Math.min(totalPages, p + 1))
 
-    if (loading || isLoading) {
+    if (!currentUser || isLoading) {
         return (
             <div className="flex h-64 items-center justify-center">
                 <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
             </div>
         )
-    }
-    
-    if (!currentUser) {
-        return null; // Let the authentication redirect handle it
     }
 
     return (

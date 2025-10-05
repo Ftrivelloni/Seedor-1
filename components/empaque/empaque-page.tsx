@@ -10,19 +10,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Badge } from "../ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { empaqueApi, ingresoFrutaApi, palletsApi, despachoApi } from "../../lib/api"
-import { authService } from "../../lib/supabaseAuth"
-import { useUser } from "../auth/UserContext"
-import { useAuth } from "../../hooks/use-auth"
+import type { AuthUser } from "../../lib/supabaseAuth"
 import type { RegistroEmpaque } from "../../lib/mocks"
 import { Search, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
+import { useEmpaqueAuth } from "./EmpaqueAuthContext"
 
 export function EmpaquePage() {
-    // Use the layout's authentication instead of a direct approach
-    const { user, loading } = useAuth({
-        redirectToLogin: false, // Let the parent layout handle redirects
-        requireRoles: ["Admin", "Empaque"],
-        useLayoutSession: true // Use parent layout's authentication
-    });
+    // Get user from EmpaqueAuthContext (provided by layout)
+    const { empaqueUser: user } = useEmpaqueAuth();
 
     const [registros, setRegistros] = useState<RegistroEmpaque[]>([])
     const [filteredRegistros, setFilteredRegistros] = useState<RegistroEmpaque[]>([])
@@ -215,7 +210,7 @@ export function EmpaquePage() {
     const porcentajeDescartePromedio = totalKgEntraron > 0 ? (totalKgDescartados / totalKgEntraron) * 100 : 0
 
     // Show loading while user is being loaded
-    if (loading || !user) {
+    if (!user) {
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

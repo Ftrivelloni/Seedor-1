@@ -57,7 +57,7 @@ export default function CampoRoutePage() {
           currentPage="campo" 
         />
         <div className="flex-1 flex flex-col">
-          <FarmsList />
+          <FarmsList user={user} />
         </div>
       </div>
     </FeatureProvider>

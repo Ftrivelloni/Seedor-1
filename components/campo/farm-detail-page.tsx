@@ -8,17 +8,17 @@ import { Badge } from "../ui/badge"
 import { Plus, ArrowLeft, Grid3x3, List, Pencil, Trash2 } from "lucide-react"
 import { farmsApi, lotsApi } from "../../lib/api"
 import type { Farm, Lot } from "../../lib/types"
+import type { AuthUser } from "../../lib/supabaseAuth"
 import { LotFormModal, type LotFormData } from "./lot-form-modal"
-import { useAuth } from "../../hooks/use-auth"
 import { toast } from "../../hooks/use-toast"
 
 interface FarmDetailPageProps {
   farmId: string
+  user?: AuthUser
 }
 
-export function FarmDetailPage({ farmId }: FarmDetailPageProps) {
+export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
   const router = useRouter()
-  const { user } = useAuth()
   const [farm, setFarm] = useState<Farm | null>(null)
   const [lots, setLots] = useState<Lot[]>([])
   const [loading, setLoading] = useState(true)

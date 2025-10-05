@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
 import DespachoFormModal from "./despacho-form-modal"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
-import { useAuth } from "../../hooks/use-auth"
+import { useEmpaqueAuth } from "./EmpaqueAuthContext"
 
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -38,12 +38,8 @@ export function DespachoPage() {
     const [modalOpen, setModalOpen] = useState(false)
     const router = useRouter()
     
-    // Use the layout's authentication, since we're in a subpage
-    const { user, loading } = useAuth({
-        redirectToLogin: true,
-        requireRoles: ["Admin", "Empaque"],
-        useLayoutSession: true // Use parent layout's authentication
-    });
+    // Get user from EmpaqueAuthContext (provided by layout)
+    const { empaqueUser: user } = useEmpaqueAuth();
 
     // Load data when user is available
     useEffect(() => {
@@ -127,10 +123,10 @@ export function DespachoPage() {
     const goPrev = () => setPage((p) => Math.max(1, p - 1))
     const goNext = () => setPage((p) => Math.min(totalPages, p + 1))
 
-    if (loading || isLoading) {
+    if (!user || isLoading) {
         return (
-            <div className="flex h-64 items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+            <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
         )
     }

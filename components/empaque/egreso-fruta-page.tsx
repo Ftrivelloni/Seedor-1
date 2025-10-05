@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
-import { useAuth } from "../../hooks/use-auth"
+import { useEmpaqueAuth } from "./EmpaqueAuthContext"
 
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -17,12 +17,8 @@ import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, Search }
 import EgresoFrutaFormModal from "./egreso-fruta-form-modal"
 
 export function EgresoFrutaPage() {
-    // Use the layout's authentication, since we're in a subpage
-    const { user, loading } = useAuth({
-        redirectToLogin: true,
-        requireRoles: ["Admin", "Empaque"],
-        useLayoutSession: true // Use parent layout's authentication
-    });
+    // Get user from EmpaqueAuthContext (provided by layout)
+    const { empaqueUser: user } = useEmpaqueAuth();
     
     const [egresos, setEgresos] = useState<any[]>([])
     const [filtered, setFiltered] = useState<any[]>([])
@@ -117,10 +113,10 @@ export function EgresoFrutaPage() {
     const goPrev = () => setPage((p) => Math.max(1, p - 1))
     const goNext = () => setPage((p) => Math.min(totalPages, p + 1))
 
-    if (loading || isLoading) {
+    if (!user || isLoading) {
         return (
-            <div className="flex h-64 items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+            <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
         )
     }

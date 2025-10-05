@@ -1,10 +1,9 @@
 // components/empaque/ingreso-fruta-page.tsx
 "use client"
 
-import { useEffect, useMemo, useState, useRef } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
-import { useAuth } from "../../hooks/use-auth"
 import { useEmpaqueAuth } from "./EmpaqueAuthContext"
 
 import { IngresoFrutaFormModal } from "./ingreso-fruta-form-modal"
@@ -15,71 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { ArrowLeft, ChevronLeft, ChevronRight, Download, Package, Scale, Search, Plus } from "lucide-react"
 
 export function IngresoFrutaPage() {
-    // Use a ref to store the most current user reference
-    const userRef = useRef<any>(null);
-    
-    // State to track if we have a valid user
-    const [hasValidUser, setHasValidUser] = useState(false);
-    
-    // Track loading state
-    const [authLoading, setAuthLoading] = useState(true);
-    
-    // Use this simpler approach to directly check the window object
-    useEffect(() => {
-        // Function to check for user
-        const checkForUser = () => {
-            // 1. Check window object directly
-            if (typeof window !== 'undefined' && window.empaqueLayoutUser) {
-                userRef.current = window.empaqueLayoutUser;
-                setHasValidUser(true);
-                setAuthLoading(false);
-                return true;
-            }
-            return false;
-        };
-        
-        // Check immediately
-        if (!checkForUser()) {
-            
-            // Set up interval to keep trying
-            let attempts = 0;
-            const maxAttempts = 10;
-            
-            const checkInterval = setInterval(() => {
-                attempts++;
-                if (checkForUser() || attempts >= maxAttempts) {
-                    if (attempts >= maxAttempts && !userRef.current) {
-                        // Let's try a last-ditch attempt at authentication
-                        import("../../lib/supabaseAuth").then(({ authService }) => {
-                            const directUser = authService.getCurrentUser();
-                            if (directUser) {
-                                userRef.current = directUser;
-                                if (typeof window !== 'undefined') {
-                                    window.empaqueLayoutUser = directUser;
-                                }
-                                setHasValidUser(true);
-                            }
-                            setAuthLoading(false);
-                        });
-                    }
-                    clearInterval(checkInterval);
-                }
-            }, 200);
-            
-            return () => clearInterval(checkInterval);
-        }
-    }, []);
-    
-    // Access context as a final fallback but don't rely on it
-    const { empaqueUser } = useEmpaqueAuth();
-    if (empaqueUser && !userRef.current) {
-        userRef.current = empaqueUser;
-        setHasValidUser(true);
-        setAuthLoading(false);
-    }
-    
-    // currentUser comes from our ref for stability
-    const currentUser = userRef.current;
+    // Get user from EmpaqueAuthContext (provided by layout)
+    const { empaqueUser: currentUser } = useEmpaqueAuth();
     
 
     const [registros, setRegistros] = useState<any[]>([])
@@ -224,16 +160,12 @@ export function IngresoFrutaPage() {
         })
     }, [pageRows, start])
 
-    if (authLoading || isLoading) {
+    if (!currentUser || isLoading) {
         return (
             <div className="flex h-64 items-center justify-center">
                 <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
             </div>
         )
-    }
-    
-    if (!currentUser) {
-        return null; // No render if no user, let the authentication redirect handle it
     }
 
     return (

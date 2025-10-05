@@ -7,19 +7,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Badge } from "../ui/badge"
 import { farmsApi } from "../../lib/api"
 import type { Farm } from "../../lib/types"
-import { useAuth } from "../../hooks/use-auth"
+import type { AuthUser } from "../../lib/supabaseAuth"
 import { Plus, MapPin, Maximize2, Sprout, Edit, Trash2 } from "lucide-react"
 import { FarmFormModal } from "./farm-form-modal"
 import { toast } from "../../hooks/use-toast"
 
-export function FarmsList() {
+interface FarmsListProps {
+  user?: AuthUser;
+}
+
+export function FarmsList({ user }: FarmsListProps) {
   const [farms, setFarms] = useState<Farm[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingFarm, setEditingFarm] = useState<Farm | undefined>()
   
   const router = useRouter()
-  const { user } = useAuth()
 
   useEffect(() => {
     console.log("User in FarmsList:", user)
