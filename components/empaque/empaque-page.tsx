@@ -307,64 +307,28 @@ export function EmpaquePage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
-                            <ArrowDown className="h-5 w-5 text-blue-600" />
-                            <span>Ingreso de Fruta</span>
+                        <ArrowDown className="h-5 w-5 text-blue-600" />
+                        <span>Ingreso de Fruta</span>
                         </CardTitle>
-                        <CardDescription>Filtrar ingresos por fecha</CardDescription>
+                        <CardDescription>Resumen de ingresos</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="mb-6 flex items-center gap-2">
-                            <label htmlFor="filtro-fecha" className="text-sm">Fecha:</label>
-                            <input
-                                id="filtro-fecha"
-                                type="date"
-                                className="border rounded px-2 py-1 text-sm"
-                                value={filtroFecha}
-                                onChange={e => setFiltroFecha(e.target.value)}
-                                max={new Date().toISOString().split("T")[0]}
-                            />
-                            {filtroFecha && (
-                                <Button size="sm" variant="ghost" onClick={() => setFiltroFecha("")}>Limpiar</Button>
-                            )}
+                        <div className="flex flex-col gap-2">
+                        <div>
+                            <span className="font-medium">Total ingresado:</span>{" "}
+                            {ingresosFruta.reduce((sum, r) => sum + (r.peso_neto || 0), 0).toLocaleString()} kg
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm border border-gray-200 rounded-lg bg-white">
-                                <thead>
-                                <tr className="bg-gray-50 text-muted-foreground">
-                                    <th className="text-left px-4 py-2 border-b font-semibold">Fecha</th>
-                                    <th className="text-left px-4 py-2 border-b font-semibold">Productor</th>
-                                    <th className="text-left px-4 py-2 border-b font-semibold">Producto</th>
-                                    <th className="text-left px-4 py-2 border-b font-semibold">Lote</th>
-                                    <th className="text-right px-4 py-2 border-b font-semibold">Cantidad Bins</th>
-                                    <th className="text-right px-4 py-2 border-b font-semibold">Peso Neto</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {isLoadingIngresos ? (
-                                    <tr><td colSpan={6} className="text-center text-muted-foreground px-4 py-4">Cargando...</td></tr>
-                                ) : (
-                                    ingresosFruta
-                                        .filter(r => !filtroFecha || (r.fecha && r.fecha.startsWith(filtroFecha)))
-                                        .slice(0, 10)
-                                        .map((r, idx) => (
-                                            <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                                                <td className="px-4 py-2 border-b">{r.fecha ? new Date(r.fecha).toLocaleDateString() : "-"}</td>
-                                                <td className="px-4 py-2 border-b">{r.productor ?? "-"}</td>
-                                                <td className="px-4 py-2 border-b">{r.producto ?? "-"}</td>
-                                                <td className="px-4 py-2 border-b">{r.lote ?? "-"}</td>
-                                                <td className="px-4 py-2 border-b text-right">{r.cant_bin ?? "-"}</td>
-                                                <td className="px-4 py-2 border-b text-right">{r.peso_neto ? `${r.peso_neto} kg` : "-"}</td>
-                                            </tr>
-                                        ))
-                                )}
-                                {!isLoadingIngresos && ingresosFruta.filter(r => !filtroFecha || (r.fecha && r.fecha.startsWith(filtroFecha))).length === 0 && (
-                                    <tr><td colSpan={6} className="text-center text-muted-foreground px-4 py-4">Sin registros</td></tr>
-                                )}
-                                </tbody>
-                            </table>
+                        <div>
+                            <span className="font-medium">Total bins:</span>{" "}
+                            {ingresosFruta.reduce((sum, r) => sum + (r.cant_bin || 0), 0)}
+                        </div>
+                        <div>
+                            <span className="font-medium">Última fecha:</span>{" "}
+                            {ingresosFruta.length > 0 ? new Date(ingresosFruta[0].fecha).toLocaleDateString() : "-"}
+                        </div>
                         </div>
                     </CardContent>
-                </Card>
+                    </Card>
 
                 {/* Preproceso */}
                 <Card>
