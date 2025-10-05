@@ -132,39 +132,33 @@ export function EgresoFrutaPage() {
     return (
         <div className="mx-auto w-full max-w-4xl md:max-w-5xl px-3 md:px-6 py-6 space-y-6">
             {/* Header */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 mb-6">
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" onClick={() => router.push('/empaque')}>
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver
+                    <Button variant="outline" size="sm" onClick={() => router.push("/empaque")}>
+                        <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div>
                         <h1 className="text-2xl font-bold leading-tight">Egreso de Fruta</h1>
-                        <p className="text-sm text-muted-foreground">Gestión de salidas de productos</p>
+                        <p className="text-sm text-muted-foreground mt-1">Gestión de salidas de productos</p>
                     </div>
                 </div>
-
-                <div className="flex flex-1 items-center justify-end gap-2">
+                <div className="flex flex-1 items-center justify-end gap-2 mt-2">
                     <div className="relative hidden sm:block">
                         <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Buscar por producto, cliente, chofer, remito…"
-                            className="w-72 pl-9"
+                            placeholder="Buscar por guía, cliente, etc..."
+                            className="w-72 pl-9 border border-gray-400"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-
                     <Button variant="outline" onClick={exportToExcel} disabled={filtered.length === 0}>
                         <Download className="mr-2 h-4 w-4" />
                         Exportar Excel
                     </Button>
-
                     <Button onClick={() => setModalOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" />
                         Nuevo egreso
                     </Button>
-
                     <EgresoFrutaFormModal
                         open={modalOpen}
                         onClose={() => setModalOpen(false)}
