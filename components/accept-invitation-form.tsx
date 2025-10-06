@@ -189,6 +189,12 @@ export default function AcceptInvitationForm() {
     try {
       console.log('🔄 Accepting invitation for existing user...');
       
+      if (invitation.role_code === 'admin') {
+        console.log('👨‍💼 Admin invitation, redirecting to setup without accepting...');
+        router.push(`/admin-setup?token=${token}`);
+        return;
+      }
+
       const { success, error: acceptError, data } = await authService.acceptInvitation({ token });
 
       if (!success) {
@@ -198,15 +204,8 @@ export default function AcceptInvitationForm() {
       }
 
       console.log('✅ Invitation accepted successfully');
-
-      if (invitation.role_code === 'admin') {
-        console.log('👨‍💼 Redirecting to admin setup...');
-        router.push(`/admin-setup?token=${token}`);
-      } else {
-        console.log('👤 Regular user, showing completion...');
-        setDone(true);
-        setTimeout(() => router.push("/home"), 2000);
-      }
+      setDone(true);
+      setTimeout(() => router.push("/home"), 2000);
 
     } catch (err: any) {
       console.error('❌ Error in acceptInvitation:', err);
@@ -244,8 +243,53 @@ export default function AcceptInvitationForm() {
     setCreating(true);
 
     try {
-      console.log('🔄 Creating account and accepting invitation...');
+      console.log('🔄 Creating account...');
       
+      if (invitation.role_code === 'admin') {
+        console.log('👨‍💼 Creating admin account without accepting invitation...');
+        
+        const { supabase } = await import('../lib/supabaseClient');
+        const { data: newUser, error: signUpError } = await supabase.auth.signUp({
+          email: invitation.email,
+          password: password,
+          options: {
+            data: {
+              full_name: fullName,
+              phone: phone,
+              invitation_token: token
+            }
+          }
+        });
+
+        if (signUpError) {
+          console.error('❌ SignUp error:', signUpError);
+          setError(`Error al crear usuario: ${signUpError.message}`);
+          return;
+        }
+
+        if (!newUser.user) {
+          setError('No se pudo crear el usuario');
+          return;
+        }
+
+        console.log('✅ Admin account created, redirecting to setup...');
+        
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('temp_admin_data', JSON.stringify({
+            userId: newUser.user.id,
+            fullName,
+            phone,
+            token,
+            timestamp: new Date().toISOString()
+          }));
+        }
+
+        setTimeout(() => {
+          router.push(`/admin-setup?token=${token}`);
+        }, 500);
+        return;
+      }
+
       const { success, error: acceptError, data } = await authService.acceptInvitation({
         token,
         userData: {
@@ -262,17 +306,8 @@ export default function AcceptInvitationForm() {
       }
 
       console.log('✅ Account created and invitation accepted');
-
-      if (invitation.role_code === 'admin') {
-        console.log('👨‍💼 Redirecting to admin setup...');
-        setTimeout(() => {
-          router.push(`/admin-setup?token=${token}`);
-        }, 500);
-      } else {
-        console.log('👤 Regular user, showing completion...');
-        setDone(true);
-        setTimeout(() => router.push("/home"), 2000);
-      }
+      setDone(true);
+      setTimeout(() => router.push("/home"), 2000);
 
     } catch (err: any) {
       console.error('❌ Error in createAccountAndAccept:', err);

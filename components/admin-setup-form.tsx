@@ -275,6 +275,7 @@ export default function AdminSetupForm() {
     setError(null);
 
     try {
+      // Enviar invitaciones a usuarios de módulos
       const invitationPromises = Object.entries(moduleInvitations)
         .filter(([moduleId, email]) => selectedModules.includes(moduleId) && email.trim())
         .map(async ([moduleId, email]) => {
@@ -299,6 +300,7 @@ export default function AdminSetupForm() {
 
       await Promise.all(invitationPromises);
 
+      // Habilitar módulos
       await fetch('/api/admin/enable-modules', {
         method: 'POST',
         headers: {
@@ -310,6 +312,23 @@ export default function AdminSetupForm() {
         })
       });
 
+      // ✅ CAMBIO: Ahora sí aceptar la invitación de admin
+      console.log('🔄 Accepting admin invitation...');
+      const { success, error: acceptError } = await authService.acceptAdminInvitation({
+        token,
+        workerData: {
+          fullName: adminData?.full_name,
+          phone: adminData?.phone,
+          workerId: adminData?.id
+        }
+      });
+
+      if (!success) {
+        setError(acceptError || "Error al completar configuración de admin");
+        return;
+      }
+
+      console.log('✅ Admin setup completed successfully');
       setCurrentStep('complete');
 
     } catch (err: any) {

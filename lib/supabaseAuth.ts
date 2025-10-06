@@ -999,6 +999,134 @@ export const authService = {
     }
   },
 
+  acceptAdminInvitation: async (params: { token: string; workerData: any }): Promise<{ success: boolean; error?: string; data?: any }> => {
+    try {
+      console.log('🔄 Starting acceptAdminInvitation process...');
+      
+      const invitationResult = await authService.getInvitationByToken(params.token)
+      if (!invitationResult.success || !invitationResult.data) {
+        return { success: false, error: invitationResult.error }
+      }
+
+      const invitation = invitationResult.data
+      console.log('✅ Admin invitation found:', invitation.email);
+
+      if (invitation.role_code !== 'admin') {
+        return { success: false, error: 'Esta invitación no es para administrador' }
+      }
+
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('current_users, max_users')
+        .eq('id', invitation.tenant_id)
+        .single()
+
+      if (!tenant) {
+        return { success: false, error: 'Tenant no encontrado' }
+      }
+
+      if (tenant.current_users >= tenant.max_users) {
+        return { success: false, error: 'Se alcanzó el límite máximo de usuarios para este tenant' }
+      }
+
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.user || session.user.email !== invitation.email) {
+        return { success: false, error: 'Sesión de usuario no válida' }
+      }
+
+      const userId = session.user.id
+
+      console.log('🔄 Creating admin membership...');
+
+      const { data: membershipData, error: membershipError } = await supabase
+        .from('tenant_memberships')
+        .insert([{
+          tenant_id: invitation.tenant_id,
+          user_id: userId,
+          role_code: 'admin',
+          status: 'active',
+          invited_by: invitation.invited_by,
+          accepted_at: new Date().toISOString()
+        }])
+        .select()
+        .single()
+
+      if (membershipError) {
+        console.error('❌ Admin membership creation error:', membershipError)
+        return { success: false, error: `Error al crear membresía: ${membershipError.message}` }
+      }
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert([{
+          user_id: userId,
+          email: invitation.email,
+          full_name: params.workerData.fullName,
+          phone: params.workerData.phone,
+          default_tenant_id: invitation.tenant_id,
+        }])
+
+      if (profileError) {
+        console.warn('⚠️ Profile creation warning:', profileError);
+      }
+
+      if (params.workerData.workerId) {
+        await supabase
+          .from('workers')
+          .update({ membership_id: membershipData.id })
+          .eq('id', params.workerData.workerId)
+      }
+
+      const { error: updateError } = await supabase
+        .from('tenants')
+        .update({ current_users: tenant.current_users + 1 })
+        .eq('id', invitation.tenant_id)
+
+      if (updateError) {
+        console.warn('⚠️ Error updating tenant user count:', updateError);
+      }
+
+      await supabase
+        .from('invitations')
+        .update({ 
+          accepted_at: new Date().toISOString()
+        })
+        .eq('id', invitation.id)
+
+      await supabase
+        .from('audit_logs')
+        .insert([{
+          tenant_id: invitation.tenant_id,
+          actor_user_id: userId,
+          action: 'admin_invitation_accepted', 
+          entity: 'invitation', 
+          entity_id: invitation.id, 
+          details: { 
+            email: invitation.email,
+            worker_id: params.workerData.workerId,
+            context: 'admin_setup_complete'
+          }
+        }])
+
+      console.log('✅ Admin invitation accepted successfully');
+
+      return { 
+        success: true, 
+        data: { 
+          userId, 
+          tenantId: invitation.tenant_id,
+          membership: membershipData,
+          isNewAdmin: true
+        } 
+      }
+
+    } catch (error: any) {
+      console.error('❌ Error accepting admin invitation:', error)
+      return { success: false, error: error.message || 'Error inesperado' }
+    }
+  },
+
   logout: async (): Promise<{ error?: string }> => {
     try {
       const { error } = await supabase.auth.signOut()
