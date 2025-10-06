@@ -1,64 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
-  Check, Loader2, Eye, EyeOff, Building2, User, Mail, Phone, IdCard, Shield,
-  Settings, MapPin, Package, DollarSign, UserPlus, CheckCircle
+  Check, Loader2, Settings, UserPlus, CheckCircle,
+  MapPin, Package, DollarSign
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
-import { authService, validators } from "../lib/supabaseAuth";
+import { authService } from "../lib/supabaseAuth";
+import UserSetupForm from "./user-setup-form";
 
 const inputStrong = "h-12 bg-white border-2 border-slate-200 shadow-sm placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#81C101]/30 focus-visible:border-[#81C101] transition-all duration-200";
-
-const ValidatedInput = ({ 
-    id, 
-    label, 
-    value, 
-    onChange, 
-    fieldName, 
-    required = false, 
-    type = "text",
-    placeholder,
-    fieldErrors,
-    icon: Icon,
-    ...props 
-}: any) => (
-    <div className="grid gap-3">
-        <Label htmlFor={id} className="text-sm font-semibold text-slate-700">
-            {label} {required && <span className="text-red-500">*</span>}
-        </Label>
-        <div className="relative">
-            {Icon && (
-                <Icon className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
-            )}
-            <Input
-                id={id}
-                type={type}
-                value={value}
-                onChange={(e) => onChange(fieldName, e.target.value)}
-                required={required}
-                className={`${inputStrong} ${Icon ? 'pl-12' : 'pl-4'} ${fieldErrors[fieldName] ? 'border-red-400 focus-visible:ring-red-400/30 focus-visible:border-red-400' : ''}`}
-                placeholder={placeholder}
-                {...props}
-            />
-        </div>
-        <div className="h-5">
-            {fieldErrors[fieldName] && (
-                <p className="text-sm text-red-500 leading-tight flex items-center gap-1">
-                    <span className="size-4 rounded-full bg-red-100 flex items-center justify-center">
-                        <span className="size-2 rounded-full bg-red-500"></span>
-                    </span>
-                    {fieldErrors[fieldName]}
-                </p>
-            )}
-        </div>
-    </div>
-);
 
 const AVAILABLE_MODULES = {
   campo: {
@@ -92,7 +48,6 @@ export default function AdminSetupForm() {
   const params = useSearchParams();
   const token = params.get("token") || "";
 
-  // Estados existentes...
   const [currentStep, setCurrentStep] = useState<'worker-info' | 'modules' | 'invite-users' | 'complete'>('worker-info');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,18 +56,9 @@ export default function AdminSetupForm() {
   const [tenantPlan, setTenantPlan] = useState<string>('');
   const [availableModules, setAvailableModules] = useState<string[]>([]);
 
-  const [documentId, setDocumentId] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState(""); 
-  const [showPassword, setShowPassword] = useState(false); 
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-
   const [moduleInvitations, setModuleInvitations] = useState<Record<string, string>>({});
   const [invitingUsers, setInvitingUsers] = useState(false);
-
-  const [saving, setSaving] = useState(false);
   const [adminData, setAdminData] = useState<any>(null);
 
   useEffect(() => {
@@ -133,34 +79,6 @@ export default function AdminSetupForm() {
         }
 
         setInvitation(data);
-
-        // ✅ NUEVO: Cargar datos guardados del signup si existen
-        if (typeof window !== 'undefined') {
-          const savedSignupData = sessionStorage.getItem('admin_signup_data');
-          if (savedSignupData) {
-            try {
-              const signupData = JSON.parse(savedSignupData);
-              
-              // Verificar que no sean muy antiguos (más de 1 hora)
-              const savedAt = new Date(signupData.timestamp || 0);
-              const now = new Date();
-              const hoursDiff = (now.getTime() - savedAt.getTime()) / (1000 * 60 * 60);
-              
-              if (hoursDiff <= 1 && signupData.token === token) {
-                console.log('📂 Restoring signup data...');
-                setFullName(signupData.fullName || '');
-                setPassword(signupData.password || '');
-                setPhone(signupData.phone || '');
-              } else {
-                console.log('🕐 Signup data is too old or invalid, clearing...');
-                sessionStorage.removeItem('admin_signup_data');
-              }
-            } catch (e) {
-              console.warn('Error parsing signup data:', e);
-              sessionStorage.removeItem('admin_signup_data');
-            }
-          }
-        }
 
         const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(data.tenant_id);
         
@@ -183,53 +101,9 @@ export default function AdminSetupForm() {
     loadInitialData();
   }, [token]);
 
-  const validateField = (fieldName: string, value: string): string => {
-    switch (fieldName) {
-      case 'documentId':
-        if (!validators.text(value, 6, 20)) {
-          return 'Debe tener entre 6 y 20 caracteres'
-        }
-        break;
-      case 'fullName':
-        if (!validators.text(value, 2, 100)) {
-          return 'Debe tener entre 2 y 100 caracteres'
-        }
-        break;
-      case 'phone':
-        if (value && !validators.phone(value)) {
-          return 'Formato inválido'
-        }
-        break;
-      case 'password':
-        if (!validators.password(value)) {
-          return 'Debe tener al menos 8 caracteres'
-        }
-        break;
-    }
-    return '';
-  };
-
-  const handleFieldChange = (fieldName: string, value: string) => {
-    switch (fieldName) {
-      case 'documentId':
-        setDocumentId(value);
-        break;
-      case 'fullName':
-        setFullName(value);
-        break;
-      case 'phone':
-        setPhone(value);
-        break;
-      case 'password':
-        setPassword(value);
-        break;
-    }
-
-    const error = validateField(fieldName, value);
-    setFieldErrors(prev => ({
-      ...prev,
-      [fieldName]: error
-    }));
+  const handleWorkerInfoComplete = (workerData: any) => {
+    setAdminData(workerData);
+    setCurrentStep('modules');
   };
 
   const handleModuleToggle = (moduleId: string) => {
@@ -238,87 +112,6 @@ export default function AdminSetupForm() {
         ? prev.filter(id => id !== moduleId)
         : [...prev, moduleId]
     );
-  };
-
-  const onSubmitWorkerInfo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    // Validaciones existentes...
-    const allErrors: Record<string, string> = {};
-    allErrors.documentId = validateField('documentId', documentId);
-    allErrors.fullName = validateField('fullName', fullName);
-    allErrors.phone = validateField('phone', phone);
-    allErrors.password = validateField('password', password);
-
-    const filteredErrors = Object.fromEntries(
-      Object.entries(allErrors).filter(([_, error]) => error !== '')
-    );
-
-    setFieldErrors(filteredErrors);
-
-    if (Object.keys(filteredErrors).length > 0) {
-      setError("Por favor corregí los errores en el formulario.");
-      return;
-    }
-
-    if (!documentId || !fullName || !password) {
-      setError("Completá todos los campos obligatorios.");
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      // ✅ CAMBIO: Para admin setup, NO crear usuario aquí, solo crear worker sin password
-      console.log('🔄 Creating admin worker profile (no auth user creation)...');
-      
-      const response = await fetch('/api/admin/create-worker', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tenantId: invitation.tenant_id,
-          email: invitation.email,
-          fullName,
-          documentId,
-          phone,
-          // ✅ IMPORTANTE: NO enviar password para evitar creación de usuario
-          password: null, 
-          areaModule: 'administracion',
-          membershipId: null 
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al crear worker');
-      }
-
-      const workerData = await response.json();
-      setAdminData(workerData.data);
-
-      // Guardar password temporalmente para usar después
-      if (typeof window !== 'undefined') {
-        const signupData = sessionStorage.getItem('admin_signup_data');
-        if (signupData) {
-          const data = JSON.parse(signupData);
-          sessionStorage.setItem('admin_auth_data', JSON.stringify({
-            ...data,
-            workerId: workerData.data.id
-          }));
-          sessionStorage.removeItem('admin_signup_data');
-        }
-      }
-
-      setCurrentStep('modules');
-
-    } catch (err: any) {
-      setError(err.message || "Error al guardar datos");
-    } finally {
-      setSaving(false);
-    }
   };
 
   const onSubmitModules = () => {
@@ -335,7 +128,7 @@ export default function AdminSetupForm() {
     setError(null);
 
     try {
-      // Enviar invitaciones a usuarios de módulos (existente)
+      // Enviar invitaciones a usuarios de módulos
       const invitationPromises = Object.entries(moduleInvitations)
         .filter(([moduleId, email]) => selectedModules.includes(moduleId) && email.trim())
         .map(async ([moduleId, email]) => {
@@ -360,7 +153,7 @@ export default function AdminSetupForm() {
 
       await Promise.all(invitationPromises);
 
-      // Habilitar módulos (existente)
+      // Habilitar módulos
       await fetch('/api/admin/enable-modules', {
         method: 'POST',
         headers: {
@@ -372,7 +165,7 @@ export default function AdminSetupForm() {
         })
       });
 
-      // ✅ NUEVO: Ahora finalizar aceptando la invitación de admin con la sesión activa
+      // Finalizar aceptando la invitación de admin
       if (typeof window !== 'undefined') {
         const authData = sessionStorage.getItem('admin_auth_data');
         if (authData) {
@@ -394,7 +187,6 @@ export default function AdminSetupForm() {
             return;
           }
 
-          // Limpiar datos temporales
           sessionStorage.removeItem('admin_auth_data');
           console.log('✅ Admin invitation accepted and membership created');
         }
@@ -484,135 +276,10 @@ export default function AdminSetupForm() {
 
   if (currentStep === 'worker-info') {
     return (
-      <Card className="mx-auto w-full max-w-lg rounded-3xl border-2 border-slate-200 bg-white shadow-2xl">
-        <CardHeader className="text-center pb-6">
-          <div className="mx-auto mb-4 grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-[#81C101] to-[#9ED604] shadow-lg">
-            <User className="size-8 text-white" />
-          </div>
-          <CardTitle className="text-2xl font-bold text-slate-800">Completá tu perfil</CardTitle>
-          <CardDescription className="text-slate-600 mt-2">
-            Ingresá tus datos como administrador de <strong className="text-[#81C101]">{invitation?.tenants?.name}</strong>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmitWorkerInfo} className="space-y-6">
-            <div className="grid gap-3">
-              <Label className="text-sm font-semibold text-slate-700">
-                Email <span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
-                <Input
-                  type="email"
-                  value={invitation?.email || ''}
-                  disabled
-                  className={`${inputStrong} pl-12 bg-slate-50 text-slate-600 cursor-not-allowed`}
-                />
-              </div>
-              <div className="h-5">
-                <p className="text-xs text-slate-500">
-                  Este es el email al que se envió la invitación
-                </p>
-              </div>
-            </div>
-
-            <ValidatedInput
-              id="documentId"
-              label="Documento de identidad"
-              value={documentId}
-              onChange={handleFieldChange}
-              fieldName="documentId"
-              fieldErrors={fieldErrors}
-              placeholder="12345678"
-              required
-              icon={IdCard}
-            />
-
-            <ValidatedInput
-              id="fullName"
-              label="Nombre completo"
-              value={fullName}
-              onChange={handleFieldChange}
-              fieldName="fullName"
-              fieldErrors={fieldErrors}
-              placeholder="Tu nombre y apellido"
-              required
-              icon={User}
-            />
-
-            {/* ✅ NUEVO: Campo de contraseña */}
-            <div className="grid gap-3">
-              <Label htmlFor="password" className="text-sm font-semibold text-slate-700">
-                Contraseña <span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
-                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => handleFieldChange('password', e.target.value)}
-                  required
-                  className={`${inputStrong} pl-12 pr-12 ${fieldErrors.password ? 'border-red-400 focus-visible:ring-red-400/30 focus-visible:border-red-400' : ''}`}
-                  placeholder="Mínimo 8 caracteres"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-                </button>
-              </div>
-              <div className="h-5">
-                {fieldErrors.password ? (
-                  <p className="text-sm text-red-500 leading-tight flex items-center gap-1">
-                    <span className="size-4 rounded-full bg-red-100 flex items-center justify-center">
-                      <span className="size-2 rounded-full bg-red-500"></span>
-                    </span>
-                    {fieldErrors.password}
-                  </p>
-                ) : (
-                  <p className="text-xs text-slate-500">
-                    Debe tener al menos 8 caracteres
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <ValidatedInput
-              id="phone"
-              label="Teléfono"
-              value={phone}
-              onChange={handleFieldChange}
-              fieldName="phone"
-              fieldErrors={fieldErrors}
-              placeholder="+54 9 261 123-4567"
-              icon={Phone}
-            />
-
-            {error && (
-              <div className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-
-            <Button 
-              type="submit" 
-              className="w-full h-12 bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200" 
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" /> Guardando...
-                </>
-              ) : (
-                "Continuar"
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      <UserSetupForm 
+        userType="admin" 
+        onComplete={handleWorkerInfoComplete}
+      />
     );
   }
 
