@@ -2,10 +2,60 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Loader2, Building2, User, Shield } from "lucide-react";
+import { Check, Loader2, Eye, EyeOff, Building2, User, Mail, Phone, IdCard, Shield } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { authService } from "../lib/supabaseAuth";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { authService, validators } from "../lib/supabaseAuth";
+
+// Estilos consistentes con register-tenant-form
+const inputStrong = "h-12 bg-white border-2 border-slate-200 shadow-sm placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#81C101]/30 focus-visible:border-[#81C101] transition-all duration-200";
+
+const ValidatedInput = ({ 
+    id, 
+    label, 
+    value, 
+    onChange, 
+    fieldName, 
+    required = false, 
+    type = "text",
+    placeholder,
+    fieldErrors,
+    icon: Icon,
+    ...props 
+}: any) => (
+    <div className="grid gap-3">
+        <Label htmlFor={id} className="text-sm font-semibold text-slate-700">
+            {label} {required && <span className="text-red-500">*</span>}
+        </Label>
+        <div className="relative">
+            {Icon && (
+                <Icon className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
+            )}
+            <Input
+                id={id}
+                type={type}
+                value={value}
+                onChange={(e) => onChange(fieldName, e.target.value)}
+                required={required}
+                className={`${inputStrong} ${Icon ? 'pl-12' : 'pl-4'} ${fieldErrors[fieldName] ? 'border-red-400 focus-visible:ring-red-400/30 focus-visible:border-red-400' : ''}`}
+                placeholder={placeholder}
+                {...props}
+            />
+        </div>
+        <div className="h-5">
+            {fieldErrors[fieldName] && (
+                <p className="text-sm text-red-500 leading-tight flex items-center gap-1">
+                    <span className="size-4 rounded-full bg-red-100 flex items-center justify-center">
+                        <span className="size-2 rounded-full bg-red-500"></span>
+                    </span>
+                    {fieldErrors[fieldName]}
+                </p>
+            )}
+        </div>
+    </div>
+);
 
 export default function AcceptInvitationForm() {
   const router = useRouter();
@@ -20,6 +70,14 @@ export default function AcceptInvitationForm() {
   // Estados para usuario existente
   const [isExistingUser, setIsExistingUser] = useState(false);
   const [accepting, setAccepting] = useState(false);
+
+  // Estados para nuevo usuario
+  const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const loadInvitation = async () => {
@@ -83,6 +141,47 @@ export default function AcceptInvitationForm() {
     loadInvitation();
   }, [token]);
 
+  const validateField = (fieldName: string, value: string): string => {
+    switch (fieldName) {
+      case 'fullName':
+        if (!validators.text(value, 2, 100)) {
+          return 'Debe tener entre 2 y 100 caracteres'
+        }
+        break;
+      case 'password':
+        if (value && !validators.password(value)) {
+          return 'Debe tener entre 8 y 128 caracteres'
+        }
+        break;
+      case 'phone':
+        if (value && !validators.phone(value)) {
+          return 'Formato inválido'
+        }
+        break;
+    }
+    return '';
+  };
+
+  const handleFieldChange = (fieldName: string, value: string) => {
+    switch (fieldName) {
+      case 'fullName':
+        setFullName(value);
+        break;
+      case 'password':
+        setPassword(value);
+        break;
+      case 'phone':
+        setPhone(value);
+        break;
+    }
+
+    const error = validateField(fieldName, value);
+    setFieldErrors(prev => ({
+      ...prev,
+      [fieldName]: error
+    }));
+  };
+
   const acceptInvitation = async () => {
     setError(null);
     setAccepting(true);
@@ -91,19 +190,11 @@ export default function AcceptInvitationForm() {
       console.log('🔄 Accepting invitation for existing user...');
       
       if (invitation.role_code === 'admin') {
-        console.log('👨‍💼 Admin invitation, redirecting to setup...');
+        console.log('👨‍💼 Admin invitation, redirecting to setup without accepting...');
         router.push(`/admin-setup?token=${token}`);
         return;
       }
 
-      // ✅ CAMBIO: Para usuarios de módulos, redirigir a user-setup
-      if (['campo', 'empaque', 'finanzas'].includes(invitation.role_code)) {
-        console.log('👤 Module user invitation, redirecting to user setup...');
-        router.push(`/user-setup?token=${token}`);
-        return;
-      }
-
-      // Para otros roles, aceptar directamente
       const { success, error: acceptError, data } = await authService.acceptInvitation({ token });
 
       if (!success) {
@@ -124,15 +215,105 @@ export default function AcceptInvitationForm() {
     }
   };
 
-  // ✅ CAMBIO: Para nuevos usuarios, redirigir según el rol
-  const redirectToSetup = () => {
-    if (invitation.role_code === 'admin') {
-      router.push(`/admin-setup?token=${token}`);
-    } else if (['campo', 'empaque', 'finanzas'].includes(invitation.role_code)) {
-      router.push(`/user-setup?token=${token}`);
-    } else {
-      // Para otros roles, mantener lógica anterior si existiera
-      setError("Tipo de invitación no soportado");
+  const createAccountAndAccept = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    const allErrors: Record<string, string> = {};
+    allErrors.fullName = validateField('fullName', fullName);
+    allErrors.password = validateField('password', password);
+    allErrors.phone = validateField('phone', phone);
+
+    const filteredErrors = Object.fromEntries(
+      Object.entries(allErrors).filter(([_, error]) => error !== '')
+    );
+
+    setFieldErrors(filteredErrors);
+
+    if (Object.keys(filteredErrors).length > 0) {
+      setError("Por favor corregí los errores en el formulario.");
+      return;
+    }
+
+    if (!fullName || !password) {
+      setError("Completá todos los campos obligatorios.");
+      return;
+    }
+
+    setCreating(true);
+
+    try {
+      console.log('🔄 Creating account...');
+      
+      if (invitation.role_code === 'admin') {
+        console.log('👨‍💼 Creating admin account without accepting invitation...');
+        
+        const { supabase } = await import('../lib/supabaseClient');
+        const { data: newUser, error: signUpError } = await supabase.auth.signUp({
+          email: invitation.email,
+          password: password,
+          options: {
+            data: {
+              full_name: fullName,
+              phone: phone,
+              invitation_token: token
+            }
+          }
+        });
+
+        if (signUpError) {
+          console.error('❌ SignUp error:', signUpError);
+          setError(`Error al crear usuario: ${signUpError.message}`);
+          return;
+        }
+
+        if (!newUser.user) {
+          setError('No se pudo crear el usuario');
+          return;
+        }
+
+        console.log('✅ Admin account created, redirecting to setup...');
+        
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('temp_admin_data', JSON.stringify({
+            userId: newUser.user.id,
+            fullName,
+            phone,
+            token,
+            timestamp: new Date().toISOString()
+          }));
+        }
+
+        setTimeout(() => {
+          router.push(`/admin-setup?token=${token}`);
+        }, 500);
+        return;
+      }
+
+      const { success, error: acceptError, data } = await authService.acceptInvitation({
+        token,
+        userData: {
+          fullName,
+          password,
+          phone: phone || undefined
+        }
+      });
+
+      if (!success) {
+        console.error('❌ Error creating account:', acceptError);
+        setError(acceptError || "Error al crear cuenta");
+        return;
+      }
+
+      console.log('✅ Account created and invitation accepted');
+      setDone(true);
+      setTimeout(() => router.push("/home"), 2000);
+
+    } catch (err: any) {
+      console.error('❌ Error in createAccountAndAccept:', err);
+      setError(err.message || "Error inesperado");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -258,7 +439,7 @@ export default function AcceptInvitationForm() {
     );
   }
 
-  // ✅ CAMBIO: Nuevo usuario - redirigir a setup según el rol
+  // Nuevo usuario - crear cuenta
   return (
     <Card className="mx-auto w-full max-w-lg rounded-3xl border-2 border-slate-200 bg-white shadow-2xl">
       <CardHeader className="text-center pb-6">
@@ -270,32 +451,79 @@ export default function AcceptInvitationForm() {
           Te invitaron a <strong className="text-[#81C101]">{invitation.tenants?.name}</strong> como <strong>{invitation.roles?.name}</strong>
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Información del rol */}
-        <div className="rounded-xl border-2 border-[#81C101]/20 bg-[#81C101]/5 p-4">
-          <div className="flex items-center gap-3 mb-2">
-            <User className="size-5 text-[#81C101]" />
-            <h4 className="font-semibold text-slate-800">Tu rol: {invitation.roles?.name}</h4>
+      <CardContent>
+        <form onSubmit={createAccountAndAccept} className="space-y-6">
+          <ValidatedInput
+            id="fullName"
+            label="Nombre completo"
+            value={fullName}
+            onChange={handleFieldChange}
+            fieldName="fullName"
+            fieldErrors={fieldErrors}
+            placeholder="Tu nombre y apellido"
+            required
+            icon={User}
+          />
+
+          <ValidatedInput
+            id="password"
+            label="Contraseña"
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={handleFieldChange}
+            fieldName="password"
+            fieldErrors={fieldErrors}
+            placeholder="Mínimo 8 caracteres"
+            required
+            icon={showPassword ? EyeOff : Eye}
+          />
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-9 z-10 text-slate-400 hover:text-slate-600"
+            >
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
           </div>
-          <p className="text-sm text-slate-600">
-            Necesitás completar algunos datos adicionales para configurar tu acceso.
-          </p>
-        </div>
+
+          <ValidatedInput
+            id="phone"
+            label="Teléfono"
+            value={phone}
+            onChange={handleFieldChange}
+            fieldName="phone"
+            fieldErrors={fieldErrors}
+            placeholder="+54 9 261 123-4567"
+            icon={Phone}
+          />
+
+          {error && (
+            <div className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <Button 
+            type="submit" 
+            className="w-full h-12 bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200" 
+            disabled={creating}
+          >
+            {creating ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" /> Creando cuenta...
+              </>
+            ) : (
+              "Crear cuenta y continuar"
+            )}
+          </Button>
+        </form>
       </CardContent>
-      <CardFooter className="gap-3 pt-4">
-        <Button 
-          variant="outline" 
-          onClick={() => router.push("/login")} 
-          className="flex-1 h-12 border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200"
-        >
-          Cancelar
-        </Button>
-        <Button 
-          onClick={redirectToSetup}
-          className="flex-1 h-12 bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-        >
-          Completar datos
-        </Button>
+      <CardFooter className="justify-center pt-4">
+        <p className="text-xs text-slate-500 text-center">
+          Al crear la cuenta aceptás la invitación y tendrás acceso a {invitation.tenants?.name}
+        </p>
       </CardFooter>
     </Card>
   );
