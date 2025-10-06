@@ -683,30 +683,49 @@ export const authService = {
         })
 
         if (signUpError) {
-          console.error('❌ SignUp error:', signUpError);
-          return { success: false, error: `Error al crear usuario: ${signUpError.message}` }
+          // Handle already-registered user by signing in with provided password
+          if (signUpError.message?.toLowerCase().includes('already')) {
+            console.log('ℹ️ User already registered, trying signInWithPassword...');
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+              email: invitation.email,
+              password: params.userData.password
+            });
+            if (signInError) {
+              console.error('❌ SignIn error after existing user detected:', signInError);
+              return { success: false, error: 'El usuario ya existe y la contraseña no es válida.' }
+            }
+            if (!signInData.user) {
+              return { success: false, error: 'No se pudo iniciar sesión con el usuario existente.' }
+            }
+            console.log('✅ Signed in existing user successfully');
+            userId = signInData.user.id
+            isNewUser = false
+          } else {
+            console.error('❌ SignUp error:', signUpError);
+            return { success: false, error: `Error al crear usuario: ${signUpError.message}` }
+          }
+        } else {
+          if (!newUser.user) {
+            return { success: false, error: 'No se pudo crear el usuario' }
+          }
+          console.log('✅ User created successfully');
+          userId = newUser.user.id
+          isNewUser = true
         }
 
-        if (!newUser.user) {
-          return { success: false, error: 'No se pudo crear el usuario' }
-        }
-
-        console.log('✅ User created successfully');
-        userId = newUser.user.id
-        isNewUser = true
-
+        // Write or update profile safely
         const { error: profileError } = await supabase
           .from('profiles')
-          .insert([{
+          .upsert([{
             user_id: userId,
             email: invitation.email,
             full_name: params.userData.fullName,
             phone: params.userData.phone,
             default_tenant_id: invitation.tenant_id,
-          }])
+          }], { onConflict: 'user_id' })
 
         if (profileError) {
-          console.warn('⚠️ Profile creation warning:', profileError);
+          console.warn('⚠️ Profile upsert warning:', profileError);
         }
       }
 

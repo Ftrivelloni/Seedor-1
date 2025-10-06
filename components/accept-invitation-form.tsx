@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Loader2, Eye, EyeOff, Building2, User, Mail, Phone, IdCard, Shield } from "lucide-react";
+import { Check, Loader2, Eye, EyeOff, Building2, User, Mail, Phone, IdCard, Shield, MapPin, Package, DollarSign } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
@@ -219,6 +219,7 @@ export default function AcceptInvitationForm() {
     e.preventDefault();
     setError(null);
 
+    // Validaciones...
     const allErrors: Record<string, string> = {};
     allErrors.fullName = validateField('fullName', fullName);
     allErrors.password = validateField('password', password);
@@ -243,54 +244,29 @@ export default function AcceptInvitationForm() {
     setCreating(true);
 
     try {
-      console.log('🔄 Creating account...');
+      console.log('🔄 Processing account creation for role:', invitation.role_code);
       
       if (invitation.role_code === 'admin') {
-        console.log('👨‍💼 Creating admin account without accepting invitation...');
-        
-        const { supabase } = await import('../lib/supabaseClient');
-        const { data: newUser, error: signUpError } = await supabase.auth.signUp({
-          email: invitation.email,
-          password: password,
-          options: {
-            data: {
-              full_name: fullName,
-              phone: phone,
-              invitation_token: token
-            }
-          }
-        });
-
-        if (signUpError) {
-          console.error('❌ SignUp error:', signUpError);
-          setError(`Error al crear usuario: ${signUpError.message}`);
-          return;
-        }
-
-        if (!newUser.user) {
-          setError('No se pudo crear el usuario');
-          return;
-        }
-
-        console.log('✅ Admin account created, redirecting to setup...');
+        console.log('👨‍💼 Admin invitation - saving signup data and redirecting...');
         
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('temp_admin_data', JSON.stringify({
-            userId: newUser.user.id,
+          sessionStorage.setItem('admin_signup_data', JSON.stringify({
             fullName,
+            password,
             phone,
+            email: invitation.email,
             token,
             timestamp: new Date().toISOString()
           }));
         }
 
-        setTimeout(() => {
-          router.push(`/admin-setup?token=${token}`);
-        }, 500);
+        console.log('✅ Admin signup data saved, redirecting to setup...');
+        router.push(`/admin-setup?token=${token}`);
         return;
       }
 
-      const { success, error: acceptError, data } = await authService.acceptInvitation({
+      console.log('👤 Regular user invitation - creating account...');
+      const { success, error: acceptError } = await authService.acceptInvitation({
         token,
         userData: {
           fullName,
@@ -300,12 +276,12 @@ export default function AcceptInvitationForm() {
       });
 
       if (!success) {
-        console.error('❌ Error creating account:', acceptError);
+        console.error('❌ Error creating regular user account:', acceptError);
         setError(acceptError || "Error al crear cuenta");
         return;
       }
 
-      console.log('✅ Account created and invitation accepted');
+      console.log('✅ Regular user account created and invitation accepted');
       setDone(true);
       setTimeout(() => router.push("/home"), 2000);
 
@@ -453,6 +429,27 @@ export default function AcceptInvitationForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={createAccountAndAccept} className="space-y-6">
+          {/* ✅ NUEVO: Email estático */}
+          <div className="grid gap-3">
+            <Label className="text-sm font-semibold text-slate-700">
+              Email <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
+              <Input
+                type="email"
+                value={invitation?.email || ''}
+                disabled
+                className={`${inputStrong} pl-12 bg-slate-50 text-slate-600 cursor-not-allowed`}
+              />
+            </div>
+            <div className="h-5">
+              <p className="text-xs text-slate-500">
+                Este es el email al que se envió la invitación
+              </p>
+            </div>
+          </div>
+
           <ValidatedInput
             id="fullName"
             label="Nombre completo"
@@ -465,27 +462,44 @@ export default function AcceptInvitationForm() {
             icon={User}
           />
 
-          <ValidatedInput
-            id="password"
-            label="Contraseña"
-            type={showPassword ? "text" : "password"}
-            value={password}
-            onChange={handleFieldChange}
-            fieldName="password"
-            fieldErrors={fieldErrors}
-            placeholder="Mínimo 8 caracteres"
-            required
-            icon={showPassword ? EyeOff : Eye}
-          />
-
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-9 z-10 text-slate-400 hover:text-slate-600"
-            >
-              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-            </button>
+          {/* ✅ MEJORADO: Campo de contraseña con toggle */}
+          <div className="grid gap-3">
+            <Label htmlFor="password" className="text-sm font-semibold text-slate-700">
+              Contraseña <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative">
+              <Shield className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => handleFieldChange('password', e.target.value)}
+                required
+                className={`${inputStrong} pl-12 pr-12 ${fieldErrors.password ? 'border-red-400 focus-visible:ring-red-400/30 focus-visible:border-red-400' : ''}`}
+                placeholder="Mínimo 8 caracteres"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+              </button>
+            </div>
+            <div className="h-5">
+              {fieldErrors.password ? (
+                <p className="text-sm text-red-500 leading-tight flex items-center gap-1">
+                  <span className="size-4 rounded-full bg-red-100 flex items-center justify-center">
+                    <span className="size-2 rounded-full bg-red-500"></span>
+                  </span>
+                  {fieldErrors.password}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  Debe tener al menos 8 caracteres
+                </p>
+              )}
+            </div>
           </div>
 
           <ValidatedInput
@@ -498,6 +512,25 @@ export default function AcceptInvitationForm() {
             placeholder="+54 9 261 123-4567"
             icon={Phone}
           />
+
+          {/* ✅ NUEVO: Información adicional según el rol */}
+          {invitation?.role_code && (
+            <div className="rounded-xl border-2 border-[#81C101]/20 bg-[#81C101]/5 p-4">
+              <div className="flex items-center gap-3 mb-2">
+                {invitation.role_code === 'admin' && <Shield className="size-5 text-[#81C101]" />}
+                {invitation.role_code === 'campo' && <MapPin className="size-5 text-green-600" />}
+                {invitation.role_code === 'empaque' && <Package className="size-5 text-blue-600" />}
+                {invitation.role_code === 'finanzas' && <DollarSign className="size-5 text-purple-600" />}
+                <h4 className="font-semibold text-slate-800">Tu rol: {invitation.roles?.name}</h4>
+              </div>
+              <p className="text-sm text-slate-600">
+                {invitation.role_code === 'admin' && 'Tendrás acceso completo para gestionar la empresa y configurar módulos.'}
+                {invitation.role_code === 'campo' && 'Podrás gestionar tareas de campo, cultivos y lotes.'}
+                {invitation.role_code === 'empaque' && 'Tendrás acceso al módulo de procesamiento y empaque de productos.'}
+                {invitation.role_code === 'finanzas' && 'Podrás gestionar la caja chica y movimientos financieros.'}
+              </p>
+            </div>
+          )}
 
           {error && (
             <div className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

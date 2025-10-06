@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
-  Check, Loader2, Eye, EyeOff, Building2, User, Mail, Phone, IdCard, 
+  Check, Loader2, Eye, EyeOff, Building2, User, Mail, Phone, IdCard, Shield,
   Settings, MapPin, Package, DollarSign, UserPlus, CheckCircle
 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -92,6 +92,7 @@ export default function AdminSetupForm() {
   const params = useSearchParams();
   const token = params.get("token") || "";
 
+  // Estados existentes...
   const [currentStep, setCurrentStep] = useState<'worker-info' | 'modules' | 'invite-users' | 'complete'>('worker-info');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +104,8 @@ export default function AdminSetupForm() {
   const [documentId, setDocumentId] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState(""); 
+  const [showPassword, setShowPassword] = useState(false); 
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -130,6 +133,34 @@ export default function AdminSetupForm() {
         }
 
         setInvitation(data);
+
+        // ✅ NUEVO: Cargar datos guardados del signup si existen
+        if (typeof window !== 'undefined') {
+          const savedSignupData = sessionStorage.getItem('admin_signup_data');
+          if (savedSignupData) {
+            try {
+              const signupData = JSON.parse(savedSignupData);
+              
+              // Verificar que no sean muy antiguos (más de 1 hora)
+              const savedAt = new Date(signupData.timestamp || 0);
+              const now = new Date();
+              const hoursDiff = (now.getTime() - savedAt.getTime()) / (1000 * 60 * 60);
+              
+              if (hoursDiff <= 1 && signupData.token === token) {
+                console.log('📂 Restoring signup data...');
+                setFullName(signupData.fullName || '');
+                setPassword(signupData.password || '');
+                setPhone(signupData.phone || '');
+              } else {
+                console.log('🕐 Signup data is too old or invalid, clearing...');
+                sessionStorage.removeItem('admin_signup_data');
+              }
+            } catch (e) {
+              console.warn('Error parsing signup data:', e);
+              sessionStorage.removeItem('admin_signup_data');
+            }
+          }
+        }
 
         const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(data.tenant_id);
         
@@ -169,6 +200,11 @@ export default function AdminSetupForm() {
           return 'Formato inválido'
         }
         break;
+      case 'password':
+        if (!validators.password(value)) {
+          return 'Debe tener al menos 8 caracteres'
+        }
+        break;
     }
     return '';
   };
@@ -183,6 +219,9 @@ export default function AdminSetupForm() {
         break;
       case 'phone':
         setPhone(value);
+        break;
+      case 'password':
+        setPassword(value);
         break;
     }
 
@@ -205,10 +244,12 @@ export default function AdminSetupForm() {
     e.preventDefault();
     setError(null);
 
+    // Validaciones existentes...
     const allErrors: Record<string, string> = {};
     allErrors.documentId = validateField('documentId', documentId);
     allErrors.fullName = validateField('fullName', fullName);
     allErrors.phone = validateField('phone', phone);
+    allErrors.password = validateField('password', password);
 
     const filteredErrors = Object.fromEntries(
       Object.entries(allErrors).filter(([_, error]) => error !== '')
@@ -221,7 +262,7 @@ export default function AdminSetupForm() {
       return;
     }
 
-    if (!documentId || !fullName) {
+    if (!documentId || !fullName || !password) {
       setError("Completá todos los campos obligatorios.");
       return;
     }
@@ -229,6 +270,9 @@ export default function AdminSetupForm() {
     setSaving(true);
 
     try {
+      // ✅ CAMBIO: Para admin setup, NO crear usuario aquí, solo crear worker sin password
+      console.log('🔄 Creating admin worker profile (no auth user creation)...');
+      
       const response = await fetch('/api/admin/create-worker', {
         method: 'POST',
         headers: {
@@ -240,6 +284,8 @@ export default function AdminSetupForm() {
           fullName,
           documentId,
           phone,
+          // ✅ IMPORTANTE: NO enviar password para evitar creación de usuario
+          password: null, 
           areaModule: 'administracion',
           membershipId: null 
         })
@@ -252,6 +298,20 @@ export default function AdminSetupForm() {
 
       const workerData = await response.json();
       setAdminData(workerData.data);
+
+      // Guardar password temporalmente para usar después
+      if (typeof window !== 'undefined') {
+        const signupData = sessionStorage.getItem('admin_signup_data');
+        if (signupData) {
+          const data = JSON.parse(signupData);
+          sessionStorage.setItem('admin_auth_data', JSON.stringify({
+            ...data,
+            workerId: workerData.data.id
+          }));
+          sessionStorage.removeItem('admin_signup_data');
+        }
+      }
+
       setCurrentStep('modules');
 
     } catch (err: any) {
@@ -275,7 +335,7 @@ export default function AdminSetupForm() {
     setError(null);
 
     try {
-      // Enviar invitaciones a usuarios de módulos
+      // Enviar invitaciones a usuarios de módulos (existente)
       const invitationPromises = Object.entries(moduleInvitations)
         .filter(([moduleId, email]) => selectedModules.includes(moduleId) && email.trim())
         .map(async ([moduleId, email]) => {
@@ -300,7 +360,7 @@ export default function AdminSetupForm() {
 
       await Promise.all(invitationPromises);
 
-      // Habilitar módulos
+      // Habilitar módulos (existente)
       await fetch('/api/admin/enable-modules', {
         method: 'POST',
         headers: {
@@ -312,20 +372,32 @@ export default function AdminSetupForm() {
         })
       });
 
-      // ✅ CAMBIO: Ahora sí aceptar la invitación de admin
-      console.log('🔄 Accepting admin invitation...');
-      const { success, error: acceptError } = await authService.acceptAdminInvitation({
-        token,
-        workerData: {
-          fullName: adminData?.full_name,
-          phone: adminData?.phone,
-          workerId: adminData?.id
-        }
-      });
+      // ✅ NUEVO: Ahora finalizar aceptando la invitación de admin con la sesión activa
+      if (typeof window !== 'undefined') {
+        const authData = sessionStorage.getItem('admin_auth_data');
+        if (authData) {
+          const data = JSON.parse(authData);
 
-      if (!success) {
-        setError(acceptError || "Error al completar configuración de admin");
-        return;
+          console.log('🔄 Accepting admin invitation with active session...');
+
+          const { success, error: acceptError } = await authService.acceptAdminInvitation({
+            token,
+            workerData: {
+              fullName: data.fullName,
+              phone: data.phone,
+              workerId: data.workerId
+            }
+          });
+
+          if (!success) {
+            setError(acceptError || "Error al finalizar la configuración de administrador");
+            return;
+          }
+
+          // Limpiar datos temporales
+          sessionStorage.removeItem('admin_auth_data');
+          console.log('✅ Admin invitation accepted and membership created');
+        }
       }
 
       console.log('✅ Admin setup completed successfully');
@@ -424,6 +496,26 @@ export default function AdminSetupForm() {
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmitWorkerInfo} className="space-y-6">
+            <div className="grid gap-3">
+              <Label className="text-sm font-semibold text-slate-700">
+                Email <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
+                <Input
+                  type="email"
+                  value={invitation?.email || ''}
+                  disabled
+                  className={`${inputStrong} pl-12 bg-slate-50 text-slate-600 cursor-not-allowed`}
+                />
+              </div>
+              <div className="h-5">
+                <p className="text-xs text-slate-500">
+                  Este es el email al que se envió la invitación
+                </p>
+              </div>
+            </div>
+
             <ValidatedInput
               id="documentId"
               label="Documento de identidad"
@@ -447,6 +539,46 @@ export default function AdminSetupForm() {
               required
               icon={User}
             />
+
+            {/* ✅ NUEVO: Campo de contraseña */}
+            <div className="grid gap-3">
+              <Label htmlFor="password" className="text-sm font-semibold text-slate-700">
+                Contraseña <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => handleFieldChange('password', e.target.value)}
+                  required
+                  className={`${inputStrong} pl-12 pr-12 ${fieldErrors.password ? 'border-red-400 focus-visible:ring-red-400/30 focus-visible:border-red-400' : ''}`}
+                  placeholder="Mínimo 8 caracteres"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+                </button>
+              </div>
+              <div className="h-5">
+                {fieldErrors.password ? (
+                  <p className="text-sm text-red-500 leading-tight flex items-center gap-1">
+                    <span className="size-4 rounded-full bg-red-100 flex items-center justify-center">
+                      <span className="size-2 rounded-full bg-red-500"></span>
+                    </span>
+                    {fieldErrors.password}
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    Debe tener al menos 8 caracteres
+                  </p>
+                )}
+              </div>
+            </div>
 
             <ValidatedInput
               id="phone"

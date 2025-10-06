@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
 
     console.log('🔄 Processing admin invitation:', { tenantId, adminEmail, invitedBy })
 
-    // Validaciones
     if (!tenantId || !adminEmail || !invitedBy) {
       return NextResponse.json(
         { error: 'Faltan parámetros requeridos' },
@@ -113,7 +112,8 @@ export async function POST(request: NextRequest) {
 
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/accept-invitacion?token=${token}`
 
-    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    // Enviar invitación usando Supabase Auth (crea el usuario y manda email)
+    const { error: inviteError, data: inviteData } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       adminEmail.toLowerCase().trim(),
       {
         redirectTo: inviteUrl,
@@ -123,14 +123,15 @@ export async function POST(request: NextRequest) {
           role: 'admin',
           invitation_token: token,
           invited_by_id: invitedBy,
-          is_admin_setup: true
+          is_admin_invite: true
         }
       }
     )
 
     if (inviteError) {
-      console.error('❌ Error sending invitation email:', inviteError)
-      
+      console.error('Error sending admin invitation email:', inviteError)
+
+      // Si falla el envío de email, eliminamos la invitación creada para evitar basura
       await supabaseAdmin
         .from('invitations')
         .delete()
@@ -152,17 +153,17 @@ export async function POST(request: NextRequest) {
         entity_id: invitation.id,
         details: { 
           admin_email: adminEmail,
-          context: 'tenant_setup'
+          context: 'tenant_setup',
+          invite_method: 'supabase_invite'
         }
       }])
-
-    console.log('✅ Admin invitation sent successfully')
 
     return NextResponse.json({ 
       success: true, 
       data: { 
         invitation,
-        inviteUrl 
+        inviteUrl,
+        message: 'Invitación enviada por email.'
       } 
     })
 
