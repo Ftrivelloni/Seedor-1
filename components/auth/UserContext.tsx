@@ -1,6 +1,6 @@
 "use client"
 import { createContext, useContext, useEffect, useState, ReactNode, useRef } from "react"
-import { authService } from "../../lib/supabaseAuth"
+import { authService } from "../../lib/auth" // Ahora usa auth unificado
 
 export const UserContext = createContext<any>(null)
 
@@ -16,10 +16,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setLoading(true)
       try {
         console.log('UserContext: Loading user session...')
-        const { user: sessionUser, error } = await authService.getSafeSession()
-        if (error) {
-          console.log('UserContext: Session error:', error)
-        }
+        const sessionUser = await authService.checkSession()
+        
         if (sessionUser) {
           console.log('UserContext: User loaded successfully:', {
             email: sessionUser.email,
@@ -40,17 +38,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     
     loadUser()
 
-    // Set up auth state change listener for real-time auth updates
     const setupAuthListener = async () => {
       try {
-        // Import supabase client dynamically to avoid SSR issues
         const { supabase } = await import("../../lib/supabaseClient")
         
         if (supabase?.auth?.onAuthStateChange) {
           const { data: authListener } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
             console.log('Auth state changed:', event, session?.user?.email)
             
-            // Prevent recursive updates
             if (isUpdatingRef.current) {
               console.log('Skipping auth state change - already updating')
               return
@@ -64,12 +59,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 setUser(null)
               } else if (event === 'SIGNED_IN' && session?.user) {
                 console.log('User signed in, loading profile...')
-                const { user: newUser } = await authService.getSafeSession()
+                const newUser = await authService.checkSession() // Usa auth unificado
                 setUser(newUser)
               } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-                console.log('Token refreshed, user should remain the same')
-                // Don't reload user data for token refresh - just log it
-                // The current user should still be valid
+                console.log('Token refreshed')
               }
             } catch (error) {
               console.error('Error handling auth state change:', error)
@@ -78,7 +71,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
             }
           })
 
-          // Cleanup listener on unmount
           return () => {
             authListener?.subscription?.unsubscribe()
           }
