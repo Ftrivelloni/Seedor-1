@@ -14,11 +14,18 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { tenantId, email, fullName, documentId, phone, areaModule, membershipId } = await request.json()
+    const { tenantId, email, fullName, documentId, phone, password, areaModule, membershipId } = await request.json()
 
     if (!tenantId || !email || !fullName || !documentId || !areaModule) {
       return NextResponse.json(
         { error: 'Faltan parámetros requeridos' },
+        { status: 400 }
+      )
+    }
+
+    if (password && password.length < 8) {
+      return NextResponse.json(
+        { error: 'La contraseña debe tener al menos 8 caracteres' },
         { status: 400 }
       )
     }
@@ -35,6 +42,45 @@ export async function POST(request: NextRequest) {
         { error: 'Ya existe un trabajador con ese documento en esta empresa' },
         { status: 400 }
       )
+    }
+
+    if (password) {
+      try {
+        console.log('🔄 Creating user in Supabase Auth for:', email);
+        
+        const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+          email: email.toLowerCase().trim(),
+          password: password,
+          user_metadata: {
+            full_name: fullName,
+            phone: phone || null
+          },
+          email_confirm: true
+        })
+
+        if (createUserError) {
+          if (createUserError.message.includes('User already registered')) {
+            console.log('⚠️ User already exists, continuing...');
+          } else {
+            console.error('❌ Error creating user:', createUserError);
+            return NextResponse.json(
+              { error: `Error al crear usuario: ${createUserError.message}` },
+              { status: 500 }
+            )
+          }
+        } else {
+          console.log('✅ User created successfully');
+        }
+
+      } catch (authError: any) {
+        console.error('❌ Auth error:', authError);
+        return NextResponse.json(
+          { error: `Error en autenticación: ${authError.message}` },
+          { status: 500 }
+        )
+      }
+    } else {
+      console.log('ℹ️ No password provided, skipping Supabase Auth user creation');
     }
 
     const { data: worker, error: workerError } = await supabaseAdmin
@@ -71,7 +117,8 @@ export async function POST(request: NextRequest) {
         details: { 
           worker_name: fullName,
           area_module: areaModule,
-          context: 'admin_setup'
+          password_configured: !!password,
+          context: password ? 'regular_worker' : 'admin_setup'
         }
       }])
 

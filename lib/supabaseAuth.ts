@@ -666,47 +666,86 @@ export const authService = {
         userId = currentSession.session.user.id
       } else {
         if (!params.userData) {
-          return { success: false, error: 'Se requieren datos del usuario para crear la cuenta' }
+          return { success: false, error: 'Se requieren datos de usuario para crear la cuenta' }
         }
 
-        console.log('🔄 Creating new user account...');
+        // ✅ CAMBIO: Para usuarios invitados, actualizar password en lugar de crear usuario
+        console.log('🔄 Updating existing user password...');
         
-        const { data: newUser, error: signUpError } = await supabase.auth.signUp({
-          email: invitation.email,
-          password: params.userData.password,
-          options: {
-            data: {
-              full_name: params.userData.fullName,
-              invitation_token: params.token
-            }
+        try {
+          // Primero intentar hacer login para obtener el usuario existente
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: invitation.email,
+            password: 'temp-password-' + Math.random() // Password temporal
+          })
+
+          if (signInError && !signInError.message.includes('Invalid login credentials')) {
+            throw signInError
           }
-        })
 
-        if (signUpError) {
-          console.error('❌ SignUp error:', signUpError);
-          return { success: false, error: `Error al crear usuario: ${signUpError.message}` }
+          // Si no puede hacer login, obtener el usuario por email y actualizar password
+          const { data: adminUsers, error: listError } = await supabase.auth.admin.listUsers()
+          
+          if (listError) {
+            throw new Error(`Error obteniendo usuarios: ${listError.message}`)
+          }
+
+          const existingUser = adminUsers.users.find((u: { email: string; id: string }) => u.email === invitation.email)
+          
+          if (!existingUser) {
+            throw new Error('Usuario no encontrado en el sistema')
+          }
+
+          userId = existingUser.id
+
+          // Actualizar password del usuario existente
+          const { error: updateError } = await supabase.auth.admin.updateUserById(
+            userId,
+            {
+              password: params.userData.password,
+              user_metadata: {
+                full_name: params.userData.fullName,
+                phone: params.userData.phone
+              }
+            }
+          )
+
+          if (updateError) {
+            throw new Error(`Error actualizando usuario: ${updateError.message}`)
+          }
+
+          console.log('✅ User password updated successfully');
+
+          // Ahora hacer login con la nueva password
+          const { data: newSignIn, error: newSignInError } = await supabase.auth.signInWithPassword({
+            email: invitation.email,
+            password: params.userData.password
+          })
+
+          if (newSignInError) {
+            throw new Error(`Error al iniciar sesión: ${newSignInError.message}`)
+          }
+
+          isNewUser = false
+
+        } catch (authError: any) {
+          console.error('❌ Error updating user password:', authError);
+          return { success: false, error: authError.message || 'Error al configurar credenciales' }
         }
 
-        if (!newUser.user) {
-          return { success: false, error: 'No se pudo crear el usuario' }
-        }
-
-        console.log('✅ User created successfully');
-        userId = newUser.user.id
-        isNewUser = true
-
+        // Actualizar o crear profile
         const { error: profileError } = await supabase
           .from('profiles')
-          .insert([{
+          .upsert([{
             user_id: userId,
             email: invitation.email,
             full_name: params.userData.fullName,
             phone: params.userData.phone,
             default_tenant_id: invitation.tenant_id,
-          }])
+          }], { onConflict: 'user_id' })
 
         if (profileError) {
-          console.warn('⚠️ Profile creation warning:', profileError);
+          console.warn('⚠️ Error updating profile:', profileError);
         }
       }
 
@@ -730,6 +769,7 @@ export const authService = {
         return { success: false, error: `Error al crear membresía: ${membershipError.message}` }
       }
 
+      // Actualizar contador de usuarios
       const { error: updateError } = await supabase
         .from('tenants')
         .update({ current_users: tenant.current_users + 1 })
@@ -739,6 +779,7 @@ export const authService = {
         console.warn('⚠️ Error updating tenant user count:', updateError);
       }
 
+      // Marcar invitación como aceptada
       await supabase
         .from('invitations')
         .update({ 
@@ -746,6 +787,7 @@ export const authService = {
         })
         .eq('id', invitation.id)
 
+      // Log de auditoría
       await supabase
         .from('audit_logs')
         .insert([{
@@ -778,7 +820,6 @@ export const authService = {
       return { success: false, error: error.message || 'Error inesperado' }
     }
   },
-
 
   revokeInvitation: async (invitationId: string, revokedBy: string): Promise<{ success: boolean; error?: string }> => {
     try {
