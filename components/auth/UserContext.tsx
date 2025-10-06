@@ -1,6 +1,6 @@
 "use client"
 import { createContext, useContext, useEffect, useState, ReactNode, useRef } from "react"
-import { authService } from "../../lib/supabaseAuth"
+import { authService } from "../../lib/auth" // Ahora usa auth unificado
 
 export const UserContext = createContext<any>(null)
 
@@ -28,37 +28,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
       console.log('🔄 UserContext: Loading user...');
       setLoading(true)
-      
-      // IMPORTANT FIX: First check if we have a currentUser in authService already
-      // This handles the case where we just logged in and currentUser is set
-      const directUser = authService.getCurrentUser();
-      if (directUser) {
-        console.log('✅ UserContext: Using existing user from authService:', directUser.email);
-        setUser(directUser);
-        setLoading(false);
-        return;
-      }
-      
       try {
-        console.log('🔍 UserContext: No cached user, calling getSafeSession...');
-        const { user: sessionUser, error } = await authService.getSafeSession();
+        console.log('UserContext: Loading user session...')
+        const sessionUser = await authService.checkSession()
         
-        console.log('🔍 UserContext: getSafeSession result:', { user: sessionUser?.email, error });
-        
-        if (error) {
-          // If it's a refresh token error, clear the session
-          if (typeof error === 'string' && (
-              error.includes('refresh_token_not_found') || 
-              error.includes('Invalid Refresh Token'))) {
-            console.warn('⚠️ UserContext: Invalid refresh token, clearing session');
-            await authService.logout();
-            setUser(null);
-            setLoading(false);
-            return;
-          }
+        if (sessionUser) {
+          console.log('UserContext: User loaded successfully:', {
+            email: sessionUser.email,
+            rol: sessionUser.rol,
+            tenantId: sessionUser.tenantId
+          })
+        } else {
+          console.log('UserContext: No user session found')
         }
-        
-        setUser(sessionUser);
+        setUser(sessionUser)
       } catch (error: any) {
         console.error('UserContext: Error loading user session:', error)
         
@@ -87,10 +70,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     
     loadUser()
 
-    // Set up auth state change listener for real-time auth updates
     const setupAuthListener = async () => {
       try {
-        // Import supabase client dynamically to avoid SSR issues
         const { supabase } = await import("../../lib/supabaseClient")
         
         if (supabase?.auth?.onAuthStateChange) {
@@ -100,7 +81,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
               console.log('Auth state changed:', event, session?.user?.email)
             }
             
-            // Prevent recursive updates
             if (isUpdatingRef.current) {
               return
             }
@@ -111,12 +91,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
               if (event === 'SIGNED_OUT') {
                 setUser(null)
               } else if (event === 'SIGNED_IN' && session?.user) {
-                const { user: newUser } = await authService.getSafeSession()
+                console.log('User signed in, loading profile...')
+                const newUser = await authService.checkSession() // Usa auth unificado
                 setUser(newUser)
               } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-                // Optionally reload user data to ensure it's up to date
-                const { user: refreshedUser } = await authService.getSafeSession()
-                setUser(refreshedUser)
+                console.log('Token refreshed')
               }
             } catch (error: any) {
               console.error('Error handling auth state change:', error)
@@ -141,7 +120,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
             }
           })
 
-          // Cleanup listener on unmount
           return () => {
             authListener?.subscription?.unsubscribe()
           }

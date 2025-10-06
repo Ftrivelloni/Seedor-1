@@ -1,1143 +1,1138 @@
-import { createClient } from '@supabase/supabase-js';
-import type { User } from '@supabase/supabase-js';
-// Use the singleton supabase client to avoid multiple instances
-import { supabase as supabaseClientSingleton } from './supabaseClient';
+import { supabase } from './supabaseClient'
+import crypto from 'crypto'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// Use the singleton client for regular operations
-const supabase = supabaseClientSingleton;
-
-// Create admin client if service role key is available
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseAdmin = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : null;
-
-export interface Tenant {
-  id: string;
-  name: string;
-  slug: string;
-  plan: string;
-  primary_crop: string;
-  contact_email: string;
-  created_by: string;
-  created_at: string;
+export interface CreateTenantParams {
+  tenantName: string
+  slug: string
+  plan: string
+  contactName: string      
+  contactEmail: string     
+  ownerPassword: string
+  ownerPhone?: string
 }
 
-export interface Worker {
-  id: string;
-  tenant_id: string;
-  full_name: string;
-  document_id: string;
-  email: string;
-  phone: string;
-  area_module: string;
-  membership_id: string;
-  status: string;
-  created_at: string;
+export interface InviteUserParams {
+  tenantId: string
+  email: string
+  roleCode: string
+  invitedBy: string
 }
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  nombre: string;
-  tenantId: string;
-  rol: string;
-  activo: boolean;
-  tenant: Tenant;
-  worker: Worker;
+export interface AcceptInvitationParams {
+  token: string
+  userData?: {
+    fullName: string
+    phone?: string
+    password: string
+  }
 }
 
-class SupabaseAuthService {
-  private currentUser: AuthUser | null = null;
-  private isCheckingSession: boolean = false;
+// Funciones de validación (mantener las existentes)
+export const validators = {
+  email: (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  },
+  
+  phone: (phone: string): boolean => {
+    const phoneRegex = /^[\+]?[0-9\s\-\(\)]{8,20}$/
+    return phone.trim() === '' || phoneRegex.test(phone)
+  },
+  
+  text: (text: string, minLength: number = 1, maxLength: number = 255): boolean => {
+    const trimmed = text.trim()
+    return trimmed.length >= minLength && trimmed.length <= maxLength
+  },
+  
+  slug: (slug: string): boolean => {
+    const slugRegex = /^[a-z0-9\-]+$/
+    return slugRegex.test(slug) && slug.length >= 3 && slug.length <= 50
+  },
+  
+  password: (password: string): boolean => {
+    return password.length >= 8 && password.length <= 128
+  }
+}
 
-  async login(email: string, password: string): Promise<{ user: AuthUser | null; error: string | null }> {
+export const sanitizeInput = {
+  text: (input: string): string => input.trim().replace(/\s+/g, ' '),
+  email: (input: string): string => input.trim().toLowerCase(),
+  phone: (input: string): string => input.trim(),
+  slug: (input: string): string => input.trim().toLowerCase().replace(/[^a-z0-9\-]/g, '')
+}
+
+const generateInvitationToken = (): string => {
+  return crypto.randomBytes(32).toString('hex')
+}
+
+export const authService = {
+  sendOwnerVerificationCode: async (email: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      console.log('🔐 LOGIN FUNCTION CALLED - CODE UPDATED v2');
-      // Sign in with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (authError) {
-        return { user: null, error: authError.message };
+      console.log('Sending owner verification code to:', email)
+      
+      if (!validators.email(email)) {
+        return { success: false, error: 'Email inválido' }
       }
 
-      if (!authData.user) {
-        return { user: null, error: "No se pudo autenticar el usuario" };
-      }
-
-      // Get worker profile with tenant info
-      const { data: worker, error: workerError } = await supabase
-        .from('workers')
-        .select(`
-          *,
-          tenant:tenants(*),
-          membership:tenant_memberships!workers_membership_id_fkey(*)
-        `)
-        .eq('email', email)
-        .eq('status', 'active')
-        .maybeSingle();
-
-      console.log('Worker lookup result:', { worker, workerError });
-
-      if (workerError || !worker) {
-        console.error('Worker not found:', { email, workerError });
-        return { user: null, error: "Usuario no encontrado o inactivo" };
-      }
-
-      // If worker doesn't have a membership, create one and link it
-      if (!worker.membership_id || !worker.membership) {
-        console.log('Worker has no membership, creating one...');
-        
-        // First check if a membership already exists for this user
-        const { data: existingMembership } = await supabase
-          .from('tenant_memberships')
-          .select('*')
-          .eq('user_id', authData.user.id)
-          .eq('tenant_id', worker.tenant_id)
-          .single();
-
-        let membershipId: string;
-
-        if (existingMembership) {
-          membershipId = existingMembership.id;
-          console.log('Found existing membership:', membershipId);
-        } else {
-          // Create new membership
-          const { data: newMembership, error: membershipError } = await supabase
-            .from('tenant_memberships')
-            .insert({
-              tenant_id: worker.tenant_id,
-              user_id: authData.user.id,
-              role_code: worker.area_module,
-              status: 'active',
-              accepted_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-          if (membershipError || !newMembership) {
-            console.error('Failed to create membership:', membershipError);
-            return { user: null, error: "Error al crear membresía del usuario" };
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          shouldCreateUser: true, 
+          data: {
+            is_tenant_owner: true,
+            signup_type: 'tenant_registration'
           }
-
-          membershipId = newMembership.id;
-          console.log('Created new membership:', membershipId);
         }
+      })
 
-        // Link worker to membership
-        const { error: updateError } = await supabase
-          .from('workers')
-          .update({ membership_id: membershipId })
-          .eq('id', worker.id);
-
-        if (updateError) {
-          console.error('Failed to link worker to membership:', updateError);
-        } else {
-          console.log('Successfully linked worker to membership');
-        }
-
-        // Refresh worker data with the new membership
-        const { data: updatedWorker } = await supabase
-          .from('workers')
-          .select(`
-            *,
-            tenant:tenants(*),
-            membership:tenant_memberships!workers_membership_id_fkey(*)
-          `)
-          .eq('id', worker.id)
-          .single();
-
-        if (updatedWorker) {
-          worker.membership = updatedWorker.membership;
-          worker.membership_id = membershipId;
-        }
-      }
-
-      const authUser: AuthUser = {
-        id: authData.user.id,
-        email: worker.email,
-        nombre: worker.full_name,
-        tenantId: worker.tenant_id,
-        rol: this.mapAreaModuleToRole(worker.area_module),
-        activo: worker.status === 'active',
-        tenant: worker.tenant,
-        worker: worker,
-      };
-
-      this.currentUser = authUser;
-      console.log('✅ LOGIN SUCCESS - currentUser set:', { email: authUser.email, rol: authUser.rol });
-      
-      // Store in sessionStorage as backup for immediate page loads
-      if (typeof window !== 'undefined') {
-        try {
-          sessionStorage.setItem('seedor-current-user', JSON.stringify(authUser));
-          console.log('💾 User cached in sessionStorage');
-        } catch (e) {
-          console.warn('Failed to cache user in sessionStorage:', e);
-        }
-      }
-      
-      // Note: last_access tracking removed - column doesn't exist in workers table
-      // If needed in future, add: last_access TIMESTAMPTZ to workers table
-
-      return { user: authUser, error: null };
-
-    } catch (error: any) {
-      console.error('Login error:', error);
-      return { user: null, error: error.message || "Error inesperado durante el login" };
-    }
-  }
-
-  private mapAreaModuleToRole(areaModule: string): string {
-    const roleMap: { [key: string]: string } = {
-      'administracion': 'Admin',
-      'administración': 'Admin',
-      'admin': 'Admin',
-      'campo': 'Campo',
-      'empaque': 'Empaque',
-      'finanzas': 'Finanzas',
-      'general': 'Admin',
-      // English variations
-      'administration': 'Admin',
-      'field': 'Campo',
-      'packaging': 'Empaque',
-      'finance': 'Finanzas'
-    };
-    
-    const normalizedKey = areaModule.toLowerCase().trim();
-    const mappedRole = roleMap[normalizedKey] || 'Campo';
-    
-    console.log(`Role mapping: "${areaModule}" -> "${normalizedKey}" -> "${mappedRole}"`);
-    return mappedRole;
-  }
-
-  async logout(): Promise<{ error: string | null }> {
-    try {
-      const { error } = await supabase.auth.signOut();
-      this.currentUser = null;
-      
-      // Clear sessionStorage cache
-      if (typeof window !== 'undefined') {
-        try {
-          sessionStorage.removeItem('seedor-current-user');
-          console.log('🗑️ Cleared cached user from sessionStorage');
-        } catch (e) {
-          console.warn('Failed to clear sessionStorage:', e);
-        }
-      }
-      
-      return { error: error?.message || null };
-    } catch (error: any) {
-      return { error: error.message || "Error inesperado durante el logout" };
-    }
-  }
-
-  async checkSession(): Promise<AuthUser | null> {
-    // Prevent concurrent session checks
-    if (this.isCheckingSession) {
-      console.log('Session check already in progress, returning current user')
-      return this.currentUser;
-    }
-    
-    // Return current user immediately if it exists (for consistency after login)
-    if (this.currentUser) {
-      console.log('🔑 checkSession: Using existing currentUser:', this.currentUser.email);
-      return this.currentUser;
-    }
-    
-    // Check sessionStorage for recently logged in user (helps with first navigation)
-    if (typeof window !== 'undefined') {
-      try {
-        const cachedUser = sessionStorage.getItem('seedor-current-user');
-        if (cachedUser) {
-          const parsedUser = JSON.parse(cachedUser);
-          console.log('💾 checkSession: Found cached user in sessionStorage:', parsedUser.email);
-          this.currentUser = parsedUser;
-          return parsedUser;
-        }
-      } catch (e) {
-        console.warn('Failed to read cached user:', e);
-      }
-    }
-    
-    this.isCheckingSession = true;
-    
-    try {
-      console.log('Starting checkSession...');
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
       if (error) {
-        // Handle specific refresh token errors
-        if (error.message?.includes('refresh_token_not_found') || 
-            error.message?.includes('Invalid Refresh Token') ||
-            error.message?.includes('Refresh Token Not Found')) {
-          console.log('Refresh token expired or invalid, clearing session');
-          this.currentUser = null;
-          // Clear any stored auth state
-          await this.clearStoredSession();
-          return null;
+        console.error('Error sending owner verification:', error)
+        
+        if (error.message.includes('Signups not allowed')) {
+          return { success: false, error: 'El registro de nuevos usuarios está deshabilitado. Contacta al administrador.' }
         }
         
-        console.error('Session error:', error);
-        this.currentUser = null;
-        return null;
+        return { success: false, error: `Error al enviar código: ${error.message}` }
+      }
+
+      return { success: true }
+
+    } catch (error: any) {
+      console.error('Unexpected error sending owner verification:', error)
+      return { success: false, error: error.message || 'Error inesperado' }
+    }
+  },
+
+  verifyOwnerCode: async (email: string, code: string): Promise<{ success: boolean; error?: string; session?: any }> => {
+    try {
+      console.log('🔍 Verifying owner code for:', email, 'with code:', code)
+      
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: email,
+        token: code,
+        type: 'email'
+      })
+
+      if (error) {
+        console.error('❌ Owner code verification error:', error)
+        if (error.message.includes('Invalid login credentials')) {
+          return { success: false, error: 'Código inválido. Verificá que hayas ingresado el código correcto.' }
+        }
+        if (error.message.includes('expired')) {
+          return { success: false, error: 'El código ha expirado. Solicitá uno nuevo.' }
+        }
+        if (error.message.includes('Token has expired')) {
+          return { success: false, error: 'El código ha expirado. Solicitá uno nuevo.' }
+        }
+        if (error.message.includes('Email not confirmed')) {
+          return { success: false, error: 'El email no fue confirmado correctamente.' }
+        }
+        return { success: false, error: 'Código inválido o expirado. Intentá de nuevo.' }
+      }
+
+      if (!data.session || !data.user) {
+        console.error('❌ No session/user returned from verification')
+        return { success: false, error: 'No se pudo crear la sesión. Intentá de nuevo.' }
+      }
+
+      console.log('✅ Owner code verified successfully for:', data.user.email)
+      return { success: true, session: data.session }
+
+    } catch (error: any) {
+      console.error('❌ Unexpected error verifying owner code:', error)
+      return { success: false, error: error.message || 'Error inesperado durante la verificación' }
+    }
+  },
+
+  createTenantWithOwner: async (params: CreateTenantParams): Promise<{ success: boolean; error?: string; data?: any }> => {
+    try {
+      console.log('Creating tenant with owner...')
+      
+      const cleanData = {
+        tenantName: sanitizeInput.text(params.tenantName),
+        slug: sanitizeInput.slug(params.slug),
+        plan: params.plan,
+        contactName: sanitizeInput.text(params.contactName),
+        contactEmail: sanitizeInput.email(params.contactEmail),
+        ownerPassword: params.ownerPassword,
+        ownerPhone: params.ownerPhone ? sanitizeInput.phone(params.ownerPhone) : null,
+      }
+
+      const { data: existingTenant } = await supabase
+        .from('tenants')
+        .select('id')
+        .eq('slug', cleanData.slug)
+        .maybeSingle()
+
+      if (existingTenant) {
+        return { success: false, error: 'Ya existe una empresa con ese identificador' }
+      }
+
+      let session: any = null
+      
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        session = sessionData.session
+        
+        if (!session?.user) {
+          console.log('⚠️ No session from getSession, trying refreshSession...')
+          const { data: refreshData } = await supabase.auth.refreshSession()
+          session = refreshData.session
+        }
+      } catch (sessionError) {
+        console.error('Error getting session:', sessionError)
       }
 
       if (!session?.user) {
-        console.log('No session user found');
-        this.currentUser = null;
-        return null;
+        console.error('❌ No valid session found')
+        return { success: false, error: 'Sesión no válida. Por favor, reintentá el proceso.' }
+      }
+
+      console.log('✅ Valid session found for user:', session.user.email)
+
+      const planLimits = {
+        basico: { maxUsers: 10, maxFields: 5 },
+        profesional: { maxUsers: 30, maxFields: 20 }
       }
       
-      console.log('✅ Session found for user:', session.user.email);
+      const limits = planLimits[params.plan as keyof typeof planLimits] || planLimits.basico
 
-      // Try direct query by email first (most reliable with RLS)
-      let worker: any = null;
-      let workerError: any = null;
-      
-      console.log('🔍 Attempting to fetch worker by email...');
-      const { data: directWorker, error: directError } = await supabase
-        .from('workers')
-        .select(`
-          *,
-          tenant:tenants(*),
-          membership:tenant_memberships!workers_membership_id_fkey(*)
-        `)
-        .eq('email', session.user.email!)
-        .maybeSingle();
-
-      if (directWorker) {
-        console.log('✅ Worker found by direct email query');
-        worker = directWorker;
-        workerError = null;
-      } else if (directError) {
-        console.log('⚠️ Direct email query failed:', directError.message);
-        workerError = directError;
-        
-        // Fallback to admin functions
-        console.log('🔍 Trying admin functions as fallback...');
-        const { getWorkerByEmail } = await import('./supabaseAdmin');
-        const { data: emailWorker, error: emailWorkerError } = await getWorkerByEmail(session.user.email!);
-          
-        if (!emailWorkerError && emailWorker) {
-          console.log('Worker found by email, checking/creating membership...');
-          
-          // Check if worker needs membership
-          if (!emailWorker.membership_id || !emailWorker.membership) {
-            console.log('Worker has no membership, creating one...');
-            
-            // Check if membership already exists
-            const { data: existingMembership } = await supabase
-              .from('tenant_memberships')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .eq('tenant_id', emailWorker.tenant_id)
-              .single();
-
-            let membershipId: string;
-
-            if (existingMembership) {
-              membershipId = existingMembership.id;
-              console.log('Found existing membership:', membershipId);
-            } else {
-              // Create new membership
-              const { data: newMembership, error: membershipError } = await supabase
-                .from('tenant_memberships')
-                .insert({
-                  tenant_id: emailWorker.tenant_id,
-                  user_id: session.user.id,
-                  role_code: emailWorker.area_module,
-                  status: 'active',
-                  accepted_at: new Date().toISOString()
-                })
-                .select()
-                .single();
-
-              if (membershipError || !newMembership) {
-                console.error('Failed to create membership:', membershipError);
-              } else {
-                membershipId = newMembership.id;
-                console.log('Created new membership:', membershipId);
-                
-                // Link worker to membership
-                const { error: updateError } = await supabase
-                  .from('workers')
-                  .update({ membership_id: membershipId })
-                  .eq('id', emailWorker.id);
-
-                if (updateError) {
-                  console.error('Failed to link worker to membership:', updateError);
-                } else {
-                  console.log('Successfully linked worker to membership');
-                }
-              }
-            }
-          }
-          
-          // Try to fetch worker again with membership
-          const { data: refreshedWorker } = await getWorkerByEmail(session.user.email!);
-          worker = refreshedWorker || emailWorker;
-          workerError = null;
-        }
-      }
-
-      // If still no worker found, create a minimal user object
-      // Don't log them out - they have a valid Supabase Auth session
-      if (workerError || !worker) {
-        console.warn('⚠️ User has auth session but worker profile lookup failed:', session.user.email);
-        console.warn('⚠️ Error details:', workerError);
-        console.log('✅ Creating minimal auth user to preserve session');
-        
-        // Create minimal user with auth data
-        const minimalUser: AuthUser = {
-          id: session.user.id,
-          email: session.user.email!,
-          nombre: session.user.user_metadata?.full_name || session.user.email!.split('@')[0],
-          tenantId: '', // Will need to be set by the app
-          rol: 'Admin', // Default role
-          activo: true,
-          tenant: null as any,
-          worker: null as any,
-        };
-        
-        this.currentUser = minimalUser;
-        console.log('⚠️ Session preserved with minimal user data. Worker lookup may be blocked by RLS policies.');
-        return minimalUser;
-      }
-
-      // Fetch tenant information
-      const { data: tenant, error: tenantError } = await supabase
-        .from('tenants')
-        .select('*')
-        .eq('id', worker.tenant_id)
-        .single();
-
-      if (tenantError) {
-        console.error('Failed to fetch tenant:', tenantError);
-      }
-
-      const authUser: AuthUser = {
-        id: session.user.id,
-        email: worker.email,
-        nombre: worker.full_name,
-        tenantId: worker.tenant_id,
-        rol: this.mapAreaModuleToRole(worker.area_module),
-        activo: worker.status === 'active',
-        tenant: tenant || null,
-        worker: worker,
-      };
-
-      this.currentUser = authUser;
-      return authUser;
-
-    } catch (error: any) {
-      console.error('Session check error:', error);
-      
-      // Handle refresh token errors specifically
-      if (error.message?.includes('refresh_token_not_found') || 
-          error.message?.includes('Invalid Refresh Token') ||
-          error.message?.includes('Refresh Token Not Found')) {
-        console.log('Clearing invalid session due to refresh token error');
-        await this.clearStoredSession();
-      }
-      
-      this.currentUser = null;
-      return null;
-    } finally {
-      this.isCheckingSession = false;
-    }
-  }
-
-  // Utility function to handle authentication errors gracefully
-  handleAuthError(error: any): { shouldRetry: boolean; shouldLogout: boolean } {
-    const errorMessage = error?.message || '';
-    
-    // Check for refresh token related errors
-    if (errorMessage.includes('refresh_token_not_found') || 
-        errorMessage.includes('Invalid Refresh Token') ||
-        errorMessage.includes('Refresh Token Not Found') ||
-        errorMessage.includes('JWT expired') ||
-        errorMessage.includes('session_not_found')) {
-      return { shouldRetry: false, shouldLogout: true };
-    }
-    
-    // Network or temporary errors
-    if (errorMessage.includes('network') || 
-        errorMessage.includes('timeout') ||
-        errorMessage.includes('fetch')) {
-      return { shouldRetry: true, shouldLogout: false };
-    }
-    
-    // Unknown errors - don't logout but don't retry either
-    return { shouldRetry: false, shouldLogout: false };
-  }
-
-  // Enhanced method to safely get current session with retry logic
-  async getSafeSession(retryCount: number = 0): Promise<{ user: AuthUser | null; error: string | null }> {
-    console.log('🔍 getSafeSession CALLED - retry:', retryCount, 'currentUser:', this.currentUser?.email || 'null');
-    
-    // If we're already checking the session, return current user
-    if (this.isCheckingSession && retryCount === 0) {
-      console.log('getSafeSession: Already checking session, returning cached user:', this.currentUser?.email);
-      return { user: this.currentUser, error: null };
-    }
-    
-    // If we already have a current user and this is the first call, verify the session is still valid
-    if (this.currentUser && retryCount === 0) {
-      console.log('getSafeSession: Current user exists, verifying session:', this.currentUser.email);
-      
-      try {
-        // Quick session check without full worker lookup
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user && session.user.id === this.currentUser.id) {
-          console.log('✅ getSafeSession: Session valid, returning cached user');
-          return { user: this.currentUser, error: null };
-        }
-        
-        console.log('⚠️ getSafeSession: Session invalid or expired, rechecking...');
-      } catch (error) {
-        console.log('❌ getSafeSession: Error checking session, will do full check:', error);
-      }
-    }
-    
-    console.log('🔄 getSafeSession: Performing full session check...');
-    
-    try {
-      const user = await this.checkSession();
-      console.log('✅ getSafeSession: checkSession returned:', user?.email || 'null');
-      return { user, error: null };
-    } catch (error: any) {
-      const { shouldRetry, shouldLogout } = this.handleAuthError(error);
-      
-      if (shouldLogout) {
-        await this.clearStoredSession();
-        return { user: null, error: 'Session expired. Please login again.' };
-      }
-      
-      if (shouldRetry && retryCount < 2) {
-        // Wait a bit before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-        return this.getSafeSession(retryCount + 1);
-      }
-      
-      return { user: null, error: error.message || 'Authentication error occurred' };
-    }
-  }
-
-  private async clearStoredSession(): Promise<void> {
-    try {
-      // Sign out to clear stored tokens
-      await supabase.auth.signOut();
-      this.currentUser = null;
-    } catch (error) {
-      console.error('Error clearing stored session:', error);
-    }
-  }
-
-  getCurrentUser(): AuthUser | null {
-    return this.currentUser;
-  }
-
-  isAuthenticated(): boolean {
-    return this.getCurrentUser() !== null;
-  }
-
-  hasRole(roles: string[]): boolean {
-    const user = this.getCurrentUser();
-    return !!user && roles.includes(user.rol);
-  }
-
-  // Create tenant with first admin user
-  async createTenantWithAdmin(data: {
-    tenantName: string;
-    slug: string;
-    plan: string;
-    primaryCrop: string;
-    contactEmail: string;
-    adminFullName: string;
-    adminEmail: string;
-    adminPassword: string;
-    adminPhone: string;
-    adminDocumentId: string;
-  }): Promise<{ success: boolean; error: string | null; tenant?: Tenant }> {
-    let createdUserId: string | null = null;
-    let createdTenantId: string | null = null;
-
-    try {
-      // First check if user already exists
-      const { data: existingWorker } = await supabase
-        .from('workers')
-        .select('email')
-        .eq('email', data.adminEmail)
-        .maybeSingle();
-
-      if (existingWorker) {
-        return { success: false, error: "Ya existe un usuario registrado con este email" };
-      }
-
-      // Check if email already exists in auth (using admin client if available)
-      if (supabaseAdmin) {
-        try {
-          const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
-          const existingAuthUser = authUsers.users.find(user => user.email === data.adminEmail);
-          
-          if (existingAuthUser) {
-            return { success: false, error: "Este email ya está registrado en el sistema de autenticación. Use la opción de recuperar contraseña o contacte soporte." };
-          }
-        } catch (authCheckError) {
-          console.warn('Could not check existing auth users:', authCheckError);
-          // Continue anyway, the signUp will fail if user exists
-        }
-      }
-
-      // Check if slug already exists
-      const { data: existingTenant } = await supabase
-        .from('tenants')
-        .select('slug')
-        .eq('slug', data.slug)
-        .maybeSingle();
-
-      if (existingTenant) {
-        return { success: false, error: `Ya existe una empresa con el identificador "${data.slug}". Por favor, cambia el nombre de tu empresa o edita el identificador manualmente.` };
-      }
-
-      // 1. Create the admin user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.adminEmail,
-        password: data.adminPassword,
-        options: {
-          data: {
-            full_name: data.adminFullName,
-          }
-        }
-      });
-
-      if (authError) {
-        console.error('Auth error:', authError);
-        return { success: false, error: `Error de autenticación: ${authError.message}` };
-      }
-
-      if (!authData.user) {
-        return { success: false, error: "No se pudo crear el usuario de autenticación" };
-      }
-
-      createdUserId = authData.user.id;
-
-      // 2. Create the tenant
-      const { data: tenant, error: tenantError } = await supabase
+      const { data: tenantData, error: tenantError } = await supabase
         .from('tenants')
         .insert([{
-          name: data.tenantName,
-          slug: data.slug,
-          plan: data.plan,
-          primary_crop: data.primaryCrop,
-          contact_email: data.contactEmail,
-          created_by: authData.user.id,
+          name: cleanData.tenantName,
+          slug: cleanData.slug,
+          plan: cleanData.plan,
+          contact_name: cleanData.contactName,
+          contact_email: cleanData.contactEmail,
+          created_by: session.user.id,
+          max_users: limits.maxUsers,
+          max_fields: limits.maxFields, 
+          current_users: 1,
+          current_fields: 0
         }])
         .select()
-        .single();
+        .single()
 
       if (tenantError) {
-        console.error('Tenant error:', tenantError);
-        throw new Error(`Error al crear la empresa: ${tenantError.message}`);
+        console.error('Tenant creation error:', tenantError)
+        return { success: false, error: `Error al crear empresa: ${tenantError.message}` }
+      }
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert([{
+          user_id: session.user.id,
+          email: session.user.email,
+          full_name: cleanData.contactName,
+          phone: cleanData.ownerPhone,
+          default_tenant_id: tenantData.id,
+        }])
+
+      if (profileError) {
+        console.error('Profile creation error:', profileError)
+      }
+
+      const { data: membershipData, error: membershipError } = await supabase
+        .from('tenant_memberships')
+        .insert([{
+          tenant_id: tenantData.id,
+          user_id: session.user.id,
+          role_code: 'owner',
+          status: 'active',
+        }])
+        .select()
+        .single()
+
+      if (membershipError) {
+        console.error('Membership creation error:', membershipError)
+        return { success: false, error: `Error al crear membresía: ${membershipError.message}` }
+      }
+
+      await supabase
+        .from('audit_logs')
+        .insert([{
+          tenant_id: tenantData.id,
+          actor_user_id: session.user.id, 
+          action: 'tenant_created',  
+          entity: 'tenant', 
+          entity_id: tenantData.id, 
+          details: { tenant_name: tenantData.name, slug: tenantData.slug, plan: cleanData.plan }
+        }])
+
+      return { 
+        success: true, 
+        data: { 
+          tenant: tenantData, 
+          user: session.user,
+          membership: membershipData 
+        }
+      }
+
+    } catch (error: any) {
+      console.error('Unexpected error in createTenantWithOwner:', error)
+      return { success: false, error: error.message || 'Error inesperado' }
+    }
+  },
+
+  getTenantLimits: async (tenantId: string): Promise<{ success: boolean; error?: string; data?: any }> => {
+    try {
+      const { data: tenant, error } = await supabase
+        .from('tenants')
+        .select('max_users, current_users, max_fields, current_fields, plan')
+        .eq('id', tenantId)
+        .single()
+
+      if (error || !tenant) {
+        return { success: false, error: 'Tenant no encontrado' }
+      }
+
+      const limits = {
+        users: {
+          max: tenant.max_users,
+          current: tenant.current_users,
+          available: tenant.max_users - tenant.current_users
+        },
+        fields: {
+          max: tenant.max_fields,
+          current: tenant.current_fields,
+          available: tenant.max_fields - tenant.current_fields
+        },
+        plan: tenant.plan
+      }
+
+      return { success: true, data: limits }
+
+    } catch (error: any) {
+      console.error('Error getting tenant limits:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  canAddField: async (tenantId: string): Promise<{ success: boolean; error?: string; canAdd?: boolean }> => {
+    try {
+      const { success, data, error } = await authService.getTenantLimits(tenantId)
+      
+      if (!success) {
+        return { success: false, error }
+      }
+
+      const canAdd = data.fields.available > 0
+      
+      return { 
+        success: true, 
+        canAdd,
+        error: canAdd ? undefined : `Has alcanzado el límite de ${data.fields.max} campos para tu plan ${data.plan}`
+      }
+
+    } catch (error: any) {
+      console.error('Error checking field limit:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  incrementFieldCount: async (tenantId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('current_fields, max_fields')
+        .eq('id', tenantId)
+        .single()
+
+      if (!tenant) {
+        return { success: false, error: 'Tenant no encontrado' }
+      }
+
+      if (tenant.current_fields >= tenant.max_fields) {
+        return { success: false, error: 'Se alcanzó el límite máximo de campos' }
+      }
+
+      const { error } = await supabase
+        .from('tenants')
+        .update({ current_fields: tenant.current_fields + 1 })
+        .eq('id', tenantId)
+
+      if (error) {
+        return { success: false, error: 'Error al actualizar contador de campos' }
+      }
+
+      return { success: true }
+
+    } catch (error: any) {
+      console.error('Error incrementing field count:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  decrementFieldCount: async (tenantId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('current_fields')
+        .eq('id', tenantId)
+        .single()
+
+      if (!tenant) {
+        return { success: false, error: 'Tenant no encontrado' }
+      }
+
+      const newCount = Math.max(0, tenant.current_fields - 1)
+
+      const { error } = await supabase
+        .from('tenants')
+        .update({ current_fields: newCount })
+        .eq('id', tenantId)
+
+      if (error) {
+        return { success: false, error: 'Error al actualizar contador de campos' }
+      }
+
+      return { success: true }
+
+    } catch (error: any) {
+      console.error('Error decrementing field count:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  inviteUser: async (params: InviteUserParams): Promise<{ success: boolean; error?: string; data?: any }> => {
+    try {
+      console.log('🔍 Starting inviteUser with params:', params)
+      
+      const token = generateInvitationToken()
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+      
+      console.log('🔍 Generated token:', token)
+      console.log('🔍 Expires at:', expiresAt.toISOString())
+
+      console.log('🔍 Step 1: Checking tenant...')
+      const { data: tenant, error: tenantError } = await supabase
+        .from('tenants')
+        .select('current_users, max_users, name')
+        .eq('id', params.tenantId)
+        .single()
+
+      if (tenantError) {
+        console.error('❌ Tenant error:', tenantError)
+        return { success: false, error: `Error al buscar tenant: ${tenantError.message}` }
       }
 
       if (!tenant) {
-        throw new Error("No se pudo crear la empresa");
+        console.error('❌ Tenant not found')
+        return { success: false, error: 'Tenant no encontrado' }
       }
 
-      createdTenantId = tenant.id;
+      console.log('✅ Tenant found:', tenant)
 
-      // 3. Create the tenant_membership first (using admin client to bypass RLS)
-      let membership;
-      let membershipError;
-      
-      if (supabaseAdmin) {
-        const result = await supabaseAdmin
-          .from('tenant_memberships')
-          .insert([{
-            tenant_id: tenant.id,
-            user_id: authData.user.id,
-            role_code: 'admin',
-            status: 'active',
-            accepted_at: new Date().toISOString()
-          }])
-          .select()
-          .single();
-        membership = result.data;
-        membershipError = result.error;
-      } else {
-        const result = await supabase
-          .from('tenant_memberships')
-          .insert([{
-            tenant_id: tenant.id,
-            user_id: authData.user.id,
-            role_code: 'admin',
-            status: 'active',
-            accepted_at: new Date().toISOString()
-          }])
-          .select()
-          .single();
-        membership = result.data;
-        membershipError = result.error;
-      }
+      console.log('🔍 Step 2: Checking permissions...')
+      const { data: membership, error: membershipError } = await supabase
+        .from('tenant_memberships')
+        .select('role_code')
+        .eq('tenant_id', params.tenantId)
+        .eq('user_id', params.invitedBy)
+        .eq('status', 'active')
+        .single()
 
       if (membershipError) {
-        console.error('Membership error:', membershipError);
-        throw new Error(`Error al crear la membresía: ${membershipError.message} (Código: ${membershipError.code}, Detalles: ${membershipError.details})`);
+        console.error('❌ Membership error:', membershipError)
+        return { success: false, error: `Error al verificar permisos: ${membershipError.message}` }
       }
 
       if (!membership) {
-        throw new Error("No se pudo crear la membresía del administrador");
+        console.error('❌ No membership found')
+        return { success: false, error: 'No se encontró membresía activa' }
       }
 
-      console.log('Membership created successfully:', membership.id);
+      console.log('✅ Membership found:', membership)
 
-      // 4. Create the worker profile linked to the membership (using admin client to bypass RLS)
-      const workerData = {
-        tenant_id: tenant.id,
-        full_name: data.adminFullName,
-        document_id: data.adminDocumentId || '',
-        email: data.adminEmail,
-        phone: data.adminPhone || null,
-        area_module: 'admin',
-        membership_id: membership.id, // Link to tenant_membership
-        status: 'active',
-      };
+      console.log('🔍 Step 3: Checking existing invitation...')
+      const cleanEmail = sanitizeInput.email(params.email)
 
-      console.log('Creating worker with data:', workerData);
-      console.log('Tenant ID:', tenant.id);
-      console.log('Membership ID:', membership.id);
+      const { data: existingInvitation, error: existingError } = await supabase
+        .from('invitations')
+        .select('id')
+        .eq('tenant_id', params.tenantId)
+        .eq('email', cleanEmail)
+        .is('accepted_at', null)
+        .is('revoked_at', null)
+        .maybeSingle()
 
-      let workerResult;
-      let workerError;
+      if (existingError) {
+        console.error('❌ Existing invitation check error:', existingError)
+        return { success: false, error: `Error al verificar invitaciones: ${existingError.message}` }
+      }
+
+      if (existingInvitation) {
+        console.error('❌ Existing invitation found:', existingInvitation)
+        return { success: false, error: 'Ya existe una invitación pendiente para este email' }
+      }
+
+      console.log('✅ No existing invitation')
+
+      console.log('🔍 Step 4: Creating invitation...')
       
-      if (supabaseAdmin) {
-        const result = await supabaseAdmin
-          .from('workers')
-          .insert([workerData])
-          .select();
-        workerResult = result.data;
-        workerError = result.error;
-      } else {
-        const result = await supabase
-          .from('workers')
-          .insert([workerData])
-          .select();
-        workerResult = result.data;
-        workerError = result.error;
+      const insertData = {
+        tenant_id: params.tenantId,
+        email: cleanEmail,
+        role_code: params.roleCode,
+        token_hash: token, 
+        invited_by: params.invitedBy,
+        expires_at: expiresAt.toISOString()
+      }
+      
+      console.log('🔍 Insert data:', insertData)
+
+      const { data: invitation, error: insertError } = await supabase
+        .from('invitations')
+        .insert([insertData])
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error('❌ Insert error:', insertError)
+        console.error('❌ Error code:', insertError.code)
+        console.error('❌ Error details:', insertError.details)
+        console.error('❌ Error hint:', insertError.hint)
+        console.error('❌ Error message:', insertError.message)
+        return { success: false, error: `Error al crear invitación: ${insertError.message}` }
       }
 
-      console.log('Worker insert result:', workerResult);
-
-      if (workerError) {
-        console.error('Worker error details:', {
-          message: workerError.message,
-          details: workerError.details,
-          hint: workerError.hint,
-          code: workerError.code
-        });
-        throw new Error(`Error al crear el perfil del administrador: ${workerError.message} (Código: ${workerError.code}, Detalles: ${workerError.details})`);
+      if (!invitation) {
+        console.error('❌ No invitation returned')
+        return { success: false, error: 'No se retornó la invitación creada' }
       }
 
-      if (!workerResult || workerResult.length === 0) {
-        throw new Error("No se pudo crear el perfil del administrador - no se devolvió ningún registro");
+      console.log('✅ Invitation created successfully:', invitation)
+
+      const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/accept-invitacion?token=${token}`
+      console.log('🔗 Invite URL:', inviteUrl)
+
+      return { 
+        success: true, 
+        data: { 
+          invitation: {
+            ...invitation,
+            tenants: { name: tenant.name }
+          }, 
+          inviteUrl 
+        } 
       }
 
-      console.log('Worker created successfully:', workerResult[0]);
+    } catch (error: any) {
+      console.error('❌ Unexpected error in inviteUser:', error)
+      console.error('❌ Stack trace:', error.stack)
+      return { success: false, error: `Error inesperado: ${error.message}` }
+    }
+  },
 
-      // 5. Enable default modules for the tenant based on plan (using admin client to bypass RLS)
-      const defaultModules = ['campo', 'empaque', 'finanzas', 'inventario'];
-      const moduleRecords = defaultModules.map(module => ({
-        tenant_id: tenant.id,
-        module_code: module,
-        enabled: true
-      }));
+  inviteAdmin: async (tenantId: string, adminEmail: string, invitedBy: string): Promise<{ success: boolean; error?: string; data?: any }> => {
+    try {
+      console.log('🔄 Calling invite-admin API...')
 
-      let modulesError;
-      if (supabaseAdmin) {
-        const result = await supabaseAdmin
-          .from('tenant_modules')
-          .insert(moduleRecords);
-        modulesError = result.error;
-      } else {
-        const result = await supabase
-          .from('tenant_modules')
-          .insert(moduleRecords);
-        modulesError = result.error;
+      const response = await fetch('/api/auth/invite-admin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tenantId,
+          adminEmail,
+          invitedBy
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error('❌ API error:', result.error)
+        return { success: false, error: result.error || 'Error al enviar invitación' }
       }
 
-      if (modulesError) {
-        console.error('Modules error details:', {
-          message: modulesError.message,
-          details: modulesError.details,
-          hint: modulesError.hint,
-          code: modulesError.code
-        });
-        throw new Error(`Error al crear los módulos: ${modulesError.message} (Código: ${modulesError.code})`);
-      } else {
-        console.log('Default modules created successfully');
+      console.log('✅ Admin invitation API call successful')
+      return { success: true, data: result.data }
+
+    } catch (error: any) {
+      console.error('❌ Error calling invite-admin API:', error)
+      return { success: false, error: error.message || 'Error inesperado' }
+    }
+  },
+
+  getTenantInvitations: async (tenantId: string, userId: string): Promise<{ success: boolean; error?: string; data?: any }> => {
+    try {
+      const { data: membership } = await supabase
+        .from('tenant_memberships')
+        .select('role_code')
+        .eq('tenant_id', tenantId)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .single()
+
+      if (!membership || !['owner', 'admin'].includes(membership.role_code)) {
+        return { success: false, error: 'No tienes permisos para ver las invitaciones' }
       }
 
-      // Verify that the worker can be found immediately with tenant relationship
-      const { data: verifyWorker, error: verifyError } = await supabase
-        .from('workers')
+      const { data: invitations, error } = await supabase
+        .from('invitations')
+        .select('*, roles(name), profiles!invited_by(full_name)')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        return { success: false, error: 'Error al obtener invitaciones' }
+      }
+
+      return { success: true, data: invitations }
+
+    } catch (error: any) {
+      console.error('Error getting tenant invitations:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  getInvitationByToken: async (token: string): Promise<{ success: boolean; error?: string; data?: any }> => {
+    try {
+      console.log('🔍 Getting invitation by token...');
+      
+      const { data: invitation, error } = await supabase
+        .from('invitations')
         .select(`
           *,
-          tenant:tenants(*),
-          membership:tenant_memberships!workers_membership_id_fkey(*)
+          tenants(name),
+          roles(name)
         `)
-        .eq('email', data.adminEmail)
-        .eq('tenant_id', tenant.id)
-        .eq('status', 'active')
-        .single();
+        .eq('token_hash', token)
+        .is('accepted_at', null)
+        .is('revoked_at', null)
+        .single()
 
-      if (verifyError || !verifyWorker) {
-        console.error('Worker verification failed:', verifyError);
-        
-        // Try one more time to get the worker with just basic fields
-        const { data: basicWorker, error: basicError } = await supabase
-          .from('workers')
-          .select('*')
-          .eq('email', data.adminEmail)
-          .eq('tenant_id', tenant.id);
-          
-        console.log('Basic worker query result:', { basicWorker, basicError });
-        
-        if (!basicWorker || basicWorker.length === 0) {
-          throw new Error("El perfil del administrador no fue creado correctamente. Contacta con soporte técnico.");
-        } else {
-          console.log('Worker found in basic query, continuing...');
+      if (error) {
+        console.error('❌ Database error getting invitation:', error);
+        if (error.code === 'PGRST116') {
+          return { success: false, error: 'Invitación no encontrada o ya fue utilizada' }
         }
+        return { success: false, error: 'Error al buscar invitación' }
+      }
+
+      if (!invitation) {
+        return { success: false, error: 'Invitación no encontrada' }
+      }
+
+      if (new Date() > new Date(invitation.expires_at)) {
+        return { success: false, error: 'La invitación ha expirado' }
+      }
+
+      console.log('✅ Invitation found and valid');
+      return { success: true, data: invitation }
+
+    } catch (error: any) {
+      console.error('❌ Error getting invitation:', error)
+      return { success: false, error: error.message || 'Error inesperado' }
+    }
+  },
+
+  acceptInvitation: async (params: AcceptInvitationParams): Promise<{ success: boolean; error?: string; data?: any }> => {
+    try {
+      console.log('🔄 Starting acceptInvitation process...');
+      
+      const invitationResult = await authService.getInvitationByToken(params.token)
+      if (!invitationResult.success || !invitationResult.data) {
+        return { success: false, error: invitationResult.error }
+      }
+
+      const invitation = invitationResult.data
+      console.log('✅ Invitation found:', invitation.email, invitation.role_code);
+
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('current_users, max_users')
+        .eq('id', invitation.tenant_id)
+        .single()
+
+      if (!tenant) {
+        return { success: false, error: 'Tenant no encontrado' }
+      }
+
+      if (tenant.current_users >= tenant.max_users) {
+        return { success: false, error: 'Se alcanzó el límite máximo de usuarios para este tenant' }
+      }
+
+      let userId: string
+      let isNewUser = false
+
+      const { data: currentSession } = await supabase.auth.getSession()
+      
+      if (currentSession.session && currentSession.session.user.email === invitation.email) {
+        console.log('✅ User already logged in with correct email');
+        userId = currentSession.session.user.id
       } else {
-        console.log('Worker verification successful:', verifyWorker);
-      }
+        if (!params.userData) {
+          return { success: false, error: 'Se requieren datos del usuario para crear la cuenta' }
+        }
 
-      // Add a small delay to ensure database consistency
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      return { success: true, error: null, tenant };
-
-    } catch (error: any) {
-      console.error('Transaction error:', error);
-      
-      // Cleanup in reverse order with proper admin client
-      try {
-        console.log('Starting cleanup process...');
+        console.log('🔄 Creating new user account...');
         
-        // 1. Delete worker if it was created
-        if (createdTenantId) {
-          console.log('Cleaning up worker...');
-          const { error: workerCleanupError } = await supabase
-            .from('workers')
-            .delete()
-            .eq('tenant_id', createdTenantId);
-          
-          if (workerCleanupError) {
-            console.error('Worker cleanup error:', workerCleanupError);
-          } else {
-            console.log('Worker cleaned up successfully');
-          }
-        }
-
-        // 2. Delete tenant memberships if created
-        if (createdTenantId) {
-          console.log('Cleaning up tenant memberships...');
-          const { error: membershipCleanupError } = await supabase
-            .from('tenant_memberships')
-            .delete()
-            .eq('tenant_id', createdTenantId);
-          
-          if (membershipCleanupError) {
-            console.error('Membership cleanup error:', membershipCleanupError);
-          } else {
-            console.log('Memberships cleaned up successfully');
-          }
-        }
-
-        // 3. Delete tenant modules if created
-        if (createdTenantId) {
-          console.log('Cleaning up tenant modules...');
-          const { error: modulesCleanupError } = await supabase
-            .from('tenant_modules')
-            .delete()
-            .eq('tenant_id', createdTenantId);
-          
-          if (modulesCleanupError) {
-            console.error('Modules cleanup error:', modulesCleanupError);
-          } else {
-            console.log('Modules cleaned up successfully');
-          }
-        }
-
-        // 4. Delete tenant if it was created
-        if (createdTenantId) {
-          console.log('Cleaning up tenant...');
-          const { error: tenantCleanupError } = await supabase
-            .from('tenants')
-            .delete()
-            .eq('id', createdTenantId);
-          
-          if (tenantCleanupError) {
-            console.error('Tenant cleanup error:', tenantCleanupError);
-          } else {
-            console.log('Tenant cleaned up successfully');
-          }
-        }
-
-        // 5. Delete auth user if it was created
-        if (createdUserId) {
-          console.log('Cleaning up auth user...');
-          
-          // Try with admin client first
-          if (supabaseAdmin) {
-            const { error: authCleanupError } = await supabaseAdmin.auth.admin.deleteUser(createdUserId);
-            
-            if (authCleanupError) {
-              console.error('Auth cleanup error (admin):', authCleanupError);
-              
-              // If admin fails, try with regular client (user might not be confirmed)
-              try {
-                const { error: signInError } = await supabase.auth.signInWithPassword({
-                  email: data.adminEmail,
-                  password: data.adminPassword,
-                });
-                
-                if (!signInError) {
-                  const { error: deleteError } = await supabase.auth.admin.deleteUser(createdUserId);
-                  if (deleteError) {
-                    console.error('Auth cleanup error (regular):', deleteError);
-                  } else {
-                    console.log('Auth user cleaned up successfully');
-                  }
-                }
-              } catch (altCleanupError) {
-                console.error('Alternative auth cleanup failed:', altCleanupError);
-              }
-            } else {
-              console.log('Auth user cleaned up successfully');
+        const { data: newUser, error: signUpError } = await supabase.auth.signUp({
+          email: invitation.email,
+          password: params.userData.password,
+          options: {
+            data: {
+              full_name: params.userData.fullName,
+              invitation_token: params.token
             }
-          } else {
-            console.warn('No admin client available for auth cleanup');
           }
+        })
+
+        if (signUpError) {
+          console.error('❌ SignUp error:', signUpError);
+          return { success: false, error: `Error al crear usuario: ${signUpError.message}` }
         }
-        
-        console.log('Cleanup process completed');
-      } catch (cleanupError) {
-        console.error('Cleanup error:', cleanupError);
-        // Don't fail the main error, just log cleanup issues
-      }
 
-      return { 
-        success: false, 
-        error: error.message || "Error inesperado durante la creación de la cuenta" 
-      };
-    }
-  }
-
-  // Password reset
-  async resetPassword(email: string): Promise<{ success: boolean; error: string | null }> {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, error: null };
-    } catch (error: any) {
-      return { success: false, error: error.message || "Error inesperado" };
-    }
-  }
-
-  // Update password
-  async updatePassword(newPassword: string): Promise<{ success: boolean; error: string | null }> {
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, error: null };
-    } catch (error: any) {
-      return { success: false, error: error.message || "Error inesperado" };
-    }
-  }
-
-  // Add worker to existing tenant
-  async addWorkerToTenant(data: {
-    tenantId: string;
-    fullName: string;
-    documentId: string;
-    email: string;
-    password: string;
-    phone: string;
-    areaModule: string;
-    membershipId: string;
-  }): Promise<{ success: boolean; error: string | null }> {
-    let createdUserId: string | null = null;
-
-    try {
-      // Check if email already exists
-      const { data: existingWorker } = await supabase
-        .from('workers')
-        .select('email')
-        .eq('email', data.email)
-        .single();
-
-      if (existingWorker) {
-        return { success: false, error: "Ya existe un trabajador registrado con este email" };
-      }
-
-      // 1. Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            full_name: data.fullName,
-          }
+        if (!newUser.user) {
+          return { success: false, error: 'No se pudo crear el usuario' }
         }
-      });
 
-      if (authError) {
-        return { success: false, error: `Error de autenticación: ${authError.message}` };
+        console.log('✅ User created successfully');
+        userId = newUser.user.id
+        isNewUser = true
+
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([{
+            user_id: userId,
+            email: invitation.email,
+            full_name: params.userData.fullName,
+            phone: params.userData.phone,
+            default_tenant_id: invitation.tenant_id,
+          }])
+
+        if (profileError) {
+          console.warn('⚠️ Profile creation warning:', profileError);
+        }
       }
 
-      if (!authData.user) {
-        return { success: false, error: "No se pudo crear el usuario de autenticación" };
-      }
+      console.log('🔄 Creating tenant membership...');
 
-      createdUserId = authData.user.id;
-
-      // 2. Create worker profile
-      const { error: workerError } = await supabase
-        .from('workers')
+      const { data: membershipData, error: membershipError } = await supabase
+        .from('tenant_memberships')
         .insert([{
-          tenant_id: data.tenantId,
-          full_name: data.fullName,
-          document_id: data.documentId,
-          email: data.email,
-          phone: data.phone,
-          area_module: data.areaModule,
-          membership_id: authData.user.id, // Link to auth user
+          tenant_id: invitation.tenant_id,
+          user_id: userId,
+          role_code: invitation.role_code,
           status: 'active',
-        }]);
+          invited_by: invitation.invited_by,
+          accepted_at: new Date().toISOString()
+        }])
+        .select()
+        .single()
 
-      if (workerError) {
-        throw new Error(`Error al crear el perfil del trabajador: ${workerError.message}`);
+      if (membershipError) {
+        console.error('❌ Membership creation error:', membershipError)
+        return { success: false, error: `Error al crear membresía: ${membershipError.message}` }
       }
 
-      return { success: true, error: null };
+      const { error: updateError } = await supabase
+        .from('tenants')
+        .update({ current_users: tenant.current_users + 1 })
+        .eq('id', invitation.tenant_id)
 
-    } catch (error: any) {
-      console.error('Add worker error:', error);
-      
-      // Cleanup auth user if worker creation failed
-      if (createdUserId && supabaseAdmin) {
-        try {
-          await supabaseAdmin.auth.admin.deleteUser(createdUserId);
-        } catch (cleanupError) {
-          console.error('Cleanup error:', cleanupError);
-        }
+      if (updateError) {
+        console.warn('⚠️ Error updating tenant user count:', updateError);
       }
+
+      await supabase
+        .from('invitations')
+        .update({ 
+          accepted_at: new Date().toISOString()
+        })
+        .eq('id', invitation.id)
+
+      await supabase
+        .from('audit_logs')
+        .insert([{
+          tenant_id: invitation.tenant_id,
+          actor_user_id: userId,
+          action: 'invitation_accepted', 
+          entity: 'invitation', 
+          entity_id: invitation.id, 
+          details: { 
+            email: invitation.email,
+            role: invitation.role_code,
+            is_new_user: isNewUser 
+          }
+        }])
+
+      console.log('✅ Invitation accepted successfully');
 
       return { 
-        success: false, 
-        error: error.message || "Error inesperado al crear el trabajador" 
-      };
-    }
-  }
-
-  // Utility function to check if user exists
-  async checkUserExists(email: string): Promise<{ exists: boolean; inAuth: boolean; inWorkers: boolean }> {
-    try {
-      // Check in workers table
-      const { data: worker } = await supabase
-        .from('workers')
-        .select('email')
-        .eq('email', email)
-        .single();
-
-      // For auth check, we'd need admin privileges, so we'll just assume
-      // if worker exists, auth user probably exists too
-      return {
-        exists: !!worker,
-        inAuth: !!worker, // We assume this since we can't check without admin
-        inWorkers: !!worker
-      };
-    } catch (error) {
-      return {
-        exists: false,
-        inAuth: false,
-        inWorkers: false
-      };
-    }
-  }
-
-  // Utility function to manually cleanup orphaned auth users (admin only)
-  async cleanupOrphanedUser(email: string): Promise<{ success: boolean; error: string | null }> {
-    if (!supabaseAdmin) {
-      return { success: false, error: "No hay permisos de administrador para esta operación" };
-    }
-
-    try {
-      // Find and delete user from auth
-      const { data: users, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-      
-      if (listError) {
-        return { success: false, error: "Error al buscar usuarios" };
+        success: true, 
+        data: { 
+          userId, 
+          tenantId: invitation.tenant_id,
+          membership: membershipData,
+          isNewUser
+        } 
       }
 
-      const userToDelete = users.users.find(u => u.email === email);
-      
-      if (userToDelete) {
-        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userToDelete.id);
-        
-        if (deleteError) {
-          return { success: false, error: "Error al eliminar usuario" };
-        }
-        
-        return { success: true, error: null };
-      }
-
-      return { success: false, error: "Usuario no encontrado" };
     } catch (error: any) {
-      return { success: false, error: error.message || "Error inesperado" };
+      console.error('❌ Error accepting invitation:', error)
+      return { success: false, error: error.message || 'Error inesperado' }
     }
-  }
+  },
 
-  // Utility function to clear corrupted session
-  async clearCorruptedSession(): Promise<void> {
+
+  revokeInvitation: async (invitationId: string, revokedBy: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      console.log('Clearing corrupted session...')
+      const { data: invitation, error: getError } = await supabase
+        .from('invitations')
+        .select('*')
+        .eq('id', invitationId)
+        .single()
+
+      if (getError || !invitation) {
+        return { success: false, error: 'Invitación no encontrada' }
+      }
+
+      const { error } = await supabase
+        .from('invitations')
+        .update({ 
+          revoked_at: new Date().toISOString()
+        })
+        .eq('id', invitationId)
+
+      if (error) {
+        return { success: false, error: 'Error al revocar invitación' }
+      }
+
+      await supabase
+        .from('audit_logs')
+        .insert([{
+          tenant_id: invitation.tenant_id,
+          actor_user_id: revokedBy,
+          action: 'invitation_revoked',
+          entity: 'invitation', 
+          entity_id: invitationId,
+          details: { 
+            invited_email: invitation.email,
+            role: invitation.role_code 
+          }
+        }])
+
+      return { success: true }
+
+    } catch (error: any) {
+      console.error('Error revoking invitation:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  login: async (email: string, password: string): Promise<{ user?: any; error?: string }> => {
+    try {
+      const cleanEmail = sanitizeInput.email(email)
       
-      // Sign out from Supabase (this will clear the corrupted tokens)
-      await supabase.auth.signOut();
+      if (!validators.email(cleanEmail) || !validators.password(password)) {
+        return { error: 'Credenciales inválidas' }
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: password,
+      })
+
+      if (error) {
+        return { error: 'Email o contraseña incorrectos' }
+      }
+
+      if (!data.user) {
+        return { error: 'No se pudo iniciar sesión' }
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', data.user.id)
+        .maybeSingle()
+
+      const { data: memberships } = await supabase
+        .from('tenant_memberships')
+        .select('*, tenants(*)')
+        .eq('user_id', data.user.id)
+        .eq('status', 'active')
+
+      return {
+        user: {
+          ...data.user,
+          profile,
+          memberships
+        }
+      }
+
+    } catch (error: any) {
+      return { error: error.message }
+    }
+  },
+
+  getSafeSession: async () => {
+    try {
+      console.log('🔍 Getting safe session...');
       
-      // Clear current user cache
-      this.currentUser = null;
+      const sessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Session timeout')), 10000); // 10 segundos
+      });
+
+      const { data: { session } } = await Promise.race([
+        sessionPromise,
+        timeoutPromise
+      ]) as any;
       
-      console.log('Corrupted session cleared successfully')
-    } catch (error) {
-      console.error('Error clearing corrupted session:', error)
-      // Even if signOut fails, clear the local state
-      this.currentUser = null;
+      console.log('📋 Session obtained:', {
+        hasSession: !!session,
+        userEmail: session?.user?.email
+      });
+
+      if (!session?.user) {
+        console.log('📋 No user session found');
+        return { user: null }
+      }
+
+      const profilePromise = supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      const membershipsPromise = supabase
+        .from('tenant_memberships')
+        .select('*, tenants(*)')
+        .eq('user_id', session.user.id)
+        .eq('status', 'active');
+
+      const profileTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Profile timeout')), 5000);
+      });
+
+      const membershipsTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Memberships timeout')), 5000);
+      });
+
+      try {
+        const [profileResult, membershipsResult] = await Promise.all([
+          Promise.race([profilePromise, profileTimeout]),
+          Promise.race([membershipsPromise, membershipsTimeout])
+        ]);
+
+        const { data: profile } = profileResult as any;
+        const { data: memberships } = membershipsResult as any;
+
+        console.log('✅ Profile and memberships loaded');
+
+        return {
+          user: {
+            ...session.user,
+            profile,
+            memberships
+          }
+        }
+
+      } catch (queryError) {
+        console.warn('⚠️ Error loading profile/memberships, returning basic user:', queryError);
+        return {
+          user: {
+            ...session.user,
+            profile: null,
+            memberships: []
+          }
+        }
+      }
+
+    } catch (error: any) {
+      console.error('❌ Error in getSafeSession:', error);
+      return { user: null, error: error.message }
+    }
+  },
+
+  getCurrentUser: async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.user) {
+        return null
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+
+      const { data: memberships } = await supabase
+        .from('tenant_memberships')
+        .select('*, tenants(*)')
+        .eq('user_id', session.user.id)
+        .eq('status', 'active')
+        .first()
+
+      if (memberships && memberships.length > 0) {
+        const defaultMembership = memberships[0]
+        return {
+          id: session.user.id,
+          email: session.user.email,
+          nombre: profile?.full_name || session.user.email,
+          rol: defaultMembership.role_code,
+          tenantId: defaultMembership.tenant_id,
+          tenant: defaultMembership.tenants
+        }
+      }
+
+      return {
+        id: session.user.id,
+        email: session.user.email,
+        nombre: profile?.full_name || session.user.email,
+        rol: null,
+        tenantId: null,
+        tenant: null
+      }
+
+    } catch (error: any) {
+      console.error('Error getting current user:', error)
+      return null
+    }
+  },
+
+  acceptAdminInvitation: async (params: { token: string; workerData: any }): Promise<{ success: boolean; error?: string; data?: any }> => {
+    try {
+      console.log('🔄 Starting acceptAdminInvitation process...');
+      
+      const invitationResult = await authService.getInvitationByToken(params.token)
+      if (!invitationResult.success || !invitationResult.data) {
+        return { success: false, error: invitationResult.error }
+      }
+
+      const invitation = invitationResult.data
+      console.log('✅ Admin invitation found:', invitation.email);
+
+      if (invitation.role_code !== 'admin') {
+        return { success: false, error: 'Esta invitación no es para administrador' }
+      }
+
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('current_users, max_users')
+        .eq('id', invitation.tenant_id)
+        .single()
+
+      if (!tenant) {
+        return { success: false, error: 'Tenant no encontrado' }
+      }
+
+      if (tenant.current_users >= tenant.max_users) {
+        return { success: false, error: 'Se alcanzó el límite máximo de usuarios para este tenant' }
+      }
+
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.user || session.user.email !== invitation.email) {
+        return { success: false, error: 'Sesión de usuario no válida' }
+      }
+
+      const userId = session.user.id
+
+      console.log('🔄 Creating admin membership...');
+
+      const { data: membershipData, error: membershipError } = await supabase
+        .from('tenant_memberships')
+        .insert([{
+          tenant_id: invitation.tenant_id,
+          user_id: userId,
+          role_code: 'admin',
+          status: 'active',
+          invited_by: invitation.invited_by,
+          accepted_at: new Date().toISOString()
+        }])
+        .select()
+        .single()
+
+      if (membershipError) {
+        console.error('❌ Admin membership creation error:', membershipError)
+        return { success: false, error: `Error al crear membresía: ${membershipError.message}` }
+      }
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert([{
+          user_id: userId,
+          email: invitation.email,
+          full_name: params.workerData.fullName,
+          phone: params.workerData.phone,
+          default_tenant_id: invitation.tenant_id,
+        }])
+
+      if (profileError) {
+        console.warn('⚠️ Profile creation warning:', profileError);
+      }
+
+      if (params.workerData.workerId) {
+        await supabase
+          .from('workers')
+          .update({ membership_id: membershipData.id })
+          .eq('id', params.workerData.workerId)
+      }
+
+      const { error: updateError } = await supabase
+        .from('tenants')
+        .update({ current_users: tenant.current_users + 1 })
+        .eq('id', invitation.tenant_id)
+
+      if (updateError) {
+        console.warn('⚠️ Error updating tenant user count:', updateError);
+      }
+
+      await supabase
+        .from('invitations')
+        .update({ 
+          accepted_at: new Date().toISOString()
+        })
+        .eq('id', invitation.id)
+
+      await supabase
+        .from('audit_logs')
+        .insert([{
+          tenant_id: invitation.tenant_id,
+          actor_user_id: userId,
+          action: 'admin_invitation_accepted', 
+          entity: 'invitation', 
+          entity_id: invitation.id, 
+          details: { 
+            email: invitation.email,
+            worker_id: params.workerData.workerId,
+            context: 'admin_setup_complete'
+          }
+        }])
+
+      console.log('✅ Admin invitation accepted successfully');
+
+      return { 
+        success: true, 
+        data: { 
+          userId, 
+          tenantId: invitation.tenant_id,
+          membership: membershipData,
+          isNewAdmin: true
+        } 
+      }
+
+    } catch (error: any) {
+      console.error('❌ Error accepting admin invitation:', error)
+      return { success: false, error: error.message || 'Error inesperado' }
+    }
+  },
+
+  logout: async (): Promise<{ error?: string }> => {
+    try {
+      const { error } = await supabase.auth.signOut()
+      return error ? { error: error.message } : {}
+    } catch (error: any) {
+      return { error: error.message }
     }
   }
 }
-
-export const supabaseAuthService = new SupabaseAuthService();
-
-// For backward compatibility, export as default auth service
-export const authService = new SupabaseAuthService();

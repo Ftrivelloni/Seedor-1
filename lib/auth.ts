@@ -1,7 +1,11 @@
-// Implementación front que usa mocks y persiste en localStorage
-import * as data from "./mocks"
+import { authService as supabaseAuthService } from './supabaseAuth'
 
-export type Tenant = data.Tenant
+export type Tenant = {
+  id: string
+  nombre: string
+  tipo: string
+}
+
 export interface AuthUser {
   id: string
   email: string
@@ -9,6 +13,9 @@ export interface AuthUser {
   tenantId: string
   rol: "Admin" | "Campo" | "Empaque" | "Finanzas"
   tenant: Tenant
+  profile?: any
+  memberships?: any[]
+  worker?: any
 }
 
 const LS_KEY = "seedor_user"
@@ -18,80 +25,90 @@ class AuthService {
 
   constructor() {
     if (typeof window !== "undefined") {
-      try {
-        const raw = window.localStorage.getItem(LS_KEY)
-        if (raw) this.currentUser = JSON.parse(raw)
-      } catch {}
+      const stored = localStorage.getItem(LS_KEY)
+      if (stored) {
+        try {
+          this.currentUser = JSON.parse(stored)
+        } catch (e) {
+          console.warn("Error parsing stored user:", e)
+        }
+      }
     }
   }
 
   async login(email: string, password: string, _opts?: { remember?: boolean }): Promise<AuthUser | null> {
-    // Simula latencia
-    await new Promise((r) => setTimeout(r, 300))
+    try {
+      console.log('🔄 AuthService: Attempting Supabase login...')
+      
+      const { user, error } = await supabaseAuthService.login(email, password)
+      
+      if (error || !user) {
+        console.error('AuthService: Login failed:', error)
+        return null
+      }
 
-    const usuarios: any[] = (data as any).usuarios || []
-    const tenants: Tenant[] = (data as any).tenants || [
-      { id: "t-la-toma", nombre: "La Toma", tipo: "citrus" },
-      { id: "t-campo-norte", nombre: "Campo Norte", tipo: "cereales" },
-    ]
+      console.log('AuthService: Supabase login successful:', user.email)
 
-    const user = usuarios.find((u) => u.email?.toLowerCase() === email.toLowerCase())
-    if (!user) return null
-
-    // Validación básica de pass: 4+ chars (o podés usar "demo123")
-    if (!password || password.length < 4) return null
-
-    const tenant = tenants.find((t) => t.id === user.tenantId) || { id: user.tenantId, nombre: "Mi campo", tipo: "general" }
-
-    const authUser: AuthUser = { ...user, tenant }
-    this.currentUser = authUser
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(LS_KEY, JSON.stringify(authUser))
+      const authUser = this.convertSupabaseUserToAuthUser(user)
+      
+      this.currentUser = authUser
+      if (typeof window !== "undefined") {
+        localStorage.setItem(LS_KEY, JSON.stringify(authUser))
+      }
+      
+      return authUser
+    } catch (error: any) {
+      console.error('AuthService: Login error:', error)
+      return null
     }
-    return authUser
   }
 
   async checkSession(): Promise<AuthUser | null> {
-    // Check if there's a server session cookie
     try {
-      const response = await fetch('/api/auth/me', {
-        method: 'GET',
-        credentials: 'include'
-      });
+      console.log('AuthService: Checking Supabase session...')
       
-      if (response.ok) {
-        const userData = await response.json();
-        if (userData.user) {
-          this.currentUser = userData.user;
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem(LS_KEY, JSON.stringify(userData.user));
-          }
-          return userData.user;
+      const { user, error } = await supabaseAuthService.getSafeSession()
+      
+      if (error || !user) {
+        console.log('AuthService: No valid session')
+        this.currentUser = null
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(LS_KEY)
         }
+        return null
       }
-    } catch (error) {
-      console.log('No server session found, checking localStorage');
-    }
 
-    // Fallback to localStorage if no server session
-    return this.getCurrentUser();
+      console.log('AuthService: Valid session found:', user.email)
+      
+      const authUser = this.convertSupabaseUserToAuthUser(user)
+      this.currentUser = authUser
+      
+      if (typeof window !== "undefined") {
+        localStorage.setItem(LS_KEY, JSON.stringify(authUser))
+      }
+      
+      return authUser
+    } catch (error: any) {
+      console.error('AuthService: Session check error:', error)
+      this.currentUser = null
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(LS_KEY)
+      }
+      return null
+    }
   }
 
   async logout() {
+    console.log('AuthService: Logging out...')
+    
+    await supabaseAuthService.logout()
+    
     this.currentUser = null
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem(LS_KEY)
+      localStorage.removeItem(LS_KEY)
     }
     
-    // Also clear server session
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
-    } catch (error) {
-      console.log('Error clearing server session:', error);
-    }
+    console.log('AuthService: Logout complete')
   }
 
   getCurrentUser(): AuthUser | null {
@@ -99,12 +116,52 @@ class AuthService {
   }
 
   isAuthenticated(): boolean {
-    return this.getCurrentUser() !== null
+    return !!this.currentUser
   }
 
   hasRole(roles: string[]): boolean {
-    const user = this.getCurrentUser()
-    return !!user && roles.includes(user.rol)
+    return !!this.currentUser && roles.includes(this.currentUser.rol)
+  }
+
+  private convertSupabaseUserToAuthUser(supabaseUser: any): AuthUser {
+    const membership = supabaseUser.memberships?.[0]
+    const tenant = membership?.tenants
+
+    const roleMap: { [key: string]: string } = {
+      'administracion': 'Admin',
+      'administración': 'Admin', 
+      'admin': 'Admin',
+      'campo': 'Campo',
+      'empaque': 'Empaque',
+      'finanzas': 'Finanzas',
+      'general': 'Admin'
+    }
+
+    // Buscar worker data si existe
+    let workerData: any = null
+    if (membership?.tenant_id) {
+      // Aquí podrías hacer una query adicional para obtener worker data
+      // Por ahora, usar datos del membership
+    }
+
+    const areaModule = membership?.role_code?.toLowerCase() || 'admin'
+    const rol = roleMap[areaModule] || 'Admin'
+
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email,
+      nombre: supabaseUser.profile?.full_name || supabaseUser.user_metadata?.full_name || 'Usuario',
+      tenantId: membership?.tenant_id || '',
+      rol: rol as "Admin" | "Campo" | "Empaque" | "Finanzas",
+      tenant: {
+        id: tenant?.id || '',
+        nombre: tenant?.name || 'Mi Empresa',
+        tipo: 'general'
+      },
+      profile: supabaseUser.profile,
+      memberships: supabaseUser.memberships,
+      worker: workerData
+    }
   }
 }
 
