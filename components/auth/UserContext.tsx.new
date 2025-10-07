@@ -65,7 +65,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
           setLoading(false)
         }
       }, 100); // Small timeout to debounce multiple rapid calls
-    };
+    }
+
+    loadUser();
 
     const setupAuthListener = async () => {
       try {
@@ -117,10 +119,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Error setting up auth listener:', error)
       }
-    };
-    
-    // Call the functions
-    loadUser();
+    }
+
     setupAuthListener();
     
     // Cleanup function

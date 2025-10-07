@@ -40,27 +40,44 @@ export default function LoginForm() {
     }
 
     setLoading(true);
+    
+    // Crear un timeout para desbloquear la UI en caso de problemas
+    const loginTimeout = setTimeout(() => {
+      setLoading(false);
+      setError("El inicio de sesión está tardando demasiado. Por favor, intenta de nuevo.");
+    }, 15000);
+    
     try {
       // Use the new Supabase authentication service
       const { user, error: authError } = await authService.login(email, password);
+      
+      // Limpiar el timeout ya que la respuesta llegó
+      clearTimeout(loginTimeout);
 
       if (authError) {
         setError(authError);
+        setLoading(false);
         return;
       }
 
       if (!user) {
         setError("Usuario no encontrado o credenciales incorrectas");
+        setLoading(false);
         return;
       }
 
+      console.log('✅ Login successful, redirecting to:', next);
+      
+      // Mostrar un mensaje de éxito brevemente antes de redirigir
+      setError(null);
+      
       // Successful login - redirect to next page
-      const next = params.get("next") || "/home";
       router.push(next);
-
+      
     } catch (err: any) {
-      setError(err.message || "Error inesperado");
-    } finally {
+      clearTimeout(loginTimeout);
+      console.error('❌ Login error:', err);
+      setError(err.message || "Error inesperado. Por favor, intenta nuevamente.");
       setLoading(false);
     }
   }

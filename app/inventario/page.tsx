@@ -9,7 +9,7 @@ import { FeatureProvider } from "../../lib/features-context";
 export default function InventarioRoutePage() {
   const { user, loading, handleLogout } = useAuth({
     redirectToLogin: true,
-    requireRoles: ["Admin", "Inventario"]
+    requireRoles: ["Admin", "Campo", "Empaque", "Finanzas"]
   });
   const router = useRouter();
 
@@ -49,6 +49,7 @@ export default function InventarioRoutePage() {
               ajustes: "/ajustes",
               trabajadores: "/trabajadores",
               contactos: "/contactos",
+              usuarios: "/usuarios",
             };
 
             const targetRoute = pageRoutes[page] || "/home";

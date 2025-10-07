@@ -4,6 +4,7 @@ export type Tenant = {
   id: string
   nombre: string
   tipo: string
+  plan?: string
 }
 
 export interface AuthUser {
@@ -65,12 +66,14 @@ class AuthService {
 
   async checkSession(): Promise<AuthUser | null> {
     try {
-      console.log('AuthService: Checking Supabase session...')
-      
+      // Reducir logs excesivos
       const { user, error } = await supabaseAuthService.getSafeSession()
       
       if (error || !user) {
-        console.log('AuthService: No valid session')
+        // Log mínimo para depuración
+        if (process.env.NODE_ENV === 'development' && typeof window !== "undefined") {
+          // console.log('AuthService: No valid session')
+        }
         this.currentUser = null
         if (typeof window !== "undefined") {
           localStorage.removeItem(LS_KEY)
@@ -78,7 +81,10 @@ class AuthService {
         return null
       }
 
-      console.log('AuthService: Valid session found:', user.email)
+      // Log condicional solo en desarrollo
+      if (process.env.NODE_ENV === 'development' && typeof window !== "undefined") {
+        // console.log('AuthService: Valid session found:', user.email)
+      }
       
       const authUser = this.convertSupabaseUserToAuthUser(user)
       this.currentUser = authUser
@@ -99,16 +105,30 @@ class AuthService {
   }
 
   async logout() {
-    console.log('AuthService: Logging out...')
+    console.log('AuthService: Iniciando cierre de sesión...')
     
-    await supabaseAuthService.logout()
-    
+    // Primero, limpiar datos locales para una experiencia más rápida
     this.currentUser = null
+    
     if (typeof window !== "undefined") {
       localStorage.removeItem(LS_KEY)
+      sessionStorage.clear() // Limpiar también sessionStorage por si acaso
     }
     
-    console.log('AuthService: Logout complete')
+    // Luego, intentar cerrar sesión en Supabase
+    try {
+      const { error } = await supabaseAuthService.logout()
+      
+      if (error) {
+        console.error('AuthService: Error al cerrar sesión:', error)
+      } else {
+        console.log('AuthService: Sesión cerrada correctamente')
+      }
+    } catch (err) {
+      console.error('AuthService: Excepción al cerrar sesión:', err)
+    }
+    
+    console.log('AuthService: Proceso de cierre de sesión completado')
   }
 
   getCurrentUser(): AuthUser | null {
@@ -156,7 +176,8 @@ class AuthService {
       tenant: {
         id: tenant?.id || '',
         nombre: tenant?.name || 'Mi Empresa',
-        tipo: 'general'
+        tipo: 'general',
+        plan: tenant?.plan || 'basic'
       },
       profile: supabaseUser.profile,
       memberships: supabaseUser.memberships,

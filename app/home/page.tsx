@@ -20,8 +20,18 @@ const HomePage = () => {
   const [currentPage, setCurrentPage] = useState("dashboard")
   const router = useRouter()
 
-  // Debug logs
-  console.log('🏠 Home Page - User:', user?.email, 'Rol:', user?.rol, 'Loading:', loading);
+  // Función mejorada para manejar el logout
+  const onLogout = async () => {
+    try {
+      console.log('🚪 Home: Iniciando cierre de sesión...');
+      await handleLogout();
+      console.log('✅ Home: Redirigiendo a login después del cierre de sesión');
+    } catch (error) {
+      console.error('❌ Home: Error en el cierre de sesión:', error);
+      // En caso de error, forzar la redirección
+      router.push('/login');
+    }
+  };
 
   if (loading) {
     return (
@@ -66,7 +76,7 @@ const HomePage = () => {
       <div className="min-h-screen bg-background flex">
         <Sidebar 
           user={user} 
-          onLogout={handleLogout}
+          onLogout={onLogout}
           onNavigate={(page) => {
             // Map page names to their correct routes
             const pageRoutes: Record<string, string> = {
@@ -78,6 +88,7 @@ const HomePage = () => {
               ajustes: "/ajustes",
               trabajadores: "/trabajadores",
               contactos: "/contactos",
+              usuarios: "/usuarios",
             };
 
             // For campo, navigate to the route

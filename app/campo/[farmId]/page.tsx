@@ -47,6 +47,7 @@ export default function FarmPage({ params }: { params: Promise<{ farmId: string 
               ajustes: "/ajustes",
               trabajadores: "/trabajadores",
               contactos: "/contactos",
+              usuarios: "/usuarios",
             }
             const targetRoute = pageRoutes[page] || "/home"
             router.push(targetRoute)

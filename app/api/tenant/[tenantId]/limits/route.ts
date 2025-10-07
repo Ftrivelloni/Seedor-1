@@ -3,10 +3,11 @@ import { supabaseAdmin } from '../../../../../lib/supabaseAdmin'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tenantId: string } }
+  context: { params: { tenantId: string } }
 ) {
   try {
-    const tenantId = params.tenantId
+    // Access tenantId properly to avoid NextJS warnings
+    const { tenantId } = await Promise.resolve(context.params)
 
     // Verify authentication
     const authHeader = request.headers.get('Authorization')
@@ -44,9 +45,9 @@ export async function GET(
       })
     }
 
-    // Count current active users/workers in this tenant
+    // Count current active users in this tenant from tenant_memberships
     const { count: userCount, error: countError } = await supabaseAdmin
-      .from('workers')
+      .from('tenant_memberships')
       .select('*', { count: 'exact', head: true })
       .eq('tenant_id', tenantId)
       .eq('status', 'active')

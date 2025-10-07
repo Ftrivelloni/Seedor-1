@@ -6,7 +6,6 @@ export interface Tenant {
   name: string
   slug: string
   plan: string
-  primary_crop: string
   contact_email: string
   created_by: string
   created_at: string
@@ -144,7 +143,6 @@ export interface CreateTenantRequest {
   name: string
   slug: string
   plan: string
-  primary_crop: string
   contact_email: string
   admin_user: {
     email: string

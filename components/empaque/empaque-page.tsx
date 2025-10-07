@@ -10,7 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Badge } from "../ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { empaqueApi, ingresoFrutaApi, palletsApi, despachoApi } from "../../lib/api"
-import type { AuthUser } from "../../lib/supabaseAuth"
 import type { RegistroEmpaque } from "../../lib/mocks"
 import { Search, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
 import { useEmpaqueAuth } from "./EmpaqueAuthContext"
@@ -60,7 +59,11 @@ export function EmpaquePage() {
     // Cargar preprocesos desde Supabase
     const loadPreprocesos = async () => {
         if (!user?.tenantId) {
-            console.error('No se encontró la sesión del usuario o el tenant ID');
+            // Evitamos el error en la consola si es parte de un proceso de logout
+            if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
+                return; // Si estamos en la página de login, es probable que sea un logout
+            }
+            console.warn('No se encontró la sesión del usuario o el tenant ID');
             return;
         }
 

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import CreateFieldForm from "../../components/campo/create-field-form";
 
 export const metadata: Metadata = {
   title: "Crear campo — Seedor",
@@ -31,8 +30,9 @@ export default function CrearCampoPage() {
         </div>
 
         {/* Derecha: formulario */}
-        <div className="w-full">
-          <CreateFieldForm />
+        <div className="w-full p-6 border rounded-lg shadow-sm">
+          <h2 className="text-xl font-semibold mb-4">Crear nuevo campo</h2>
+          <p className="text-muted-foreground">El formulario para crear campos está en desarrollo.</p>
         </div>
       </section>
     </main>

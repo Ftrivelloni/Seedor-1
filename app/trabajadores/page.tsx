@@ -49,6 +49,7 @@ export default function TrabajadoresRoutePage() {
               ajustes: "/ajustes",
               trabajadores: "/trabajadores",
               contactos: "/contactos",
+              usuarios: "/usuarios",
             };
 
             const targetRoute = pageRoutes[page] || "/home";
