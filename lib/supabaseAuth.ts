@@ -950,6 +950,11 @@ export const authService = {
         timeoutPromise
       ]) as any;
       
+      console.log('📋 Session obtained:', {
+        hasSession: !!session,
+        userEmail: session?.user?.email
+      });
+
       if (!session?.user) {
         if (isDevMode) {
           // console.log('📋 No user session found');
