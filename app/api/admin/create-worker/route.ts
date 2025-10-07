@@ -70,6 +70,27 @@ export async function POST(request: NextRequest) {
           }
         } else {
           console.log('✅ User created successfully');
+          
+          // Crear profile para el usuario
+          console.log('🔄 Creating profile for user:', newUser.user.id);
+          const { data: profileData, error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .insert([{
+              user_id: newUser.user.id,
+              full_name: fullName,
+              phone: phone || null,
+              default_tenant_id: tenantId
+            }])
+            .select()
+            .single();
+
+          if (profileError) {
+            console.error('❌ Error creating profile:', profileError);
+            console.error('❌ Profile error details:', profileError.details);
+            console.error('❌ Profile error hint:', profileError.hint);
+          } else {
+            console.log('✅ Profile created successfully:', profileData);
+          }
         }
 
       } catch (authError: any) {

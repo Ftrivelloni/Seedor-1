@@ -85,6 +85,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Verificar que el usuario invitador tenga un profile
+    const { data: inviterProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('user_id')
+      .eq('user_id', invitedBy)
+      .single()
+
+    if (!inviterProfile) {
+      return NextResponse.json(
+        { error: 'El usuario invitador no tiene un perfil válido' },
+        { status: 400 }
+      )
+    }
+
     const crypto = require('crypto')
     const token = crypto.randomBytes(32).toString('hex')
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 días

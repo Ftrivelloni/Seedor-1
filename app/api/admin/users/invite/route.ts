@@ -105,6 +105,28 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
+    // Create profile for the user
+    console.log('🔄 Creating profile for user:', authData.user.id);
+    const { data: profileData, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert([{
+        user_id: authData.user.id,
+        full_name: fullName,
+        phone: phone || null,
+        default_tenant_id: currentWorker.tenant_id
+      }])
+      .select()
+      .single();
+
+    if (profileError) {
+      console.error('❌ Error creating profile:', profileError);
+      console.error('❌ Profile error details:', profileError.details);
+      console.error('❌ Profile error hint:', profileError.hint);
+      // No hacemos cleanup porque el profile no es crítico para el funcionamiento
+    } else {
+      console.log('✅ Profile created successfully:', profileData);
+    }
+
     // Create worker profile
     const { data: worker, error: workerError } = await supabaseAdmin
       .from('workers')

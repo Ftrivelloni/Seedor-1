@@ -259,47 +259,29 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
 
     try {
         if (userType === 'admin') {
-        // Lógica para admin (mantener igual)
-        console.log('🔄 Creating admin worker profile...');
+        // ✅ CAMBIO: Para admin, solo guardar datos y continuar al siguiente paso
+        console.log('🔄 Preparing admin data...');
         
-        const response = await fetch('/api/admin/create-worker', {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-            tenantId: invitation.tenant_id,
-            email: invitation.email,
-            fullName,
-            documentId,
-            phone,
-            password: null, // Admin no crea password en este paso
-            areaModule: 'administracion',
-            membershipId: null 
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error al crear worker');
-        }
-
-        const workerData = await response.json();
-
         // Guardar datos para el siguiente paso
         if (typeof window !== 'undefined') {
             sessionStorage.setItem('admin_auth_data', JSON.stringify({
             fullName,
             password,
             phone,
-            workerId: workerData.data.id,
+            documentId,
             token
             }));
         }
 
         // Para admin, llamar onComplete si existe
         if (onComplete) {
-            onComplete(workerData.data);
+            console.log('✅ Admin data prepared, calling onComplete');
+            onComplete({
+                fullName,
+                phone,
+                documentId,
+                password
+            });
             return;
         } else {
             setCurrentStep('complete');

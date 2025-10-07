@@ -223,14 +223,15 @@ export const authService = {
         .from('profiles')
         .upsert([{
           user_id: session.user.id,
-          email: session.user.email,
           full_name: cleanData.contactName,
           phone: cleanData.ownerPhone,
           default_tenant_id: tenantData.id,
         }])
 
       if (profileError) {
-        console.warn('⚠️ Profile creation warning (non-critical):', profileError.message || profileError)
+        console.error('❌ Profile creation error:', profileError)
+        // No debemos continuar si no se puede crear el profile ya que es requerido para las invitaciones
+        return { success: false, error: `Error al crear perfil de usuario: ${profileError.message}` }
       }
 
       const { data: membershipData, error: membershipError } = await supabase
@@ -469,7 +470,22 @@ export const authService = {
 
       console.log('✅ No existing invitation')
 
-      console.log('🔍 Step 4: Creating invitation...')
+      console.log('🔍 Step 4: Verifying inviter profile...')
+      
+      const { data: inviterProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('user_id', params.invitedBy)
+        .single()
+
+      if (profileError || !inviterProfile) {
+        console.error('❌ Inviter profile not found:', profileError)
+        return { success: false, error: 'El usuario invitador no tiene un perfil válido' }
+      }
+
+      console.log('✅ Inviter profile verified')
+
+      console.log('🔍 Step 5: Creating invitation...')
       
       const insertData = {
         tenant_id: params.tenantId,
@@ -734,18 +750,24 @@ export const authService = {
         }
 
         // Actualizar o crear profile
-        const { error: profileError } = await supabase
+        console.log('🔄 Creating/updating profile for user:', userId);
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .upsert([{
             user_id: userId,
-            email: invitation.email,
             full_name: params.userData.fullName,
             phone: params.userData.phone,
             default_tenant_id: invitation.tenant_id,
           }], { onConflict: 'user_id' })
+          .select()
+          .single()
 
         if (profileError) {
-          console.warn('⚠️ Error updating profile:', profileError);
+          console.error('❌ Error creating/updating profile:', profileError);
+          console.error('❌ Profile error details:', profileError.details);
+          console.error('❌ Profile error hint:', profileError.hint);
+        } else {
+          console.log('✅ Profile created/updated successfully:', profileData);
         }
       }
 
@@ -1066,7 +1088,6 @@ export const authService = {
         .from('profiles')
         .upsert([{
           user_id: userId,
-          email: invitation.email,
           full_name: params.workerData.fullName,
           phone: params.workerData.phone,
           default_tenant_id: invitation.tenant_id,
@@ -1076,11 +1097,25 @@ export const authService = {
         console.warn('⚠️ Profile creation warning:', profileError);
       }
 
-      if (params.workerData.workerId) {
-        await supabase
-          .from('workers')
-          .update({ membership_id: membershipData.id })
-          .eq('id', params.workerData.workerId)
+      // Crear worker profile para el admin
+      const { data: workerData, error: workerError } = await supabase
+        .from('workers')
+        .insert([{
+          tenant_id: invitation.tenant_id,
+          full_name: params.workerData.fullName,
+          document_id: params.workerData.documentId || '',
+          email: invitation.email,
+          phone: params.workerData.phone || null,
+          area_module: 'administracion',
+          membership_id: membershipData.id,
+          status: 'active'
+        }])
+        .select()
+        .single()
+
+      if (workerError) {
+        console.warn('⚠️ Error creating admin worker profile:', workerError);
+        // No hacemos cleanup porque el worker no es crítico para el admin
       }
 
       const { error: updateError } = await supabase

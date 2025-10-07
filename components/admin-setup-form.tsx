@@ -178,7 +178,8 @@ export default function AdminSetupForm() {
             workerData: {
               fullName: data.fullName,
               phone: data.phone,
-              workerId: data.workerId
+              documentId: data.documentId, // Incluir documentId del admin
+              workerId: null // No hay workerId para admin
             }
           });
 
