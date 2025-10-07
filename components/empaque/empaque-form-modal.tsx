@@ -34,7 +34,6 @@ export function EmpaqueFormModal({ isOpen, onClose, onSubmit, tenantId }: Empaqu
   })
   const [isLoading, setIsLoading] = useState(false)
 
-  // Set initial date on client side only
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
@@ -56,7 +55,6 @@ export function EmpaqueFormModal({ isOpen, onClose, onSubmit, tenantId }: Empaqu
         notas: formData.notas || undefined,
       })
       onClose()
-      // Reset form
       setFormData({
         fecha: new Date().toISOString().split("T")[0],
         cultivo: "",
@@ -138,7 +136,6 @@ export function EmpaqueFormModal({ isOpen, onClose, onSubmit, tenantId }: Empaqu
             </div>
           </div>
 
-          {/* Calculated field */}
           <div className="p-3 bg-muted rounded-lg">
             <Label className="text-sm font-medium">Kg Descartados (Calculado)</Label>
             <p className="text-2xl font-bold text-destructive">{kgDescartados.toFixed(1)} kg</p>

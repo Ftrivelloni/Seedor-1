@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { AuthUser } from '../lib/supabaseAuth'
 
-// Function to get features based on plan
 function getPlanFeatures(planName: string): TenantFeature[] {
   const plan = planName.toLowerCase()
   
@@ -41,7 +40,6 @@ function getPlanFeatures(planName: string): TenantFeature[] {
     ]
   }
 
-  // Default to basic plan features
   return [
     ...baseFeatures,
     { feature_code: 'campo', feature_name: 'Gestión de Campo', is_enabled: false },
@@ -103,14 +101,11 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
     try {
       setIsLoading(true)
       
-      // Use tenant plan from user object instead of API call
       const tenantPlan = user.tenant?.plan || 'basic'
       
-      // Load tenant features based on plan
       const planFeatures = getPlanFeatures(tenantPlan)
       setFeatures(planFeatures)
 
-      // Set plan info based on tenant plan
       const planDisplayNames = {
         'basic': 'Plan Básico',
         'basico': 'Plan Básico', 
@@ -138,7 +133,6 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
       })
     } catch (error) {
       console.error('Error loading features:', error)
-      // Set minimal fallback features
       setFeatures([
         { feature_code: 'campo', feature_name: 'Gestión de Campo', is_enabled: true },
         { feature_code: 'inventario', feature_name: 'Gestión de Inventario', is_enabled: true }
@@ -159,7 +153,6 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
     return feature?.is_enabled || false
   }
 
-  // Role-based access control matrix
   const roleModuleAccess: Record<string, string[]> = {
     admin: ['dashboard', 'campo', 'empaque', 'finanzas', 'inventario', 'trabajadores', 'contactos', 'ajustes', 'user_management'],
     campo: ['dashboard', 'campo', 'inventario', 'trabajadores', 'ajustes'],
@@ -168,21 +161,22 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
   }
 
   const canAccessModule = (module: string, userRole: string): boolean => {
+    if (!userRole || typeof userRole !== 'string') {
+      console.warn('⚠️ canAccessModule: userRole is invalid:', userRole);
+      return false;
+    }
+
     const moduleKey = module.toLowerCase()
     const userRoleKey = userRole.toLowerCase()
     
-    // First check if user role allows access to this module
     const roleAllowed = roleModuleAccess[userRoleKey]?.includes(moduleKey) || false
     
-    // Then check if tenant plan includes this feature
     const featureEnabled = hasFeature(moduleKey)
     
-    // Special case: user_management is only for admins
     if (moduleKey === 'user_management') {
       return userRoleKey === 'admin' && featureEnabled
     }
     
-    // Both role and plan must allow access
     return roleAllowed && featureEnabled
   }
 
@@ -206,7 +200,6 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
   )
 }
 
-// Hook for checking specific feature access
 export function useFeatureAccess(featureCode: string) {
   const { hasFeature, isLoading } = useFeatures()
   return {
@@ -215,7 +208,6 @@ export function useFeatureAccess(featureCode: string) {
   }
 }
 
-// Hook for checking module access based on user role and plan
 export function useModuleAccess(module: string, userRole: string) {
   const { canAccessModule, isLoading } = useFeatures()
   return {
@@ -224,7 +216,6 @@ export function useModuleAccess(module: string, userRole: string) {
   }
 }
 
-// Component for conditionally rendering based on features
 interface FeatureGateProps {
   feature: string
   children: React.ReactNode
@@ -241,7 +232,6 @@ export function FeatureGate({ feature, children, fallback = null }: FeatureGateP
   return hasFeature(feature) ? <>{children}</> : <>{fallback}</>
 }
 
-// Component for role + feature based rendering
 interface ModuleGateProps {
   module: string
   userRole: string
@@ -259,7 +249,6 @@ export function ModuleGate({ module, userRole, children, fallback = null }: Modu
   return canAccessModule(module, userRole) ? <>{children}</> : <>{fallback}</>
 }
 
-// Component for displaying plan upgrade prompts
 interface PlanUpgradePromptProps {
   feature: string
   children?: React.ReactNode

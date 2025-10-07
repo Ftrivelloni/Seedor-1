@@ -159,15 +159,12 @@ export default function DespachoFormModal({
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            {/* quitamos transparencias y dejamos padding interno controlado */}
             <DialogContent className="max-h-[85vh] w-full max-w-3xl overflow-auto p-0">
                 <DialogHeader className="px-6 pt-6">
                     <DialogTitle className="text-2xl">Nuevo despacho</DialogTitle>
                 </DialogHeader>
 
-                {/* contenido scrolleable con espacio de reserva al final */}
                 <form onSubmit={submit} className="space-y-8 px-6 pb-28 pt-4">
-                    {/* Datos del envío */}
                     <section className="rounded-xl border border-gray-300/80 bg-muted/30 p-4">
                         <h3 className="mb-3 text-base font-semibold">Datos del envío</h3>
                         <div className="grid gap-5 sm:grid-cols-2">
@@ -286,7 +283,6 @@ export default function DespachoFormModal({
                         </div>
                     </section>
 
-                    {/* Transporte y chofer */}
                     <section className="rounded-xl border border-gray-300/80 bg-muted/30 p-4">
                         <h3 className="mb-3 text-base font-semibold">Transporte y chofer</h3>
                         <div className="grid gap-5 sm:grid-cols-2">
@@ -370,7 +366,6 @@ export default function DespachoFormModal({
                         </div>
                     </section>
 
-                    {/* Totales y control */}
                     <section className="rounded-xl border border-gray-300/80 bg-muted/30 p-4">
                         <h3 className="mb-3 text-base font-semibold">Totales y control</h3>
                         <div className="grid gap-5 sm:grid-cols-3">
@@ -421,7 +416,6 @@ export default function DespachoFormModal({
                     </section>
                 </form>
 
-                {/* Footer FIRM (no transparente) */}
                 <div className="sticky bottom-0 z-50 w-full border-t bg-background px-6 py-3 shadow-[0_-6px_12px_-6px_rgba(0,0,0,0.08)]">
                     <div className="flex items-center justify-end gap-2">
                         <Button type="button" variant="outline" onClick={onClose} className="h-10">

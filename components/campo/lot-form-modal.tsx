@@ -71,7 +71,6 @@ export function LotFormModal({ isOpen, onClose, onSubmit, farmId, lot }: LotForm
       if (data && data.length > 0) {
         setStatuses(data)
       } else {
-        // Si la tabla está vacía, usar fallback
         setStatuses([
           { code: "activo", name: "Activo" },
           { code: "inactivo", name: "Inactivo" },
@@ -80,7 +79,6 @@ export function LotFormModal({ isOpen, onClose, onSubmit, farmId, lot }: LotForm
       }
     } catch (error) {
       console.error("Error loading statuses:", error)
-      // Fallback statuses
       setStatuses([
         { code: "activo", name: "Activo" },
         { code: "inactivo", name: "Inactivo" },

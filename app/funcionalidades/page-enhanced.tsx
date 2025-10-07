@@ -17,30 +17,25 @@ export default function FuncionalidadesEnhanced() {
     const { user, loading } = useUser();
     const [currentPlan, setCurrentPlan] = useState<string>("basic");
 
-    // Redirect to login if not authenticated
     useEffect(() => {
         if (!loading && !user) {
             router.push("/login");
             return;
         }
 
-        // Get tenant's current plan
         if (user?.tenant?.plan) {
             setCurrentPlan(user.tenant.plan);
         }
     }, [user, loading, router]);
 
-    // Get current plan configuration
     const planConfig = useMemo(() => {
         return getPlanConfig(currentPlan);
     }, [currentPlan]);
 
-    // Get recommended upgrade
     const recommendedUpgrade = useMemo(() => {
         return getRecommendedUpgrade(currentPlan);
     }, [currentPlan]);
 
-    // Group features by module with plan availability
     const featuresByModule = useMemo(() => {
         const modules: Record<string, {
             features: (Feature & { 
@@ -52,7 +47,6 @@ export default function FuncionalidadesEnhanced() {
             includedFeatures: number;
         }> = {};
 
-        // Initialize modules
         for (const moduleName of MODULES) {
             modules[moduleName] = {
                 features: [],
@@ -61,12 +55,10 @@ export default function FuncionalidadesEnhanced() {
             };
         }
 
-        // Process features
         for (const feature of FEATURES) {
             const included = isFeatureIncludedInPlan(feature.id, currentPlan);
             const isRequired = feature.required;
             
-            // Find which plan includes this feature (if not included in current plan)
             let availableInPlan: string | null = null;
             if (!included && !isRequired) {
                 for (const config of PLAN_FEATURE_CONFIGS) {
@@ -94,7 +86,6 @@ export default function FuncionalidadesEnhanced() {
         return modules;
     }, [currentPlan]);
 
-    // Calculate overall stats
     const overallStats = useMemo(() => {
         const total = FEATURES.length;
         const included = FEATURES.filter(f => 
@@ -105,7 +96,6 @@ export default function FuncionalidadesEnhanced() {
         return { total, included, percentage };
     }, [currentPlan]);
 
-    // Get plan icon
     const getPlanIcon = (planId: string) => {
         switch (planId) {
             case 'basic': return <Star className="h-4 w-4" />;
@@ -115,7 +105,6 @@ export default function FuncionalidadesEnhanced() {
         }
     };
 
-    // Get plan color
     const getPlanColor = (planId: string) => {
         switch (planId) {
             case 'basic': return 'text-blue-600 bg-blue-100';
@@ -136,12 +125,11 @@ export default function FuncionalidadesEnhanced() {
     }
 
     if (!user) {
-        return null; // Will redirect to login
+        return null; 
     }
 
     return (
         <main className="mx-auto max-w-6xl px-4 py-10">
-            {/* Header */}
             <div className="mb-6">
                 <div className="flex items-center justify-between">
                     <div>
@@ -153,7 +141,6 @@ export default function FuncionalidadesEnhanced() {
                         </p>
                     </div>
                     
-                    {/* Current plan badge */}
                     <div className="flex items-center gap-3">
                         <Badge variant="outline" className={`${getPlanColor(currentPlan)} border-current`}>
                             <div className="flex items-center gap-1">
@@ -167,7 +154,6 @@ export default function FuncionalidadesEnhanced() {
                     </div>
                 </div>
 
-                {/* Stats overview */}
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card>
                         <CardContent className="pt-6">
@@ -224,7 +210,6 @@ export default function FuncionalidadesEnhanced() {
                 </div>
             </div>
 
-            {/* Upgrade recommendation */}
             {recommendedUpgrade && (
                 <Alert className="mb-6 border-primary/20 bg-primary/5">
                     <Star className="h-4 w-4 text-primary" />
@@ -245,7 +230,6 @@ export default function FuncionalidadesEnhanced() {
                 </Alert>
             )}
 
-            {/* Features by module */}
             <div className="space-y-6">
                 {MODULES.map((moduleName) => {
                     const moduleData = featuresByModule[moduleName];
@@ -352,7 +336,6 @@ export default function FuncionalidadesEnhanced() {
                 })}
             </div>
 
-            {/* Upgrade CTA */}
             <div className="mt-8 text-center">
                 <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
                     <CardContent className="pt-6">

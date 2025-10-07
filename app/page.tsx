@@ -6,7 +6,6 @@ import { ArrowRight, Leaf, Warehouse, LineChart, ChevronDown, Users, Shield, Bar
 import Header from "../components/header"
 
 export default function LandingPage() {
-    // Función para scroll suave
     const scrollToHero = () => {
         const heroSection = document.getElementById('hero');
         if (heroSection) {
@@ -19,14 +18,10 @@ export default function LandingPage() {
 
     return (
         <>
-            {/* Header fijo */}
             <Header />
 
-            {/* Main sin padding-top, el video empieza desde arriba */}
             <main className="min-h-screen bg-background">
-                {/* Welcome Intro - Video ocupa toda la pantalla incluyendo debajo del header */}
                 <section className="relative flex min-h-screen items-center justify-center overflow-hidden">
-                    {/* VIDEO de fondo */}
                     <video
                         className="absolute inset-0 z-0 h-full w-full object-cover"
                         autoPlay
@@ -41,12 +36,9 @@ export default function LandingPage() {
                         <source src="/DroneView.mp4" type="video/mp4" />
                     </video>
 
-                    {/* Scrim/overlay mejorado */}
                     <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/60 via-black/40 to-black/60" />
 
-                    {/* Contenido mejorado - con padding-top para compensar el header */}
                     <div className="relative z-20 mx-auto max-w-7xl px-6 text-center text-white flex flex-col justify-center min-h-screen py-20 pt-32">
-                        {/* Badge de nuevo con espacio superior */}
                         <div className="mb-8 animate-fade-in-up">
                             <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm hover:bg-white/20 transition-all duration-300 cursor-pointer" style={{ fontFamily: 'Circular Std, sans-serif' }}>
                                 <Star className="h-4 w-4" />
@@ -54,7 +46,6 @@ export default function LandingPage() {
                             </span>
                         </div>
 
-                        {/* Logo y texto mejorado */}
                         <div className="mb-12 animate-fade-in-up delay-200">
                             <div className="flex items-center justify-center gap-4 mb-6">
                                 <Image
@@ -71,7 +62,6 @@ export default function LandingPage() {
                             </div>
                         </div>
 
-                        {/* Título principal mejorado */}
                         <div className="animate-fade-in-up delay-400">
                             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl leading-tight bg-gradient-to-r from-white via-gray-100 to-white bg-clip-text text-transparent" style={{ fontFamily: 'Circular Std, sans-serif' }}>
                                 Simplificá la gestión agropecuaria
@@ -80,7 +70,6 @@ export default function LandingPage() {
                                 La plataforma integral que necesitás para administrar tu campo de manera profesional y eficiente.
                             </p>
                             
-                            {/* Botón descubrir más con animación suave */}
                             <div className="mt-12 mb-20 flex justify-center">
                                 <button
                                     onClick={scrollToHero}
@@ -95,7 +84,6 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                {/* Hero mejorado */}
                 <section id="hero" className="relative overflow-hidden bg-gradient-to-b from-green-50/50 to-white">
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-green-100/20 via-transparent to-transparent" />
                     <div className="mx-auto max-w-7xl px-6 pt-24 pb-16 md:pt-32 md:pb-24">
@@ -127,7 +115,6 @@ export default function LandingPage() {
                                 </Link>
                             </div>
 
-                            {/* Stats */}
                             <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 animate-fade-in-up delay-400">
                                 <div className="text-center">
                                     <div className="text-3xl font-black" style={{ color: '#73AC01', fontFamily: 'Circular Std, sans-serif' }}>500+</div>
@@ -150,7 +137,6 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                {/* Features mejoradas */}
                 <section className="mx-auto max-w-7xl px-6 pt-16 pb-16 md:pt-24 md:pb-24">
                     <div className="text-center mb-16 animate-fade-in-up">
                         <h2 className="text-3xl font-black text-slate-900 sm:text-4xl lg:text-5xl" style={{ fontFamily: 'Circular Std, sans-serif' }}>
@@ -186,7 +172,6 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                {/* Nueva sección de beneficios */}
                 <section className="bg-gradient-to-r from-green-50 to-lime-50 py-24">
                     <div className="mx-auto max-w-7xl px-6">
                         <div className="grid md:grid-cols-2 gap-16 items-center">
@@ -244,10 +229,8 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                {/* CTA mejorado */}
                 <section className="mx-auto max-w-7xl px-6 pb-24 md:pb-32 pt-24 md:pt-32">
                     <div className="relative overflow-hidden rounded-3xl p-12 md:p-16 text-white text-center shadow-2xl animate-fade-in-up" style={{ background: 'linear-gradient(135deg, #73AC01, #8BC34A)' }}>
-                        {/* Efectos de fondo */}
                         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=60 height=60 viewBox=0 0 60 60 xmlns=http://www.w3.org/2000/svg%3E%3Cg fill=none fill-rule=evenodd%3E%3Cg fill=%23ffffff fill-opacity=0.05%3E%3Ccircle cx=30 cy=30 r=4/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20"></div>
                         
                         <div className="relative z-10">
@@ -278,7 +261,6 @@ export default function LandingPage() {
     )
 }
 
-// ...resto de los componentes igual...
 function FeatureCard({ 
     icon, 
     title, 

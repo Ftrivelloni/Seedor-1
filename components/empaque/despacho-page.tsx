@@ -38,10 +38,8 @@ export function DespachoPage() {
     const [modalOpen, setModalOpen] = useState(false)
     const router = useRouter()
     
-    // Get user from EmpaqueAuthContext (provided by layout)
     const { empaqueUser: user } = useEmpaqueAuth();
 
-    // Load data when user is available
     useEffect(() => {
         if (user?.tenantId) {
             loadDespachos();
@@ -63,7 +61,6 @@ export function DespachoPage() {
         setDespachos(error ? [] : (data || []))
     }
 
-    // ======== Filtros / Orden ========
     useEffect(() => {
         let list = [...despachos]
 
@@ -88,11 +85,9 @@ export function DespachoPage() {
         setPage(1)
     }, [despachos, searchTerm, estadoFilter])
 
-    // ======== Métricas ========
     const totalPallets = filtered.reduce((sum, d) => sum + (d.total_pallets || 0), 0)
     const totalCajas = filtered.reduce((sum, d) => sum + (d.total_cajas || 0), 0)
 
-    // ======== Excel Export ========
     const exportToExcel = () => {
         const headers = {
             fecha: "Fecha",
@@ -113,7 +108,6 @@ export function DespachoPage() {
         })
     }
 
-    // ======== Paginación ========
     const totalRows = filtered.length
     const totalPages = Math.max(1, Math.ceil(totalRows / pageSize))
     const start = (page - 1) * pageSize
@@ -132,12 +126,11 @@ export function DespachoPage() {
     }
     
     if (!user) {
-        return null; // Let the authentication redirect handle it
+        return null; 
     }
 
     return (
         <div className="mx-auto w-full max-w-4xl md:max-w-5xl px-3 md:px-6 py-6 space-y-6">
-            {/* Header */}
             <div className="flex flex-col gap-2 mb-6">
                 <div className="flex items-center gap-3">
                     <Button variant="outline" size="sm" onClick={() => router.push("/empaque")}>
@@ -174,7 +167,6 @@ export function DespachoPage() {
                 </div>
             </div>
 
-            {/* KPIs */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <Card>
                     <CardHeader className="pb-2">
@@ -210,7 +202,6 @@ export function DespachoPage() {
                 </Card>
             </div>
 
-            {/* Filtros */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -251,7 +242,6 @@ export function DespachoPage() {
                 </CardContent>
             </Card>
 
-            {/* Tabla */}
             <Card>
                 <CardHeader className="gap-2">
                     <CardTitle className="flex items-center gap-2">
@@ -303,7 +293,6 @@ export function DespachoPage() {
                                 </Table>
                             </div>
 
-                            {/* Paginación */}
                             <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
                                 <div className="text-sm text-muted-foreground">
                                     Mostrando <strong>{Math.min(end, totalRows)}</strong> de <strong>{totalRows}</strong> — página {page} de {totalPages}

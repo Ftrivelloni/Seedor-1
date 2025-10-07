@@ -4,7 +4,6 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Light mode colors with agricultural theme */
   --background: oklch(1 0 0); /* Pure white background */
   --foreground: oklch(0.3 0 0); /* Dark gray text */
   --card: oklch(0.98 0 0); /* Off-white card background */

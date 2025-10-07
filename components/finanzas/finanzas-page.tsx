@@ -49,7 +49,6 @@ export function FinanzasPage() {
   const applyFilters = () => {
     let filtered = movimientos
 
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(
         (movimiento) =>
@@ -60,17 +59,14 @@ export function FinanzasPage() {
       )
     }
 
-    // Type filter
     if (filterTipo !== "all") {
       filtered = filtered.filter((movimiento) => movimiento.tipo === filterTipo)
     }
 
-    // Category filter
     if (filterCategoria !== "all") {
       filtered = filtered.filter((movimiento) => movimiento.categoria === filterCategoria)
     }
 
-    // Sort by date (most recent first)
     filtered = filtered.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
     setFilteredMovimientos(filtered)
@@ -108,7 +104,6 @@ export function FinanzasPage() {
     document.body.removeChild(link)
   }
 
-  // Calculate statistics
   const totalIngresos = movimientos.filter((m) => m.tipo === "ingreso").reduce((sum, m) => sum + m.monto, 0)
   const totalEgresos = movimientos.filter((m) => m.tipo === "egreso").reduce((sum, m) => sum + m.monto, 0)
   const balance = totalIngresos - totalEgresos
@@ -150,7 +145,6 @@ export function FinanzasPage() {
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-6">
 
-      {/* Balance Card */}
       <Card className={balance >= 0 ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -181,7 +175,6 @@ export function FinanzasPage() {
         </CardContent>
       </Card>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -225,7 +218,6 @@ export function FinanzasPage() {
         </Card>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -271,7 +263,6 @@ export function FinanzasPage() {
         </CardContent>
       </Card>
 
-      {/* Movements Table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -345,7 +336,6 @@ export function FinanzasPage() {
         </CardContent>
       </Card>
 
-      {/* Form Modal */}
       <FinanzasFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

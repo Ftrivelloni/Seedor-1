@@ -63,7 +63,6 @@ export function InventarioPage() {
   const applyFilters = () => {
     let filtered = items
 
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(
         (item) =>
@@ -72,12 +71,10 @@ export function InventarioPage() {
       )
     }
 
-    // Category filter
     if (filterCategoria !== "all") {
       filtered = filtered.filter((item) => item.categoria === filterCategoria)
     }
 
-    // Stock filter
     if (filterStock === "low") {
       filtered = filtered.filter((item) => item.stock <= item.stockMinimo)
     } else if (filterStock === "normal") {
@@ -101,7 +98,6 @@ export function InventarioPage() {
     }
   }
 
-  // Calculate statistics
   const totalItems = items.length
   const lowStockItems = items.filter((item) => item.stock <= item.stockMinimo)
   const categoryCounts = items.reduce(
@@ -146,7 +142,6 @@ export function InventarioPage() {
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-6">
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -186,7 +181,6 @@ export function InventarioPage() {
         </Card>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -232,7 +226,6 @@ export function InventarioPage() {
         </CardContent>
       </Card>
 
-      {/* Low Stock Alert */}
       {lowStockItems.length > 0 && (
         <Card className="border-destructive/20 bg-destructive/5">
           <CardHeader>
@@ -269,7 +262,6 @@ export function InventarioPage() {
         </Card>
       )}
 
-      {/* Inventory Table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">

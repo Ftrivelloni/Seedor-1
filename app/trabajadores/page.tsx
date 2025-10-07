@@ -39,7 +39,6 @@ export default function TrabajadoresRoutePage() {
           user={user} 
           onLogout={handleLogout} 
           onNavigate={(page) => {
-            // Map page names to their correct routes
             const pageRoutes: Record<string, string> = {
               dashboard: "/home",
               campo: "/campo",

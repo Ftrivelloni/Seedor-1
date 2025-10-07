@@ -21,7 +21,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // DEMO: aceptar cualquier token + password
     await new Promise((r) => setTimeout(r, 600));
     return NextResponse.json({ ok: true });
   } catch {

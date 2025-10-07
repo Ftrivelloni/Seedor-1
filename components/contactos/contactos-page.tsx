@@ -12,7 +12,6 @@ export default function ContactosPage() {
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-6">
 
-      {/* Ejemplo de tarjetas informativas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between">
           <h3 className="font-semibold text-lg mb-2 text-yellow-600">Proveedores</h3>
@@ -28,7 +27,6 @@ export default function ContactosPage() {
         </div>
       </div>
 
-      {/* Aquí irán los formularios y tablas de contactos */}
         </div>
       </main>
     </div>

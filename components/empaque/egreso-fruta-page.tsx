@@ -17,7 +17,6 @@ import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, Search }
 import EgresoFrutaFormModal from "./egreso-fruta-form-modal"
 
 export function EgresoFrutaPage() {
-    // Get user from EmpaqueAuthContext (provided by layout)
     const { empaqueUser: user } = useEmpaqueAuth();
     
     const [egresos, setEgresos] = useState<any[]>([])
@@ -31,7 +30,6 @@ export function EgresoFrutaPage() {
     const [modalOpen, setModalOpen] = useState(false)
     const router = useRouter()
 
-    // ========= Auth & carga =========
     useEffect(() => {
         if (user?.tenantId) {
             loadEgresos();
@@ -53,7 +51,6 @@ export function EgresoFrutaPage() {
         setEgresos(error ? [] : (data || []))
     }
 
-    // ========= Filtros / orden =========
     useEffect(() => {
         let list = [...egresos]
 
@@ -80,7 +77,6 @@ export function EgresoFrutaPage() {
         setPage(1)
     }, [egresos, searchTerm])
 
-    // ========= Excel Export =========
     const exportToExcel = () => {
         const headers = {
             fecha: "Fecha",
@@ -103,7 +99,6 @@ export function EgresoFrutaPage() {
         })
     }
 
-    // ========= Paginación =========
     const totalRows = filtered.length
     const totalPages = Math.max(1, Math.ceil(totalRows / pageSize))
     const start = (page - 1) * pageSize
@@ -122,12 +117,11 @@ export function EgresoFrutaPage() {
     }
     
     if (!user) {
-        return null; // Let the authentication redirect handle it
+        return null; 
     }
 
     return (
         <div className="mx-auto w-full max-w-4xl md:max-w-5xl px-3 md:px-6 py-6 space-y-6">
-            {/* Header */}
             <div className="flex flex-col gap-2 mb-6">
                 <div className="flex items-center gap-3">
                     <Button variant="outline" size="sm" onClick={() => router.push("/empaque")}>
@@ -164,7 +158,6 @@ export function EgresoFrutaPage() {
                 </div>
             </div>
 
-            {/* Buscador (mobile) */}
             <Card className="sm:hidden">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -181,7 +174,6 @@ export function EgresoFrutaPage() {
                 </CardContent>
             </Card>
 
-            {/* Tabla */}
             <Card>
                 <CardHeader className="gap-2">
                     <CardTitle className="flex items-center gap-2">
@@ -237,7 +229,6 @@ export function EgresoFrutaPage() {
                                 </Table>
                             </div>
 
-                            {/* Paginación */}
                             <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
                                 <div className="text-sm text-muted-foreground">
                                     Mostrando <strong>{Math.min(end, totalRows)}</strong> de <strong>{totalRows}</strong> — página {page} de {totalPages}

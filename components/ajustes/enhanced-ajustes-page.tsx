@@ -94,10 +94,8 @@ export function AjustesPage() {
   }
 
   const handleSaveName = () => {
-    // In a real app, this would update the user's name via API
     console.log("Saving name:", editedName)
     setIsEditing(false)
-    // For demo purposes, we'll just close the edit mode
   }
 
   const handleCancelEdit = () => {
@@ -108,7 +106,6 @@ export function AjustesPage() {
   return (
     <FeatureProvider user={user}>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Configuración</h1>
@@ -132,7 +129,6 @@ export function AjustesPage() {
 
           <TabsContent value="profile" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* User Profile */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -187,7 +183,6 @@ export function AjustesPage() {
                 </CardContent>
               </Card>
 
-              {/* Tenant Information */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -227,7 +222,6 @@ export function AjustesPage() {
               </Card>
             </div>
 
-            {/* System Information */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">

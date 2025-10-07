@@ -139,11 +139,9 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
 
         setInvitation(data);
 
-        // Configurar según el rol
         const roleKey = data.role_code as keyof typeof ROLE_CONFIGS;
         setRoleConfig(ROLE_CONFIGS[roleKey] || ROLE_CONFIGS.campo);
 
-        // Cargar datos guardados si existen
         if (typeof window !== 'undefined') {
           const savedData = sessionStorage.getItem(`${roleKey}_signup_data`);
           if (savedData) {
@@ -232,7 +230,6 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
     e.preventDefault();
     setError(null);
 
-    // Validaciones (mantener igual)
     const allErrors: Record<string, string> = {};
     allErrors.documentId = validateField('documentId', documentId);
     allErrors.fullName = validateField('fullName', fullName);
@@ -259,10 +256,8 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
 
     try {
         if (userType === 'admin') {
-        // ✅ CAMBIO: Para admin, solo guardar datos y continuar al siguiente paso
         console.log('🔄 Preparing admin data...');
         
-        // Guardar datos para el siguiente paso
         if (typeof window !== 'undefined') {
             sessionStorage.setItem('admin_auth_data', JSON.stringify({
             fullName,
@@ -273,7 +268,6 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
             }));
         }
 
-        // Para admin, llamar onComplete si existe
         if (onComplete) {
             console.log('✅ Admin data prepared, calling onComplete');
             onComplete({
@@ -287,10 +281,8 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
             setCurrentStep('complete');
         }
         } else {
-        // ✅ CAMBIO: Lógica para usuarios de módulos (igual que admin)
         console.log('🔄 Creating module user worker profile...');
         
-        // 1. Crear worker (SIN password, igual que admin)
         const response = await fetch('/api/admin/create-worker', {
             method: 'POST',
             headers: {
@@ -302,7 +294,7 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
             fullName,
             documentId,
             phone,
-            password: null, // ✅ CAMBIO: No crear password aquí
+            password: null, 
             areaModule: invitation.role_code,
             membershipId: null 
             })
@@ -315,12 +307,11 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
 
         const workerData = await response.json();
 
-        // 2. ✅ CAMBIO: Aceptar invitación con datos de usuario (igual que admin)
-        const { success, error: acceptError } = await authService.acceptInvitation({
+        const { success, error: acceptError } = await authService.acceptInvitationWithSetup({
             token,
             userData: {
             fullName,
-            password, // ✅ La contraseña se establece aquí
+            password, 
             phone: phone || undefined
             }
         });
@@ -330,7 +321,6 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
             return;
         }
 
-        // Limpiar datos temporales
         if (typeof window !== 'undefined') {
             sessionStorage.removeItem(`${invitation.role_code}_signup_data`);
         }
@@ -423,7 +413,6 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmitUserInfo} className="space-y-6">
-          {/* Email estático */}
           <div className="grid gap-3">
             <Label className="text-sm font-semibold text-slate-700">
               Email <span className="text-red-500">*</span>
@@ -468,7 +457,6 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
             icon={User}
           />
 
-          {/* Campo de contraseña */}
           <div className="grid gap-3">
             <Label htmlFor="password" className="text-sm font-semibold text-slate-700">
               Contraseña <span className="text-red-500">*</span>
@@ -519,7 +507,6 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
             icon={Phone}
           />
 
-          {/* Información del rol */}
           <div className="rounded-xl border-2 border-[#81C101]/20 bg-[#81C101]/5 p-4">
             <div className="flex items-center gap-3 mb-2">
               <Icon className={`size-5 ${roleConfig.color}`} />

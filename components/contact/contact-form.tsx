@@ -28,11 +28,8 @@ export default function ContactForm() {
 
     setLoading(true);
     try {
-      // demo front-only: simulamos envío
       await new Promise((r) => setTimeout(r, 700));
       setSent(true);
-      // cuando tengan back:
-      // await fetch("/api/contact", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ firstName,lastName,country,email,phone,message }) })
     } catch (err: any) {
       setError(err?.message || "No se pudo enviar tu mensaje");
     } finally {

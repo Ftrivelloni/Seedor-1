@@ -15,10 +15,8 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
-// GET /api/admin/users - Get all users for the admin's tenant
 export async function GET(request: NextRequest) {
   try {
-    // Get the authorization header
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'No authorization token' }, { status: 401 });
@@ -26,14 +24,12 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.replace('Bearer ', '');
 
-    // Verify the user with the token
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
     if (userError || !user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Get the worker profile for this user
     const { data: currentWorker, error: workerError } = await supabaseAdmin
       .from('workers')
       .select('*, tenant:tenants(*)')
@@ -44,7 +40,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Worker profile not found' }, { status: 404 });
     }
 
-    // Get the membership to check role
     const { data: membership, error: membershipError } = await supabaseAdmin
       .from('tenant_memberships')
       .select('*')
@@ -55,7 +50,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Access denied. Admin role required.' }, { status: 403 });
     }
 
-    // Get all workers for the tenant
     const { data: workers, error: workersError } = await supabaseAdmin
       .from('workers')
       .select(`
@@ -88,7 +82,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT /api/admin/users - Update a user's role or status
 export async function PUT(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization');
@@ -104,14 +97,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Worker ID is required' }, { status: 400 });
     }
 
-    // Verify the requesting user
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
     if (userError || !user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Get the current user's worker profile
     const { data: currentWorker, error: currentWorkerError } = await supabaseAdmin
       .from('workers')
       .select('*, membership:tenant_memberships!workers_membership_id_fkey(*)')
@@ -122,12 +113,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Worker profile not found' }, { status: 404 });
     }
 
-    // Check if current user is admin
     if (!currentWorker.membership || currentWorker.membership.role_code !== 'admin') {
       return NextResponse.json({ error: 'Access denied. Admin role required.' }, { status: 403 });
     }
 
-    // Get the worker to update
     const { data: targetWorker, error: targetWorkerError } = await supabaseAdmin
       .from('workers')
       .select('*')
@@ -139,7 +128,6 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Target worker not found' }, { status: 404 });
     }
 
-    // Update worker status if provided
     if (status) {
       const { error: updateWorkerError } = await supabaseAdmin
         .from('workers')
@@ -151,7 +139,6 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Update membership role if provided
     if (role && targetWorker.membership_id) {
       const { error: updateMembershipError } = await supabaseAdmin
         .from('tenant_memberships')
@@ -162,7 +149,6 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to update user role' }, { status: 500 });
       }
 
-      // Also update area_module in worker to match role
       await supabaseAdmin
         .from('workers')
         .update({ area_module: role })
@@ -180,7 +166,6 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE /api/admin/users - Deactivate a user
 export async function DELETE(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization');
@@ -203,7 +188,6 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Get the current user's worker profile
     const { data: currentWorker, error: currentWorkerError } = await supabaseAdmin
       .from('workers')
       .select('*, membership:tenant_memberships!workers_membership_id_fkey(*)')
@@ -214,12 +198,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Worker profile not found' }, { status: 404 });
     }
 
-    // Check if current user is admin
     if (!currentWorker.membership || currentWorker.membership.role_code !== 'admin') {
       return NextResponse.json({ error: 'Access denied. Admin role required.' }, { status: 403 });
     }
 
-    // Deactivate the worker
     const { error: deactivateError } = await supabaseAdmin
       .from('workers')
       .update({ status: 'inactive', updated_at: new Date().toISOString() })
@@ -230,7 +212,6 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to deactivate user' }, { status: 500 });
     }
 
-    // Also deactivate the membership
     const { data: targetWorker } = await supabaseAdmin
       .from('workers')
       .select('membership_id')

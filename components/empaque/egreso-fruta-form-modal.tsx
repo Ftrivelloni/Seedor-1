@@ -56,7 +56,6 @@ export default function EgresoFrutaFormModal({
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    // Estilos de inputs consistentes
     const inputStrong =
         "h-11 w-full bg-white border border-gray-300/90 rounded-lg shadow-sm placeholder:text-gray-400 " +
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary/60 transition-colors";
@@ -72,7 +71,6 @@ export default function EgresoFrutaFormModal({
         if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
     };
 
-    // Validaciones simples
     const validateField = (name: keyof FormState, value: string): string => {
         const req = (v: string) => (!v || v.trim() === "" ? "Campo obligatorio" : "");
         const isInt = (v: string) =>
@@ -100,7 +98,6 @@ export default function EgresoFrutaFormModal({
         const fields = Object.keys(form) as (keyof FormState)[];
         const next: Record<string, string> = {};
         fields.forEach((f) => (next[f] = validateField(f, form[f])));
-        // mínimos obligatorios
         next.fecha ||= validateField("fecha", form.fecha);
         next.cliente ||= validateField("cliente", form.cliente);
         next.producto ||= validateField("producto", form.producto);
@@ -148,15 +145,12 @@ export default function EgresoFrutaFormModal({
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            {/* Contenedor del modal sin transparencias, padding controlado */}
             <DialogContent className="max-h-[85vh] w-full max-w-3xl overflow-auto p-0">
                 <DialogHeader className="px-6 pt-6">
                     <DialogTitle className="text-2xl">Nuevo egreso de fruta</DialogTitle>
                 </DialogHeader>
 
-                {/* IMPORTANTE: pb-28 para reservar espacio bajo el footer */}
                 <form id="egreso-form" onSubmit={submit} className="space-y-8 px-6 pt-4 pb-28">
-                    {/* Sección: Datos del egreso */}
                     <section className="rounded-xl border border-gray-300/80 bg-muted/30 p-4">
                         <h3 className="mb-3 text-base font-semibold">Datos del egreso</h3>
                         <div className="grid gap-5 sm:grid-cols-2">
@@ -281,7 +275,6 @@ export default function EgresoFrutaFormModal({
                         </div>
                     </section>
 
-                    {/* Sección: Transporte */}
                     <section className="rounded-xl border border-gray-300/80 bg-muted/30 p-4">
                         <h3 className="mb-3 text-base font-semibold">Transporte</h3>
                         <div className="grid gap-5 sm:grid-cols-2">
@@ -329,7 +322,6 @@ export default function EgresoFrutaFormModal({
                     </section>
                 </form>
 
-                {/* Footer sólido: sin superposición */}
                 <div className="sticky bottom-0 z-50 w-full border-t bg-background px-6 py-3 shadow-[0_-6px_12px_-6px_rgba(0,0,0,0.08)]">
                     <div className="flex items-center justify-end gap-2">
                         <Button type="button" variant="outline" onClick={onClose} className="h-10">

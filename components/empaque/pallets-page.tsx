@@ -8,7 +8,6 @@ import PalletsFormModal from "./pallets-form-modal"
 import { useAuth } from "../../hooks/use-auth"
 import { useEmpaqueAuth } from "./EmpaqueAuthContext"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
-// Si tenés un tipo Pallet propio, podés mantenerlo; acá uso uno derivado.
 type Pallet = {
     id: string
     codigo: string
@@ -35,7 +34,6 @@ import {
     ArrowLeft, ChevronLeft, ChevronRight, Boxes
 } from "lucide-react"
 
-// --- badge de estado (igual al tuyo)
 function EstadoBadge({ estado }: { estado: Pallet["estado"] }) {
     switch (estado) {
         case "armado":
@@ -51,13 +49,7 @@ function EstadoBadge({ estado }: { estado: Pallet["estado"] }) {
     }
 }
 
-/**
- * Normaliza una fila cruda de Supabase (columnas del modal)
- * a la forma que la UI usa.
- *
- * Modal guarda: semana, fecha, num_pallet, producto, productor, categoria,
- * cod_envase, destino, kilos, cant_cajas, peso. :contentReference[oaicite:3]{index=3}
- */
+
 function normalizeRow(row: any): Pallet {
     const id = String(row.id ?? `${row.num_pallet ?? "np"}-${row.fecha ?? "s/fecha"}`)
     return {
@@ -92,10 +84,8 @@ export function PalletsPage() {
     const [modalOpen, setModalOpen] = useState(false)
     const router = useRouter()
     
-    // Get user from EmpaqueAuthContext (provided by layout)
     const { empaqueUser: currentUser } = useEmpaqueAuth();
 
-    // --- fetch
     const fetchPallets = async (tenantId: string) => {
         if (!tenantId) {
             console.error('No se encontró ID del tenant');
@@ -123,7 +113,6 @@ export function PalletsPage() {
         }
     }, [currentUser?.tenantId])
 
-    // --- filtros / búsqueda / orden
     useEffect(() => {
         let list = [...pallets]
 
@@ -142,7 +131,6 @@ export function PalletsPage() {
         if (estadoFilter !== "all") list = list.filter((p) => (p.estado ?? "").toString() === estadoFilter)
         if (ubicacionFilter !== "all") list = list.filter((p) => (p.ubicacion ?? "").toLowerCase() === ubicacionFilter.toLowerCase())
 
-        // fecha robusta
         list.sort((a, b) => {
             const ta = a.fechaCreacion ? new Date(a.fechaCreacion).getTime() : -Infinity
             const tb = b.fechaCreacion ? new Date(b.fechaCreacion).getTime() : -Infinity
@@ -153,13 +141,11 @@ export function PalletsPage() {
         setPage(1)
     }, [pallets, searchTerm, estadoFilter, ubicacionFilter])
 
-    // --- ubicaciones únicas
     const ubicaciones = useMemo(
         () => Array.from(new Set(pallets.map((p) => p.ubicacion).filter(Boolean))).sort() as string[],
         [pallets]
     )
 
-    // --- KPIs
     const stats = useMemo(() => {
         const totalCajas = filtered.reduce((s, p) => s + (p.cantidadCajas || 0), 0)
         const totalPeso = filtered.reduce((s, p) => s + (p.pesoTotal || 0), 0)
@@ -168,7 +154,6 @@ export function PalletsPage() {
         return { totalCajas, totalPeso, enCamara, listoDespacho }
     }, [filtered])
 
-    // --- Excel Export
     const exportToExcel = () => {
         const headers = {
             codigo: "Código",
@@ -192,7 +177,6 @@ export function PalletsPage() {
         })
     }
 
-    // --- paginación
     const totalRows = filtered.length
     const totalPages = Math.max(1, Math.ceil(totalRows / pageSize))
     const start = (page - 1) * pageSize
@@ -212,7 +196,6 @@ export function PalletsPage() {
 
     return (
         <div className="mx-auto w-full max-w-4xl md:max-w-5xl px-3 md:px-6 py-6 space-y-6">
-            {/* Header */}
             <div className="flex flex-col gap-2 mb-6">
                 <div className="flex items-center gap-3">
                     <Button variant="outline" size="sm" onClick={() => router.push("/empaque")}>
@@ -250,7 +233,6 @@ export function PalletsPage() {
                 </div>
             </div>
 
-            {/* KPIs */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                 <Card>
                     <CardHeader className="pb-2">
@@ -305,7 +287,6 @@ export function PalletsPage() {
                 </Card>
             </div>
 
-            {/* Tabla */}
             <Card>
                 <CardHeader className="gap-2">
                     <CardTitle className="flex items-center gap-2">
@@ -398,7 +379,6 @@ export function PalletsPage() {
                                 </Table>
                             </div>
 
-                            {/* paginación */}
                             <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
                                 <div className="text-sm text-muted-foreground">
                                     Mostrando <strong>{Math.min(end, totalRows)}</strong> de <strong>{totalRows}</strong> — página {page} de {totalPages}

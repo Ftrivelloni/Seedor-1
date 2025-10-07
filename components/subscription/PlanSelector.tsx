@@ -64,8 +64,8 @@ const PLANS: SubscriptionPlan[] = [
     name: "Empresarial",
     price: 199.99,
     description: "Para grandes operaciones que necesitan funcionalidades empresariales",
-    maxUsers: -1, // Unlimited
-    maxFields: -1, // Unlimited
+    maxUsers: -1, 
+    maxFields: -1, 
     icon: <Crown className="h-5 w-5" />,
     enterprise: true,
     features: [

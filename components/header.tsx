@@ -6,7 +6,6 @@ export default function Header() {
     return (
         <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
             <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-                {/* Logo actualizado */}
                 <Link href="/" className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity duration-200">
                     <Image
                         src="/logo-seedor.png"
@@ -21,7 +20,6 @@ export default function Header() {
                     </span>
                 </Link>
 
-                {/* Navegación */}
                 <nav className="hidden md:flex items-center gap-8">
                     <Link
                         href="/faq"
@@ -62,7 +60,6 @@ export default function Header() {
                     </Link>
                 </nav>
 
-                {/* Menú móvil - botón hamburguesa */}
                 <div className="md:hidden">
                     <button className="p-2 text-gray-700 hover:text-gray-900 transition-colors duration-200">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

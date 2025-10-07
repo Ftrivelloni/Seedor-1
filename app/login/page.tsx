@@ -10,12 +10,9 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
       <>
-          {/* Header fijo */}
           <Header />
 
-          {/* Main con padding-top para no tapar el contenido */}
           <main className="relative min-h-[calc(100vh-64px)] overflow-hidden bg-background">
-              {/* Glows de fondo suaves */}
               <div
                   aria-hidden
                   className="pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]"
@@ -26,7 +23,6 @@ export default function LoginPage() {
               </div>
 
               <section className="relative mx-auto grid max-w-7xl grid-cols-1 place-items-center px-6 py-16 md:grid-cols-2 md:gap-12 md:py-24">
-                  {/* Columna izquierda */}
                   <div className="hidden w-full md:block">
 
                       <h2 className="mt-6 text-4xl font-extrabold tracking-tight sm:text-5xl">
@@ -61,7 +57,6 @@ export default function LoginPage() {
                       </div>
                   </div>
 
-                  {/* Formulario */}
                   <div className="w-full">
                       <LoginForm />
                   </div>

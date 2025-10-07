@@ -5,49 +5,33 @@ import { useUser } from "../components/auth/UserContext";
 import { useEmpaqueAuth } from "../components/empaque/EmpaqueAuthContext";
 import { authService } from "../lib/supabaseAuth";
 
-// Define a type for the window with our custom property
 declare global {
   interface Window {
     empaqueLayoutUser?: any;
   }
 }
 
-/**
- * A custom hook that provides robust user authentication from multiple sources.
- * This hook handles authentication by checking:
- * 1. The UserContext
- * 2. Direct authService.getCurrentUser()
- * 3. Session check via authService.checkSession()
- * 
- * @param options Configuration options
- * @returns Authentication state and utilities
- */
+
 export function useAuth(options: {
-  redirectToLogin?: boolean; // Whether to redirect to login if no user found
-  requireRoles?: string[];   // Required roles to access the page
-  useLayoutSession?: boolean; // Whether to use EmpaqueLayout's session (for subpages)
+  redirectToLogin?: boolean; 
+  requireRoles?: string[];   
+  useLayoutSession?: boolean; 
 } = {}) {
   const { redirectToLogin = true, requireRoles = [], useLayoutSession = false } = options;
   const { user: contextUser, loading: contextLoading } = useUser();
   const [activeUser, setActiveUser] = useState<any>(null);
   const router = useRouter();
   
-  // Track if we've tried to check session to avoid double checks
   const sessionCheckAttempted = useRef(false);
-  // Track if this is a subpage using layout authentication
   const isSubpageUsingLayout = useRef(useLayoutSession);
   
-  // Track if we're still checking authentication
   const [authChecking, setAuthChecking] = useState(true);
   
-  // Try to get the session
   const checkAndGetSession = async () => {
-    // Avoid multiple session checks
     if (sessionCheckAttempted.current) return;
     sessionCheckAttempted.current = true;
     
     try {
-      // Use getSafeSession for better error handling
       const { user: sessionUser, error } = await authService.getSafeSession();
       
       if (sessionUser) {
@@ -62,14 +46,8 @@ export function useAuth(options: {
       
       setAuthChecking(false);
       
-      // Only redirect if:
-      // 1. redirectToLogin is true
-      // 2. This isn't a subpage relying on layout auth
-      // 3. We're not inside a layout component (detected by having children in the window)
       if (redirectToLogin && !isSubpageUsingLayout.current) {
-        // Add a short delay to allow parent layouts to handle auth if needed
         setTimeout(() => {
-          // Double-check we still don't have a user before redirecting
           if (!getParentUser() && !activeUser && !contextUser && !authService.getCurrentUser()) {
             router.push("/login");
           }
@@ -82,20 +60,17 @@ export function useAuth(options: {
   };
 
   useEffect(() => {
-    // Skip immediate auth checks for subpages that rely on layout auth
     if (isSubpageUsingLayout.current) {
       setAuthChecking(false);
       return;
     }
     
-    // Priority 1: User from context (provided by UserContext)
     if (contextUser) {
       setActiveUser(contextUser);
       setAuthChecking(false);
       return;
     }
     
-    // Priority 2: Direct user from auth service cache
     const directUser = authService.getCurrentUser();
     if (directUser) {
       setActiveUser(directUser);
@@ -103,7 +78,6 @@ export function useAuth(options: {
       return;
     }
     
-    // Priority 3: Check for active session if still loading or no user found
     if (contextLoading || (!contextUser && !directUser)) {
       checkAndGetSession();
     } else {
@@ -111,8 +85,6 @@ export function useAuth(options: {
     }
   }, [contextUser, contextLoading, router, redirectToLogin]);
 
-  // Try to get user from EmpaqueAuth context first, then fall back to window global
-  // Use try-catch to handle cases where the context isn't available yet
   let empaqueUser = null;
   try {
     const empaqueAuth = useEmpaqueAuth();
@@ -122,12 +94,10 @@ export function useAuth(options: {
   }
   
   const getParentUser = () => {
-    // First check the React context
     if (empaqueUser) {
       return empaqueUser;
     }
     
-    // Fall back to window global for backward compatibility
     if (typeof window !== 'undefined' && window.empaqueLayoutUser) {
       return window.empaqueLayoutUser;
     }
@@ -135,19 +105,15 @@ export function useAuth(options: {
     return null;
   };
   
-  // For layout sessions, keep checking for parent user if not immediately available
   useEffect(() => {
-    // Only needed if we don't have empaqueUser from the context
     if (useLayoutSession && !empaqueUser && !getParentUser() && typeof window !== 'undefined') {
       let attempts = 0;
       const maxAttempts = 15; // Increase max attempts
       const checkInterval = setInterval(() => {
         attempts++;
         
-        // We can't call hooks inside this callback, so just check the window
         let latestEmpaqueUser = null;
         try {
-          // Only access window here, not calling the hook again
           if (typeof window !== 'undefined' && window.empaqueLayoutUser) {
             latestEmpaqueUser = window.empaqueLayoutUser;
           }
@@ -155,10 +121,8 @@ export function useAuth(options: {
           console.error("Error checking for user:", err);
         }
         
-        // Also check window directly
         const windowUser = typeof window !== 'undefined' ? window.empaqueLayoutUser : null;
         
-        // Check both context and window
         const foundUser = latestEmpaqueUser || windowUser;
         
         if (foundUser) {
@@ -166,7 +130,6 @@ export function useAuth(options: {
           setAuthChecking(false);
           clearInterval(checkInterval);
         } else if (attempts >= maxAttempts) {
-          // If we failed to find the parent user, fall back to normal auth flow
           if (contextUser) {
             setActiveUser(contextUser);
           } else if (authService.getCurrentUser()) {
@@ -176,7 +139,7 @@ export function useAuth(options: {
           }
           clearInterval(checkInterval);
         }
-      }, 200); // Keep longer interval time
+      }, 200); 
       
       return () => clearInterval(checkInterval);
     }
@@ -185,16 +148,13 @@ export function useAuth(options: {
   const parentUser = useLayoutSession ? (empaqueUser || getParentUser()) : null;
   const currentUser = parentUser || activeUser || contextUser || authService.getCurrentUser();
   
-  // Check role-based access if required
-  // Skip role checking entirely if using layout session (layout handles it)
   const hasRequiredRole = isSubpageUsingLayout.current ? true : (
     !currentUser ? false : (
-      requireRoles.length === 0 || // No specific roles required
+      requireRoles.length === 0 || 
       requireRoles.includes(currentUser.rol)
     )
   );
   
-  // Debug role checking
   if (requireRoles.length > 0 && currentUser && !isSubpageUsingLayout.current) {
     console.log('🔐 Role Check:', {
       userEmail: currentUser.email,
@@ -209,7 +169,6 @@ export function useAuth(options: {
     console.log('🔐 Role Check: Skipped (using layout session, layout will handle role verification)');
   }
   
-  // Redirect if user doesn't have required role
   useEffect(() => {
     console.log('🔄 useEffect triggered:', {
       isSubpage: isSubpageUsingLayout.current,
@@ -223,16 +182,13 @@ export function useAuth(options: {
       willRedirect: currentUser && requireRoles.length > 0 && !hasRequiredRole && !authChecking && !contextLoading
     });
     
-    // Skip for subpages using layout auth since parent layout will handle this
     if (isSubpageUsingLayout.current) return;
     
-    // Don't redirect while still loading
     if (authChecking || contextLoading) {
       console.log('⏳ Still loading, skipping role check');
       return;
     }
     
-    // Only redirect if we have a fully loaded user with a role that doesn't match
     if (currentUser && currentUser.rol && requireRoles.length > 0 && !hasRequiredRole) {
       console.error('⚠️⚠️⚠️ REDIRECTING TO /HOME - User does not have required role');
       console.error('Current user:', {
@@ -245,7 +201,6 @@ export function useAuth(options: {
     }
   }, [currentUser, hasRequiredRole, requireRoles, router, authChecking, contextLoading]);
 
-  // Ensure tenant information exists
   if (currentUser && !currentUser.tenant) {
     currentUser.tenant = {
       name: 'Tu Empresa',
@@ -257,7 +212,6 @@ export function useAuth(options: {
     };
   }
 
-  // Ensure worker information exists
   if (currentUser && !currentUser.worker) {
     currentUser.worker = {
       id: currentUser.id || 'temp-id',
@@ -269,11 +223,9 @@ export function useAuth(options: {
     };
   }
 
-  // Logout handler
   const handleLogout = async () => {
     await authService.logout();
     setActiveUser(null);
-    // Clear parent reference if it exists
     if (typeof window !== 'undefined') {
       window.empaqueLayoutUser = undefined;
     }

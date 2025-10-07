@@ -60,7 +60,6 @@ export function PlanManagement({ currentUser }: PlanManagementProps) {
         const data = await response.json()
         setAvailablePlans(data.plans || [])
       } else {
-        // Fallback plans for development
         setAvailablePlans([
           {
             id: '1',
@@ -319,7 +318,6 @@ export function PlanManagement({ currentUser }: PlanManagementProps) {
         </CardContent>
       </Card>
 
-      {/* Available Plans */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Planes Disponibles</CardTitle>
@@ -461,7 +459,6 @@ export function PlanManagement({ currentUser }: PlanManagementProps) {
         </CardContent>
       </Card>
 
-      {/* Usage warnings */}
       {planInfo && planInfo.current_users >= planInfo.max_users && (
         <Alert>
           <Users className="h-4 w-4" />

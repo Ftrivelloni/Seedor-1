@@ -14,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { ArrowLeft, ChevronLeft, ChevronRight, Download, Package, Scale, Search, Plus } from "lucide-react"
 
 export function IngresoFrutaPage() {
-    // Get user from EmpaqueAuthContext (provided by layout)
     const { empaqueUser: currentUser } = useEmpaqueAuth();
     
 
@@ -22,7 +21,6 @@ export function IngresoFrutaPage() {
     const [filtered, setFiltered] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     
-    // Current user comes from our ref for stability
 
     const [searchTerm, setSearchTerm] = useState("")
     const [page, setPage] = useState(1)
@@ -32,7 +30,6 @@ export function IngresoFrutaPage() {
     const [saving, setSaving] = useState(false)
     const router = useRouter()
 
-    // ========= Carga =========
     const loadRegistros = async () => {
         if (!currentUser?.tenantId) {
             console.error('No se encontró el ID del tenant');
@@ -59,7 +56,6 @@ export function IngresoFrutaPage() {
         }
     }, [currentUser?.tenantId])
 
-    // ========= Filtro/orden =========
     useEffect(() => {
         let list = [...registros]
         if (searchTerm) {
@@ -83,13 +79,11 @@ export function IngresoFrutaPage() {
                     .some((v) => v.includes(q))
             )
         }
-        // más reciente primero
         list.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
         setFiltered(list)
         setPage(1)
     }, [registros, searchTerm])
 
-    // ========= KPI =========
     const totalBins = useMemo(
         () => filtered.reduce((sum, r) => sum + (Number(r.cant_bin) || 0), 0),
         [filtered]
@@ -99,7 +93,6 @@ export function IngresoFrutaPage() {
         [filtered]
     )
 
-    // ========= Excel Export =========
     const exportToExcel = () => {
         const headers = {
             fecha: "Fecha",
@@ -122,7 +115,6 @@ export function IngresoFrutaPage() {
             peso_neto: "Peso neto (kg)"
         }
 
-        // Transform liquidación boolean to text
         const dataWithTransformations = filtered.map(r => ({
             ...r,
             estado_liquidacion: r.estado_liquidacion ? "Sí" : "No"
@@ -136,7 +128,6 @@ export function IngresoFrutaPage() {
         })
     }
 
-    // ========= Paginación =========
     const totalRows = filtered.length
     const totalPages = Math.max(1, Math.ceil(totalRows / pageSize))
     const start = (page - 1) * pageSize
@@ -146,7 +137,6 @@ export function IngresoFrutaPage() {
     const goPrev = () => setPage((p) => Math.max(1, p - 1))
     const goNext = () => setPage((p) => Math.min(totalPages, p + 1))
 
-    // ========= KEYS ÚNICAS (nuevo) =========
     const pageRowsWithKey = useMemo(() => {
         return pageRows.map((r, i) => {
             const base =
@@ -154,7 +144,6 @@ export function IngresoFrutaPage() {
                 r?.num_ticket ??
                 r?.num_remito ??
                 (r?.fecha ? new Date(r.fecha).getTime() : "s/fecha")
-            // Combinamos con la posición visible para evitar colisiones
             const __key = String(base) + "-" + (start + i)
             return { ...r, __key }
         })
@@ -170,7 +159,6 @@ export function IngresoFrutaPage() {
 
     return (
         <div className="mx-auto w-full max-w-4xl px-3 md:px-6 py-6 space-y-6">
-            {/* Header */}
             <div className="flex flex-col gap-2 mb-6">
                 <div className="flex items-center gap-3">
                     <Button variant="outline" size="sm" onClick={() => router.push("/empaque")}>
@@ -225,7 +213,6 @@ export function IngresoFrutaPage() {
                 </div>
             </div>
 
-            {/* KPIs */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Card>
                     <CardHeader className="pb-2">
@@ -254,7 +241,6 @@ export function IngresoFrutaPage() {
                 </Card>
             </div>
 
-            {/* Buscador (mobile) */}
             <Card className="sm:hidden">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -271,9 +257,7 @@ export function IngresoFrutaPage() {
                 </CardContent>
             </Card>
 
-            {/* ======= TRES TABLAS ======= */}
             <div className="space-y-6">
-                {/* 1) Datos generales */}
                 <Card>
                     <CardHeader className="gap-1">
                         <CardTitle>Datos generales</CardTitle>
@@ -325,7 +309,6 @@ export function IngresoFrutaPage() {
                     </CardContent>
                 </Card>
 
-                {/* 2) Transporte */}
                 <Card>
                     <CardHeader className="gap-1">
                         <CardTitle>Transporte</CardTitle>
@@ -365,7 +348,6 @@ export function IngresoFrutaPage() {
                     </CardContent>
                 </Card>
 
-                {/* 3) Bins y peso */}
                 <Card>
                     <CardHeader className="gap-1">
                         <CardTitle>Bins y peso</CardTitle>
@@ -402,7 +384,6 @@ export function IngresoFrutaPage() {
                 </Card>
             </div>
 
-            {/* Paginación global */}
             <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
                 <div className="text-sm text-muted-foreground">
                     Mostrando <strong>{Math.min(end, totalRows)}</strong> de <strong>{totalRows}</strong> — página {page} de {totalPages}

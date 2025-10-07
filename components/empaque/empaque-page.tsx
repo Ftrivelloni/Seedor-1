@@ -16,14 +16,12 @@ import { Search, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp
 import { useEmpaqueAuth } from "./EmpaqueAuthContext"
 
 export function EmpaquePage() {
-    // Get user from EmpaqueAuthContext (provided by layout)
     const { empaqueUser: user } = useEmpaqueAuth();
 
     const [registros, setRegistros] = useState<RegistroEmpaque[]>([])
     const [filteredRegistros, setFilteredRegistros] = useState<RegistroEmpaque[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
-    // Filtro y datos para la tabla de ingreso de fruta
     const [filtroFecha, setFiltroFecha] = useState("");
     const [ingresosFruta, setIngresosFruta] = useState<any[]>([]);
     const [pallets, setPallets] = useState<any[]>([]);
@@ -34,7 +32,6 @@ export function EmpaquePage() {
     const [egresosFruta, setEgresosFruta] = useState<any[]>([]);
     const [isLoadingEgresosFruta, setIsLoadingEgresosFruta] = useState(true);
 
-    // Estado para preprocesos
     const [preprocesos, setPreprocesos] = useState<any[]>([]);
     const [isLoadingPreprocesos, setIsLoadingPreprocesos] = useState(true);
 
@@ -50,14 +47,12 @@ export function EmpaquePage() {
             loadPreprocesos();
         }
 
-        // Escuchar evento global para recargar preprocesos
         const handler = () => { loadPreprocesos(); };
         window.addEventListener('preproceso:created', handler);
         return () => {
             window.removeEventListener('preproceso:created', handler);
         };
     }, [user])
-    // Cargar preprocesos desde Supabase
     const loadPreprocesos = async () => {
         if (!user?.tenantId) {
             console.error('No se encontró la sesión del usuario o el tenant ID');
@@ -193,7 +188,6 @@ export function EmpaquePage() {
             )
         }
 
-        // Sort by date (most recent first)
         filtered = filtered.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
         setFilteredRegistros(filtered)
@@ -203,13 +197,11 @@ export function EmpaquePage() {
         router.push(`/empaque/${subpage}`)
     }
 
-    // Calculate statistics
     const totalKgEntraron = registros.reduce((sum, r) => sum + r.kgEntraron, 0)
     const totalKgSalieron = registros.reduce((sum, r) => sum + r.kgSalieron, 0)
     const totalKgDescartados = registros.reduce((sum, r) => sum + r.kgDescartados, 0)
     const porcentajeDescartePromedio = totalKgEntraron > 0 ? (totalKgDescartados / totalKgEntraron) * 100 : 0
 
-    // Show loading while user is being loaded
     if (!user) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -245,7 +237,6 @@ export function EmpaquePage() {
             <main className="flex-1 p-6 overflow-auto">
                 <div className="max-w-7xl mx-auto space-y-6">
 
-            {/* Botones de navegación de módulos */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6 my-8">
                 <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('ingreso-fruta')}>
                     <CardContent className="p-4 text-center">
@@ -284,10 +275,8 @@ export function EmpaquePage() {
                 </Card>
             </div>
 
-            {/* Header de resumen */}
             <h2 className="text-xl font-bold mt-10 mb-4">Resumen</h2>
 
-            {/* EmpaqueFlow inserted here */}
             <EmpaqueFlow
                 ingresosFruta={ingresosFruta}
                 preprocesos={preprocesos}
@@ -296,9 +285,7 @@ export function EmpaquePage() {
                 egresosFruta={egresosFruta}
             />
 
-            {/* Resúmenes informativos de cada módulo */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Ingreso de Fruta - tabla filtrable por fecha (Supabase) */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
@@ -325,7 +312,6 @@ export function EmpaquePage() {
                     </CardContent>
                     </Card>
 
-                {/* Preproceso */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
@@ -346,7 +332,6 @@ export function EmpaquePage() {
                     </CardContent>
                 </Card>
 
-                {/* Pallets */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
@@ -364,7 +349,6 @@ export function EmpaquePage() {
                     </CardContent>
                 </Card>
 
-                {/* Despacho */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
@@ -382,7 +366,6 @@ export function EmpaquePage() {
                     </CardContent>
                 </Card>
 
-                {/* Egreso de Fruta */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center space-x-2">

@@ -13,7 +13,6 @@ export default function CampoRoutePage() {
   });
   const router = useRouter();
 
-  // Debug logs
   console.log('🌾 Campo Page - User:', user?.email, 'Rol:', user?.rol, 'Loading:', loading);
 
   if (loading) {
@@ -39,7 +38,6 @@ export default function CampoRoutePage() {
           user={user} 
           onLogout={handleLogout} 
           onNavigate={(page) => {
-            // Map page names to their correct routes
             const pageRoutes: Record<string, string> = {
               dashboard: "/home",
               campo: "/campo",

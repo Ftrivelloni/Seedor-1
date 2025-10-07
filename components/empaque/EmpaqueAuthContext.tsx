@@ -13,22 +13,18 @@ const EmpaqueAuthContext = createContext<EmpaqueAuthContextType>({
   setEmpaqueUser: () => {}
 });
 
-// Provider component
 export function EmpaqueAuthProvider({ children, initialUser = null }: { children: React.ReactNode, initialUser?: any | null }) {
   const [empaqueUser, setEmpaqueUser] = useState<any | null>(() => {
-    // First try to use the initialUser prop if provided
     if (initialUser) {
       return initialUser;
     }
     
-    // Then try to initialize from window if available (for SSR safety)
     if (typeof window !== 'undefined' && window.empaqueLayoutUser) {
       return window.empaqueLayoutUser;
     }
     return null;
   });
 
-  // Also maintain the window variable for backward compatibility
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (empaqueUser) {
@@ -39,10 +35,8 @@ export function EmpaqueAuthProvider({ children, initialUser = null }: { children
     }
   }, [empaqueUser]);
   
-  // Provider mount effect
   useEffect(() => {
     return () => {
-      // Cleanup when unmounted
     };
   }, []);
 
@@ -55,7 +49,6 @@ export function EmpaqueAuthProvider({ children, initialUser = null }: { children
   );
 }
 
-// Hook to use the context
 export function useEmpaqueAuth() {
   const context = useContext(EmpaqueAuthContext);
   

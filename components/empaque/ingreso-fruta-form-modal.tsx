@@ -5,7 +5,6 @@ import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import { Plus, X } from "lucide-react"
 
-// Estado inicial (igual al tuyo)
 const initialState = {
     fecha: "",
     estado_liquidacion: false,
@@ -112,15 +111,12 @@ export function IngresoFrutaFormModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            {/* Contenedor sin transparencia y con padding controlado */}
             <DialogContent className="max-h-[85vh] max-w-3xl overflow-auto p-0">
                 <DialogHeader className="px-6 pt-6">
                     <DialogTitle className="text-2xl">Nuevo Ingreso de Fruta</DialogTitle>
                 </DialogHeader>
 
-                {/* IMPORTANTE: pb-28 para no solaparse con el footer */}
                 <form id="ingreso-fruta-form" onSubmit={handleSubmit} className="space-y-8 px-6 pt-4 pb-28">
-                    {/* Datos Generales */}
                     <fieldset className="rounded-xl border border-gray-300/80 bg-muted/30 p-4">
                         <legend className="px-2 text-base font-semibold">Datos generales</legend>
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -188,7 +184,6 @@ export function IngresoFrutaFormModal({
                         </div>
                     </fieldset>
 
-                    {/* Transporte */}
                     <fieldset className="rounded-xl border border-gray-300/80 bg-muted/30 p-4">
                         <legend className="px-2 text-base font-semibold">Transporte</legend>
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -215,7 +210,6 @@ export function IngresoFrutaFormModal({
                         </div>
                     </fieldset>
 
-                    {/* Bins y peso */}
                     <fieldset className="rounded-xl border border-gray-300/80 bg-muted/30 p-4">
                         <legend className="px-2 text-base font-semibold">Bins y peso</legend>
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -244,7 +238,6 @@ export function IngresoFrutaFormModal({
                     </fieldset>
                 </form>
 
-                {/* Footer sólido, fuera del form */}
                 <div className="sticky bottom-0 z-50 w-full border-t bg-background px-6 py-3 shadow-[0_-6px_12px_-6px_rgba(0,0,0,0.08)]">
                     <div className="flex items-center justify-end gap-2">
                         <Button type="button" variant="outline" onClick={onClose} className="h-10">

@@ -102,12 +102,10 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
   const { canAccessModule, planInfo } = useFeatures()
 
   const filteredNavItems = navItems.filter((item) => {
-    // Check if user can access this module based on role and plan
     if (!canAccessModule(item.module, user.rol)) {
       return false
     }
     
-    // Check admin-only restrictions
     if (item.adminOnly && user.rol.toLowerCase() !== 'admin') {
       return false
     }
@@ -122,7 +120,6 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
         isCollapsed ? "w-16" : "w-64",
       )}
     >
-      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
         {!isCollapsed && (
           <div className="flex items-center space-x-3">
@@ -155,7 +152,6 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
         </Button>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
         {filteredNavItems.map((item) => {
           const Icon = item.icon
@@ -181,7 +177,6 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
         })}
       </nav>
 
-      {/* Footer */}
       <div className="p-4 border-t border-sidebar-border">
         <Button
           variant="ghost"

@@ -1,4 +1,4 @@
-import DatabaseCleanupTool from '../../components/database-cleanup-tool';
+import DatabaseCleanupTool from "../../components/cleanup/database-cleanup-tool";
 
 export default function CleanupPage() {
   return (

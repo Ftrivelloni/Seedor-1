@@ -67,7 +67,6 @@ export function FinanzasFormModal({ isOpen, onClose, onSubmit, tenantId }: Finan
         comprobante: formData.comprobante || undefined,
       })
       onClose()
-      // Reset form
       setFormData({
         fecha: new Date().toISOString().split("T")[0],
         tipo: "egreso",

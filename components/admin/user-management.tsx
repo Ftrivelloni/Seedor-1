@@ -71,7 +71,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   const [canAddMoreUsers, setCanAddMoreUsers] = useState(true)
   const [userLimits, setUserLimits] = useState({ current: 0, max: 3 })
 
-  // Form state
   const [formData, setFormData] = useState<CreateUserRequest>({
     email: '',
     password: '',
@@ -84,7 +83,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   const [errors, setErrors] = useState<Partial<CreateUserRequest>>({})
   const [submitting, setSubmitting] = useState(false)
 
-  // Check if current user is admin
   const isAdmin = currentUser.rol.toLowerCase() === 'admin'
 
   useEffect(() => {
@@ -98,7 +96,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     try {
       setLoading(true)
       
-      // Get session token from Supabase
       const { supabase } = await import('../../lib/supabaseClient')
       const { data: { session } } = await supabase.auth.getSession()
       
@@ -111,7 +108,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         return
       }
       
-      // Call the new admin API
       const response = await fetch('/api/admin/users', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -121,7 +117,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
       
       if (response.ok) {
         const data = await response.json()
-        // Transform workers data to match TenantUser interface
         const transformedUsers = (data.users || []).map((worker: any) => ({
           id: worker.id,
           email: worker.email,
@@ -154,14 +149,12 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
   const checkUserLimits = async () => {
     try {
-      // This would check tenant plan limits
       const response = await fetch(`/api/tenants/${currentUser.tenantId}/limits`)
       if (response.ok) {
         const data = await response.json()
         setUserLimits({ current: data.current_users, max: data.max_users })
         setCanAddMoreUsers(data.current_users < data.max_users)
       } else {
-        // Fallback for development
         setUserLimits({ current: users.length, max: 3 })
         setCanAddMoreUsers(users.length < 3)
       }
@@ -219,7 +212,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     setSubmitting(true)
     
     try {
-      // Get session token
       const { supabase } = await import('../../lib/supabaseClient')
       const { data: { session } } = await supabase.auth.getSession()
       
@@ -262,7 +254,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
           phone: '',
           role: 'campo'
         })
-        loadUsers() // Reload the user list
+        loadUsers() 
         checkUserLimits()
       } else {
         const error = await response.json()
@@ -290,7 +282,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     }
 
     try {
-      // Get session token
       const { supabase } = await import('../../lib/supabaseClient')
       const { data: { session } } = await supabase.auth.getSession()
       
@@ -315,7 +306,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
           title: "Usuario desactivado",
           description: "El usuario ha sido desactivado exitosamente."
         })
-        loadUsers() // Reload the user list
+        loadUsers() 
         checkUserLimits()
       } else {
         const error = await response.json()
@@ -342,7 +333,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
   const handleUpdateUserRole = async (userId: string, newRole: string) => {
     try {
-      // Get session token
       const { supabase } = await import('../../lib/supabaseClient')
       const { data: { session } } = await supabase.auth.getSession()
       
@@ -372,7 +362,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
           title: "Rol actualizado",
           description: "El rol del usuario ha sido actualizado exitosamente."
         })
-        loadUsers() // Reload the user list
+        loadUsers() 
       } else {
         const error = await response.json()
         toast({
@@ -443,7 +433,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-6">
           
-      {/* Botón Crear Usuario y alertas */}
       <div className="flex justify-end">
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
@@ -556,7 +545,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         </Dialog>
       </div>
 
-      {/* User limit warning */}
       {!canAddMoreUsers && (
         <Alert>
           <Shield className="h-4 w-4" />
@@ -569,7 +557,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         </Alert>
       )}
 
-      {/* Users list */}
       <div className="grid gap-4">
         {users.map((user) => {
           const RoleIcon = roleIcons[user.role_code]

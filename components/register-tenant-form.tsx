@@ -22,7 +22,6 @@ const TENANT_CREATED_KEY = "seedor.tenant.created";
 
 const inputStrong = "h-12 bg-white border-2 border-slate-200 shadow-sm placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#81C101]/30 focus-visible:border-[#81C101] transition-all duration-200";
 
-// Definir planes disponibles con diseño mejorado usando colores Seedor
 const PLANS = [
   { 
     value: 'basico', 
@@ -43,9 +42,9 @@ const PLANS = [
       'Reportes básicos'
     ],
     popular: false,
-    color: 'from-[#81C101]/10 to-[#81C101]/5', // Mismo color claro para ambos
+    color: 'from-[#81C101]/10 to-[#81C101]/5',  
     borderColor: 'border-[#81C101]/30',
-    textColor: 'text-[#81C101]', // Mismo color para ambos
+    textColor: 'text-[#81C101]', 
     badgeColor: 'bg-[#81C101]/10 text-[#81C101]'
   },
   { 
@@ -69,9 +68,9 @@ const PLANS = [
       'Analytics detallados'
     ],
     popular: true,
-    color: 'from-[#81C101]/10 to-[#81C101]/5', // Cambiado a color claro
+    color: 'from-[#81C101]/10 to-[#81C101]/5',  
     borderColor: 'border-[#81C101]',
-    textColor: 'text-[#81C101]', // Cambiado a verde oscuro
+    textColor: 'text-[#81C101]', 
     badgeColor: 'bg-amber-400 text-amber-900'
   }
 ];
@@ -121,7 +120,6 @@ const ValidatedInput = ({
     </div>
 );
 
-// Componente mejorado para las cards de planes con colores Seedor
 const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, onSelect: () => void }) => (
     <div 
         className={`relative cursor-pointer rounded-2xl border-3 p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl ${
@@ -149,7 +147,6 @@ const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, 
         )}
         
         <div className="space-y-5">
-            {/* Header */}
             <div className="text-center pt-2">
                 <h3 className={`text-xl font-bold ${selected ? plan.textColor : 'text-slate-900'}`}>
                     {plan.label}
@@ -159,7 +156,6 @@ const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, 
                 </p>
             </div>
 
-            {/* Precio */}
             <div className="text-center">
                 <div className="flex items-baseline justify-center gap-1">
                     <span className={`text-4xl font-bold ${selected ? plan.textColor : 'text-slate-900'}`}>
@@ -184,7 +180,6 @@ const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, 
                 </p>
             </div>
 
-            {/* Métricas principales */}
             <div className="grid grid-cols-2 gap-3">
                 <div className={`text-center p-4 rounded-xl ${selected ? 'bg-white/20' : 'bg-slate-50'}`}>
                     <Users className={`size-6 mx-auto mb-2 ${selected ? plan.textColor : 'text-[#81C101]'}`} />
@@ -206,7 +201,6 @@ const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, 
                 </div>
             </div>
 
-            {/* Módulos incluidos */}
             <div>
                 <h4 className={`text-sm font-bold mb-3 ${selected ? plan.textColor : 'text-slate-700'}`}>
                     Módulos incluidos:
@@ -223,7 +217,6 @@ const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, 
                 </div>
             </div>
 
-            {/* Features */}
             <div>
                 <h4 className={`text-sm font-bold mb-3 ${selected ? plan.textColor : 'text-slate-700'}`}>
                     Características:
@@ -240,7 +233,6 @@ const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, 
                 </ul>
             </div>
 
-            {/* Indicador de selección - MISMA ALTURA */}
             <div className="flex items-center justify-center pt-4 min-h-[3rem]"> {/* Agregado min-h y pt-4 */}
                 <div className={`w-6 h-6 rounded-full border-3 flex items-center justify-center transition-all duration-200 ${
                     selected 
@@ -257,29 +249,22 @@ const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, 
 export default function RegisterTenantForm() {
     const router = useRouter();
 
-    // Estados del flujo
     const [currentStep, setCurrentStep] = useState<'form' | 'verification' | 'admin-invite' | 'complete'>('form');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Estados para paso 1: Datos del tenant
     const [companyName, setCompanyName] = useState("");
     const [contactName, setContactName] = useState("");
     const [contactEmail, setContactEmail] = useState("");
-    const [ownerPassword, setOwnerPassword] = useState("");
     const [ownerPhone, setOwnerPhone] = useState("");
     const [selectedPlan, setSelectedPlan] = useState("profesional"); // Profesional por defecto
-    const [showPassword, setShowPassword] = useState(false);
 
-    // Estados para verificación
     const [verificationCode, setVerificationCode] = useState("");
     const [verifyingCode, setVerifyingCode] = useState(false);
 
-    // Estados para invitar admin
     const [adminEmail, setAdminEmail] = useState("");
     const [invitingAdmin, setInvitingAdmin] = useState(false);
 
-    // Estados de datos
     const [registrationData, setRegistrationData] = useState<any>(null);
     const [tenantData, setTenantData] = useState<any>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -292,17 +277,13 @@ export default function RegisterTenantForm() {
             .substring(0, 50);
     };
 
-    // ... [mantener todos los useEffect y funciones de manejo igual] ...
-
-    // Cargar estado del localStorage
+   
     useEffect(() => {
         if (typeof window === "undefined") return;
 
-        // Verificar si venimos de un enlace directo (nueva sesión)
         const urlParams = new URLSearchParams(window.location.search);
         const isNewRegistration = urlParams.get('new') === 'true' || !document.referrer;
         
-        // Si es una nueva sesión, limpiar datos anteriores
         if (isNewRegistration) {
             localStorage.removeItem(FORM_DATA_KEY);
             localStorage.removeItem(PENDING_VERIFICATION_KEY);
@@ -311,13 +292,11 @@ export default function RegisterTenantForm() {
             return;
         }
 
-        // Verificar si ya se creó el tenant (solo si no es nueva sesión)
         const tenantCreated = localStorage.getItem(TENANT_CREATED_KEY);
         if (tenantCreated) {
             try {
                 const data = JSON.parse(tenantCreated);
                 
-                // Verificar que los datos no sean muy antiguos (más de 1 hora)
                 const createdAt = new Date(data.timestamp || 0);
                 const now = new Date();
                 const hoursDiff = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
@@ -338,13 +317,11 @@ export default function RegisterTenantForm() {
             }
         }
 
-        // Verificar si hay verificación pendiente
         const pendingData = localStorage.getItem(PENDING_VERIFICATION_KEY);
         if (pendingData) {
             try {
                 const data = JSON.parse(pendingData);
                 
-                // Verificar que los datos no sean muy antiguos (más de 30 minutos)
                 const createdAt = new Date(data.timestamp || 0);
                 const now = new Date();
                 const minutesDiff = (now.getTime() - createdAt.getTime()) / (1000 * 60);
@@ -365,13 +342,11 @@ export default function RegisterTenantForm() {
             }
         }
 
-        // Cargar datos del formulario (solo para autocompletar campos)
         const savedFormData = localStorage.getItem(FORM_DATA_KEY);
         if (savedFormData) {
             try {
                 const data = JSON.parse(savedFormData);
                 
-                // Solo restaurar si los datos no son muy antiguos (más de 2 horas)
                 const savedAt = new Date(data.timestamp || 0);
                 const now = new Date();
                 const hoursDiff = (now.getTime() - savedAt.getTime()) / (1000 * 60 * 60);
@@ -395,7 +370,6 @@ export default function RegisterTenantForm() {
         }
     }, []);
 
-    // Guardar datos del formulario
     useEffect(() => {
         if (typeof window === "undefined" || currentStep !== 'form') return;
 
@@ -411,7 +385,6 @@ export default function RegisterTenantForm() {
         localStorage.setItem(FORM_DATA_KEY, JSON.stringify(formData));
     }, [companyName, contactName, contactEmail, ownerPhone, selectedPlan, currentStep]);
     
-    // Validación
     const validateField = useCallback((fieldName: string, value: string): string => {
         switch (fieldName) {
             case 'companyName':
@@ -429,11 +402,7 @@ export default function RegisterTenantForm() {
                     return 'Debe ser un email válido'
                 }
                 break;
-            case 'ownerPassword':
-                if (value && !validators.password(value)) {
-                    return 'Debe tener entre 8 y 128 caracteres'
-                }
-                break;
+
             case 'ownerPhone':
                 if (value && !validators.phone(value)) {
                     return 'Formato inválido'
@@ -448,7 +417,6 @@ export default function RegisterTenantForm() {
         return '';
     }, []);
 
-    // Manejar cambios
     const handleFieldChange = useCallback((fieldName: string, value: string) => {
         switch (fieldName) {
             case 'companyName':
@@ -460,9 +428,7 @@ export default function RegisterTenantForm() {
             case 'contactEmail':
                 setContactEmail(value);
                 break;
-            case 'ownerPassword':
-                setOwnerPassword(value);
-                break;
+
             case 'ownerPhone':
                 setOwnerPhone(value);
                 break;
@@ -478,17 +444,15 @@ export default function RegisterTenantForm() {
         }));
     }, [validateField]);
 
-    // PASO 1: Enviar código de verificación
     const onSubmitTenantForm = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
 
-        // Validar campos
         const allErrors: Record<string, string> = {};
         allErrors.companyName = validateField('companyName', companyName);
         allErrors.contactName = validateField('contactName', contactName);
         allErrors.contactEmail = validateField('contactEmail', contactEmail);
-        allErrors.ownerPassword = validateField('ownerPassword', ownerPassword);
+
         allErrors.ownerPhone = validateField('ownerPhone', ownerPhone);
 
         const filteredErrors = Object.fromEntries(
@@ -502,7 +466,7 @@ export default function RegisterTenantForm() {
             return;
         }
 
-        if (!companyName || !contactName || !contactEmail || !ownerPassword) {
+        if (!companyName || !contactName || !contactEmail) {
             setError("Completá todos los campos obligatorios.");
             return;
         }
@@ -510,18 +474,16 @@ export default function RegisterTenantForm() {
         setLoading(true);
 
         try {
-            // Preparar datos
             const completeData = {
                 tenantName: companyName,
                 slug: generateSlug(companyName),
                 plan: selectedPlan,
                 contactName: contactName,
                 contactEmail: contactEmail,
-                ownerPassword: ownerPassword,
+                ownerPassword: "temp-password-not-used", // Owner usa OTP, no password
                 ownerPhone: ownerPhone || undefined,
             };
 
-            // Enviar código de verificación
             const { success, error: sendError } = await authService.sendOwnerVerificationCode(contactEmail);
 
             if (!success || sendError) {
@@ -529,7 +491,6 @@ export default function RegisterTenantForm() {
                 return;
             }
 
-            // Guardar datos y pasar al siguiente step
             if (typeof window !== "undefined") {
                 const dataWithTimestamp = {
                     ...completeData,
@@ -547,9 +508,8 @@ export default function RegisterTenantForm() {
         } finally {
             setLoading(false);
         }
-    }, [companyName, contactName, contactEmail, ownerPassword, ownerPhone, selectedPlan, validateField]);
+    }, [companyName, contactName, contactEmail, ownerPhone, selectedPlan, validateField]);
 
-    // PASO 2: Verificar código y crear tenant
     const onVerifyCode = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
@@ -677,7 +637,7 @@ export default function RegisterTenantForm() {
         setCompanyName("");
         setContactName("");
         setContactEmail("");
-        setOwnerPassword("");
+
         setOwnerPhone("");
         setSelectedPlan("profesional");
         setVerificationCode("");
@@ -1008,39 +968,6 @@ export default function RegisterTenantForm() {
                             </div>
                             
                             <div className="grid gap-6 sm:grid-cols-2">
-                                <div className="grid gap-3">
-                                    <Label htmlFor="ownerPassword" className="text-sm font-semibold text-slate-700">
-                                        Contraseña <span className="text-red-500">*</span>
-                                    </Label>
-                                    <div className="relative">
-                                        <Input
-                                            id="ownerPassword"
-                                            type={showPassword ? "text" : "password"}
-                                            value={ownerPassword}
-                                            onChange={(e) => handleFieldChange('ownerPassword', e.target.value)}
-                                            required
-                                            className={`${inputStrong} pr-12 ${fieldErrors.ownerPassword ? 'border-red-400 focus-visible:ring-red-400/30 focus-visible:border-red-400' : ''}`}
-                                            placeholder="Mínimo 8 caracteres"
-                                        />
-                                        <button
-                                            type="button"
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer transition-colors duration-200"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                        >
-                                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                                        </button>
-                                    </div>
-                                    <div className="h-5">
-                                        {fieldErrors.ownerPassword && (
-                                            <p className="text-sm text-red-500 leading-tight flex items-center gap-1">
-                                                <span className="size-4 rounded-full bg-red-100 flex items-center justify-center">
-                                                    <span className="size-2 rounded-full bg-red-500"></span>
-                                                </span>
-                                                {fieldErrors.ownerPassword}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
                                 
                                 <ValidatedInput
                                     id="ownerPhone"

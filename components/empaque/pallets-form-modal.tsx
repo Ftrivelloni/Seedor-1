@@ -142,7 +142,6 @@ export default function PalletsFormModal({ open, onClose, onCreated, tenantId }:
                 </DialogHeader>
 
                 <form id="pallets-form" onSubmit={submit} className="space-y-8 px-6 pt-4 pb-28">
-                    {/* Generales */}
                     <section className="rounded-xl border border-gray-300/80 bg-muted/30 p-4">
                         <h3 className="mb-3 text-base font-semibold">Generales</h3>
                         <div className="grid gap-5 sm:grid-cols-2">
@@ -198,7 +197,6 @@ export default function PalletsFormModal({ open, onClose, onCreated, tenantId }:
                         </div>
                     </section>
 
-                    {/* Identificación */}
                     <section className="rounded-xl border border-gray-300/80 bg-muted/30 p-4">
                         <h3 className="mb-3 text-base font-semibold">Identificación</h3>
                         <div className="grid gap-5 sm:grid-cols-2">
@@ -265,7 +263,6 @@ export default function PalletsFormModal({ open, onClose, onCreated, tenantId }:
                         </div>
                     </section>
 
-                    {/* Medidas */}
                     <section className="rounded-xl border border-gray-300/80 bg-muted/30 p-4">
                         <h3 className="mb-3 text-base font-semibold">Medidas</h3>
                         <div className="grid gap-5 sm:grid-cols-3">
@@ -328,7 +325,6 @@ export default function PalletsFormModal({ open, onClose, onCreated, tenantId }:
                     </section>
                 </form>
 
-                {/* Footer sólido */}
                 <div className="sticky bottom-0 z-50 w-full border-t bg-background px-6 py-3 shadow-[0_-6px_12px_-6px_rgba(0,0,0,0.08)]">
                     <div className="flex items-center justify-end gap-2">
                         <Button type="button" variant="outline" onClick={onClose} className="h-10">

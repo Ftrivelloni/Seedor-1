@@ -11,7 +11,6 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
-// POST /api/admin/users/invite - Invite a new user
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization');
@@ -27,14 +26,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Verify the requesting user
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
     if (userError || !user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Get the current user's worker profile
     const { data: currentWorker, error: currentWorkerError } = await supabaseAdmin
       .from('workers')
       .select('*, membership:tenant_memberships!workers_membership_id_fkey(*)')
@@ -45,12 +42,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Worker profile not found' }, { status: 404 });
     }
 
-    // Check if current user is admin
     if (!currentWorker.membership || currentWorker.membership.role_code !== 'admin') {
       return NextResponse.json({ error: 'Access denied. Admin role required.' }, { status: 403 });
     }
 
-    // Check if email already exists
     const { data: existingWorker } = await supabaseAdmin
       .from('workers')
       .select('email')
@@ -62,14 +57,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
     }
 
-    // Generate a temporary password
     const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!`;
 
-    // Create auth user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password: tempPassword,
-      email_confirm: false, // User needs to verify email
+      email_confirm: false, 
       user_metadata: {
         full_name: fullName,
         invited_by: currentWorker.id
@@ -83,7 +76,6 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // Create tenant membership
     const { data: membership, error: membershipError } = await supabaseAdmin
       .from('tenant_memberships')
       .insert([{
@@ -97,7 +89,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (membershipError) {
-      // Cleanup: delete the auth user
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       console.error('Membership error:', membershipError);
       return NextResponse.json({ 
@@ -105,7 +96,6 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // Create profile for the user
     console.log('🔄 Creating profile for user:', authData.user.id);
     const { data: profileData, error: profileError } = await supabaseAdmin
       .from('profiles')
@@ -122,12 +112,10 @@ export async function POST(request: NextRequest) {
       console.error('❌ Error creating profile:', profileError);
       console.error('❌ Profile error details:', profileError.details);
       console.error('❌ Profile error hint:', profileError.hint);
-      // No hacemos cleanup porque el profile no es crítico para el funcionamiento
     } else {
       console.log('✅ Profile created successfully:', profileData);
     }
 
-    // Create worker profile
     const { data: worker, error: workerError } = await supabaseAdmin
       .from('workers')
       .insert([{
@@ -144,7 +132,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (workerError) {
-      // Cleanup: delete the membership and auth user
       await supabaseAdmin.from('tenant_memberships').delete().eq('id', membership.id);
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       console.error('Worker error:', workerError);
@@ -153,14 +140,12 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // Send password reset email so user can set their own password
     try {
       await supabaseAdmin.auth.resetPasswordForEmail(email, {
         redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password`
       });
     } catch (emailError) {
       console.error('Failed to send reset email:', emailError);
-      // Don't fail the request if email sending fails
     }
 
     return NextResponse.json({ 

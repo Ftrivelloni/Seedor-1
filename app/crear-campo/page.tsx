@@ -9,7 +9,6 @@ export default function CrearCampoPage() {
   return (
     <main className="min-h-[calc(100vh-64px)] bg-background">
       <section className="mx-auto grid max-w-7xl grid-cols-1 place-items-center px-6 py-16 md:grid-cols-2 md:gap-12 md:py-24">
-        {/* Izquierda: copy/beneficios */}
         <div className="hidden w-full md:block">
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
             Configurá tu <span className="text-primary">campo</span>
@@ -30,7 +29,6 @@ export default function CrearCampoPage() {
           </div>
         </div>
 
-        {/* Derecha: formulario */}
         <div className="w-full">
           <CreateFieldForm />
         </div>

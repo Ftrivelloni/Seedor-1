@@ -20,7 +20,6 @@ const HomePage = () => {
   const [currentPage, setCurrentPage] = useState("dashboard")
   const router = useRouter()
 
-  // Debug logs
   console.log('🏠 Home Page - User:', user?.email, 'Rol:', user?.rol, 'Loading:', loading);
 
   if (loading) {
@@ -39,7 +38,6 @@ const HomePage = () => {
     );
   }
   
-  // Render the appropriate section based on currentPage
   const renderPageContent = () => {
     switch (currentPage) {
       case "empaque":
@@ -68,7 +66,6 @@ const HomePage = () => {
           user={user} 
           onLogout={handleLogout}
           onNavigate={(page) => {
-            // Map page names to their correct routes
             const pageRoutes: Record<string, string> = {
               dashboard: "/home",
               campo: "/campo",
@@ -80,14 +77,11 @@ const HomePage = () => {
               contactos: "/contactos",
             };
 
-            // For campo, navigate to the route
             if (page === "campo") {
               router.push("/campo");
             } else if (pageRoutes[page] && pageRoutes[page] !== "/home") {
-              // For other pages with dedicated routes, navigate there
               router.push(pageRoutes[page]);
             } else {
-              // For pages that render in home, just change the state
               setCurrentPage(page);
             }
           }}

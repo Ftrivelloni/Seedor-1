@@ -20,16 +20,13 @@ export function PreprocesoPage() {
     const [searchTerm, setSearchTerm] = useState("")
     const [modalOpen, setModalOpen] = useState(false)
 
-    // paginación
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
 
     const router = useRouter()
     
-    // Get user from EmpaqueAuthContext (provided by layout)
     const { empaqueUser: user } = useEmpaqueAuth();
 
-    // Load data when user is available
     useEffect(() => {
         if (user?.tenantId) {
             loadRegistros();
@@ -47,7 +44,7 @@ export function PreprocesoPage() {
         }
         filtered = filtered.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
         setFilteredRegistros(filtered)
-        setPage(1) // reset página al filtrar
+        setPage(1) 
     }, [registros, searchTerm])
 
     const loadRegistros = async () => {
@@ -88,7 +85,6 @@ export function PreprocesoPage() {
         })
     }
 
-    // datos paginados
     const totalRows = filteredRegistros.length
     const totalPages = Math.max(1, Math.ceil(totalRows / pageSize))
     const start = (page - 1) * pageSize
@@ -107,12 +103,11 @@ export function PreprocesoPage() {
     }
     
     if (!user) {
-        return null; // Let the authentication redirect handle it
+        return null; 
     }
 
     return (
         <div className="mx-auto w-full max-w-4xl md:max-w-5xl px-3 md:px-6 py-6 space-y-6">
-            {/* Header compacto */}
             <div className="flex flex-col gap-2 mb-6">
                 <div className="flex items-center gap-3">
                     <Button variant="outline" size="sm" onClick={() => router.push("/empaque")}>
@@ -149,7 +144,6 @@ export function PreprocesoPage() {
                 </div>
             </div>
 
-            {/* Tabla principal */}
             <Card>
                 <CardHeader className="gap-2">
                     <CardTitle className="flex items-center gap-2">
@@ -160,7 +154,6 @@ export function PreprocesoPage() {
                         {filteredRegistros.length} de {registros.length} registros
                     </CardDescription>
 
-                    {/* Buscador en mobile */}
                     <div className="sm:hidden">
                         <Input
                             placeholder="Buscar por semana o fecha…"
@@ -216,7 +209,6 @@ export function PreprocesoPage() {
                                 </Table>
                             </div>
 
-                            {/* Controles de paginación */}
                             <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
                                 <div className="text-sm text-muted-foreground">
                                     Mostrando <strong>{Math.min(end, totalRows)}</strong> de <strong>{totalRows}</strong> — página {page} de {totalPages}

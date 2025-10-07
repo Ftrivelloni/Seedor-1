@@ -7,13 +7,10 @@ export const metadata: Metadata = { title: "Contactanos — Seedor" };
 export default function ContactoPage() {
   return (
       <>
-          {/* Header fijo */}
           <Header />
 
-          {/* Main con padding-top para no tapar el contenido */}
           <main className="relative min-h-[calc(100vh-64px)] bg-background">
               <section className="relative mx-auto grid max-w-7xl grid-cols-1 place-items-center px-6 py-16 md:grid-cols-2 md:gap-12 md:py-24">
-                  {/* Izquierda: copy */}
                   <div className="hidden w-full md:block">
                       <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
                           Hablemos de tu <span className="text-primary">campo</span>
@@ -32,7 +29,6 @@ export default function ContactoPage() {
                       </div>
                   </div>
 
-                  {/* Derecha: formulario */}
                   <div className="w-full">
                       <ContactForm />
                   </div>

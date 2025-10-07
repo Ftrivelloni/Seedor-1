@@ -8,7 +8,6 @@ export default function ForgotPasswordPage() {
   return (
     <main className="relative min-h-[calc(100vh-64px)] bg-background">
       <section className="relative mx-auto grid max-w-7xl grid-cols-1 place-items-center px-6 py-16 md:grid-cols-2 md:gap-12 md:py-24">
-        {/* Columna izquierda (copy + tips) */}
         <div className="hidden w-full md:block">
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
             Recuperá tu <span className="text-primary">acceso</span>
@@ -18,9 +17,7 @@ export default function ForgotPasswordPage() {
             Ingresá tu email y te enviaremos un enlace para restablecer tu contraseña.
           </p>
 
-          {/* --- Tips mejorados --- */}
           <div className="mt-8 rounded-2xl border bg-card/80 p-6 shadow-sm">
-            {/* Etiqueta + línea divisoria */}
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                 Tips
@@ -28,7 +25,6 @@ export default function ForgotPasswordPage() {
               <div className="h-px flex-1 bg-border/60" />
             </div>
 
-            {/* Lista */}
             <ul className="mt-4 grid gap-4 sm:grid-cols-2">
               <li className="flex items-start gap-3">
                 <span
@@ -63,10 +59,8 @@ export default function ForgotPasswordPage() {
               </li>
             </ul>
           </div>
-          {/* --- /Tips --- */}
         </div>
 
-        {/* Formulario */}
         <div className="w-full">
           <ForgotPasswordForm />
         </div>

@@ -59,13 +59,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 setUser(null)
               } else if (event === 'SIGNED_IN' && session?.user) {
                 console.log('User signed in, loading profile...')
-                const newUser = await authService.checkSession() // Usa auth unificado
+                
+                const { authService: supabaseAuthService } = await import("../../lib/supabaseAuth")
+                const { user: newUser } = await supabaseAuthService.getSafeSession()
                 setUser(newUser)
+                
+                console.log('✅ User profile loaded successfully')
               } else if (event === 'TOKEN_REFRESHED' && session?.user) {
                 console.log('Token refreshed')
               }
             } catch (error) {
               console.error('Error handling auth state change:', error)
+              setUser(null) 
             } finally {
               isUpdatingRef.current = false
             }

@@ -18,10 +18,8 @@ export default function EmpaqueLayout({
   });
   const router = useRouter();
 
-  // Debug logs
   console.log('� Empaque Layout - User:', user?.email, 'Rol:', user?.rol, 'Loading:', loading);
 
-  // Share the authenticated user with child components via window
   useEffect(() => {    
     if (user && typeof window !== 'undefined') {
       window.empaqueLayoutUser = user;
@@ -50,7 +48,6 @@ export default function EmpaqueLayout({
     )
   }
   
-  // Wrap the entire layout with our EmpaqueAuthProvider and pass user via props
   return (
     <EmpaqueAuthProvider initialUser={user}>
       <EmpaqueLayoutContent user={user} handleLogout={handleLogout}>
@@ -60,7 +57,6 @@ export default function EmpaqueLayout({
   );
 }
 
-// Separate the content to a sub-component that can access the EmpaqueAuthContext
 function EmpaqueLayoutContent({
   user,
   handleLogout,
@@ -73,7 +69,6 @@ function EmpaqueLayoutContent({
   const router = useRouter();
   const { setEmpaqueUser } = useEmpaqueAuth();
   
-  // Share the authenticated user with child components via context
   useEffect(() => {
     if (user) {
       setEmpaqueUser(user);
@@ -95,7 +90,6 @@ function EmpaqueLayoutContent({
           user={user} 
           onLogout={handleLogoutClick}
           onNavigate={(page) => {
-            // Map page names to their correct routes
             const pageRoutes: Record<string, string> = {
               dashboard: "/home",
               campo: "/campo",

@@ -6,7 +6,6 @@ import { authService } from "../lib/supabaseAuth"
 import { tareasCampo, movimientosCaja, inventario } from "../lib/mocks"
 import { Calendar, TrendingUp, AlertTriangle, DollarSign } from "lucide-react"
 
-// Utility function for conditional class names
 function cn(...classes: (string | undefined)[]) {
   return classes.filter(Boolean).join(" ")
 }
@@ -15,12 +14,10 @@ export function DashboardStats() {
   const user = authService.getCurrentUser()
   if (!user) return null
 
-  // Filter data by tenant
   const tenantTareas = tareasCampo.filter((t) => t.tenantId === user.tenantId)
   const tenantMovimientos = movimientosCaja.filter((m) => m.tenantId === user.tenantId)
   const tenantInventario = inventario.filter((i) => i.tenantId === user.tenantId)
 
-  // Calculate KPIs
   const tareasPendientes = tenantTareas.filter((t) => t.estado === "pendiente").length
   const tareasEnCurso = tenantTareas.filter((t) => t.estado === "en-curso").length
 
@@ -39,7 +36,6 @@ export function DashboardStats() {
     .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
     .slice(0, 3)
     
-  // Total items in inventory
   const totalInventario = tenantInventario.length
 
   return (
@@ -60,7 +56,6 @@ export function DashboardStats() {
       </header>
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-6">
-      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -107,9 +102,7 @@ export function DashboardStats() {
         </Card>
       </div>
 
-      {/* Detailed Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Próximas Tareas */}
         <Card>
           <CardHeader className="gap-1">
             <CardTitle>Próximas Tareas en Campo</CardTitle>
@@ -142,7 +135,6 @@ export function DashboardStats() {
           </CardContent>
         </Card>
 
-        {/* Movimientos Recientes */}
         <Card>
           <CardHeader className="gap-1">
             <CardTitle>Movimientos Recientes</CardTitle>
@@ -178,7 +170,6 @@ export function DashboardStats() {
         </Card>
       </div>
 
-      {/* Items Bajo Stock */}
       {itemsBajoStock.length > 0 && (
         <Card>
           <CardHeader className="gap-1">
