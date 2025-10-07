@@ -241,7 +241,7 @@ export const authService = {
         }])
 
       if (profileError) {
-        console.error('Profile creation error:', profileError)
+        console.warn('⚠️ Profile creation warning (non-critical):', profileError.message || profileError)
       }
 
       const { data: membershipData, error: membershipError } = await supabase
@@ -940,15 +940,7 @@ export const authService = {
       // Reducir logs en producción
       const isDevMode = process.env.NODE_ENV === 'development' && typeof window !== "undefined";
       
-      const sessionPromise = supabase.auth.getSession();
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Session timeout')), 10000); // 10 segundos
-      });
-
-      const { data: { session } } = await Promise.race([
-        sessionPromise,
-        timeoutPromise
-      ]) as any;
+      const { data: { session } } = await supabase.auth.getSession();
       
       console.log('📋 Session obtained:', {
         hasSession: !!session,
@@ -962,53 +954,25 @@ export const authService = {
         return { user: null }
       }
 
-      const profilePromise = supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', session.user.id)
         .maybeSingle();
 
-      const membershipsPromise = supabase
+      const { data: memberships } = await supabase
         .from('tenant_memberships')
         .select('*, tenants(*)')
         .eq('user_id', session.user.id)
         .eq('status', 'active');
 
-      const profileTimeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Profile timeout')), 5000);
-      });
+      console.log('✅ Profile and memberships loaded');
 
-      const membershipsTimeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Memberships timeout')), 5000);
-      });
-
-      try {
-        const [profileResult, membershipsResult] = await Promise.all([
-          Promise.race([profilePromise, profileTimeout]),
-          Promise.race([membershipsPromise, membershipsTimeout])
-        ]);
-
-        const { data: profile } = profileResult as any;
-        const { data: memberships } = membershipsResult as any;
-
-        console.log('✅ Profile and memberships loaded');
-
-        return {
-          user: {
-            ...session.user,
-            profile,
-            memberships
-          }
-        }
-
-      } catch (queryError) {
-        console.warn('⚠️ Error loading profile/memberships, returning basic user:', queryError);
-        return {
-          user: {
-            ...session.user,
-            profile: null,
-            memberships: []
-          }
+      return {
+        user: {
+          ...session.user,
+          profile,
+          memberships
         }
       }
 
