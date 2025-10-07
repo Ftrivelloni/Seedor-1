@@ -16,9 +16,8 @@ export const PLAN_FEATURE_CONFIGS: PlanFeatureConfig[] = [
     maxUsers: 3,
     maxFields: 5,
     includedFeatures: [
-      // Basic Plan: Dashboard, Campo, Empaque, Inventario, Settings, User Management
+      // Basic Plan: Dashboard, Empaque, Inventario, Settings, User Management
       "dashboard",
-      "campo", // Added campo module for basic plan
       "empaque",
       "inventario", 
       "ajustes",
@@ -32,10 +31,7 @@ export const PLAN_FEATURE_CONFIGS: PlanFeatureConfig[] = [
       "ajustes_stock",
       // User management features
       "creacion_trab",
-      "rol_trabajador",
-      // Basic Campo features
-      "tareas_campo",
-      "calendario_campo"
+      "rol_trabajador"
     ]
   },
   {
@@ -47,7 +43,6 @@ export const PLAN_FEATURE_CONFIGS: PlanFeatureConfig[] = [
     includedFeatures: [
       // All basic features
       "dashboard",
-      "campo",
       "empaque", 
       "inventario",
       "ajustes",
@@ -59,9 +54,10 @@ export const PLAN_FEATURE_CONFIGS: PlanFeatureConfig[] = [
       "ajustes_stock",
       "creacion_trab",
       "rol_trabajador",
+      // Pro adds Campo functionality
+      "campo",
       "tareas_campo",
       "calendario_campo",
-      // Pro adds additional Campo functionality
       "seguimiento_tareas",
       "rendimiento_lotes",
       // Enhanced features

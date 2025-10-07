@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Badge } from "../ui/badge"
 import { farmsApi } from "../../lib/api"
 import type { Farm } from "../../lib/types"
-import type { AuthUser } from "../../lib/auth"
+import type { AuthUser } from "../../lib/supabaseAuth"
 import { Plus, MapPin, Maximize2, Sprout, Edit, Trash2 } from "lucide-react"
 import { FarmFormModal } from "./farm-form-modal"
 import { toast } from "../../hooks/use-toast"
@@ -21,22 +21,25 @@ export function FarmsList({ user }: FarmsListProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingFarm, setEditingFarm] = useState<Farm | undefined>()
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   
   const router = useRouter()
-  
-  // Debug: Component render state
-  console.log("🎯 FarmsList render - isLoading:", isLoading, "farms count:", farms.length, "user available:", !!user)
 
-  const loadFarms = async (tenantId: string) => {
+  useEffect(() => {
+    console.log("User in FarmsList:", user)
+    if (user) {
+      loadFarms()
+    }
+  }, [user])
+
+  const loadFarms = async () => {
+    if (!user) return
+
     try {
       setIsLoading(true)
-      const data = await farmsApi.getFarms(tenantId)
-      console.log("✅ Farms loaded:", data.length, "farms")
+      const data = await farmsApi.getFarms(user.tenantId)
       setFarms(data)
-      setHasLoadedOnce(true)
     } catch (error) {
-      console.error("❌ Error loading farms:", error)
+      console.error("Error al cargar campos:", error)
       toast({
         title: "Error",
         description: "No se pudieron cargar los campos",
@@ -46,17 +49,6 @@ export function FarmsList({ user }: FarmsListProps) {
       setIsLoading(false)
     }
   }
-
-  useEffect(() => {
-    if (user?.tenantId) {
-      console.log("🚀 Loading farms for tenant:", user.tenantId)
-      loadFarms(user.tenantId)
-    } else if (user && !user.tenantId) {
-      console.log("❌ User exists but no tenantId found")
-      setIsLoading(false)
-    }
-    // If user is null/undefined, keep loading true (still waiting for auth)
-  }, [user?.tenantId]) // Only re-run when tenantId changes
 
   const handleCreateFarm = async (farmData: any) => {
     if (!user) {
@@ -77,7 +69,7 @@ export function FarmsList({ user }: FarmsListProps) {
         title: "Campo creado",
         description: "El campo se ha creado exitosamente"
       })
-      await loadFarms(user.tenantId)
+      await loadFarms()
       setIsModalOpen(false)
     } catch (error: any) {
       console.error("Error al crear campo:", error)
@@ -93,7 +85,7 @@ export function FarmsList({ user }: FarmsListProps) {
   }
 
   const handleEditFarm = async (farmData: any) => {
-    if (!editingFarm || !user?.tenantId) return
+    if (!editingFarm) return
     
     try {
       await farmsApi.updateFarm(editingFarm.id, farmData)
@@ -101,7 +93,7 @@ export function FarmsList({ user }: FarmsListProps) {
         title: "Campo actualizado",
         description: "El campo se ha actualizado exitosamente"
       })
-      await loadFarms(user.tenantId)
+      await loadFarms()
       setIsModalOpen(false)
       setEditingFarm(undefined)
     } catch (error) {
@@ -115,7 +107,7 @@ export function FarmsList({ user }: FarmsListProps) {
   }
 
   const handleDeleteFarm = async (farmId: string) => {
-    if (!confirm("¿Estás seguro de eliminar este campo? Esta acción no se puede deshacer.") || !user?.tenantId) return
+    if (!confirm("¿Estás seguro de eliminar este campo? Esta acción no se puede deshacer.")) return
     
     try {
       await farmsApi.deleteFarm(farmId)
@@ -123,7 +115,7 @@ export function FarmsList({ user }: FarmsListProps) {
         title: "Campo eliminado",
         description: "El campo se ha eliminado exitosamente"
       })
-      await loadFarms(user.tenantId)
+      await loadFarms()
     } catch (error) {
       console.error("Error al eliminar campo:", error)
       toast({
@@ -152,7 +144,7 @@ export function FarmsList({ user }: FarmsListProps) {
           <div>
             <h1 className="text-xl font-semibold">Campo</h1>
             <p className="text-sm text-muted-foreground">
-              Gestión de campos y lotes - {user?.tenant?.nombre || 'Tu Empresa'}
+              Gestión de campos y lotes - {user?.tenant?.name || 'Tu Empresa'}
             </p>
           </div>
           <div className="flex items-center space-x-4">

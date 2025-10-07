@@ -11,8 +11,7 @@ import { FinanzasFormModal } from "./finanzas-form-modal"
 import { finanzasApi } from "../../lib/api"
 import { authService } from "../../lib/supabaseAuth"
 import type { MovimientoCaja } from "../../lib/mocks"
-import { Plus, Search, Download, DollarSign, TrendingUp, TrendingDown, FileText, Crown } from "lucide-react"
-import { useFeatures } from "../../lib/features-context"
+import { Plus, Search, Download, DollarSign, TrendingUp, TrendingDown, FileText } from "lucide-react"
 
 export function FinanzasPage() {
   const [movimientos, setMovimientos] = useState<MovimientoCaja[]>([])
@@ -22,32 +21,12 @@ export function FinanzasPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterTipo, setFilterTipo] = useState("all")
   const [filterCategoria, setFilterCategoria] = useState("all")
-  
-  // Always call hooks at the top level, before any conditional logic
-  const { hasFeature, planInfo } = useFeatures()
-  const canAccessFinanzas = hasFeature('finanzas')
-  
-  const [user, setUser] = useState<any>(null)
+
+  const user = authService.getCurrentUser()
 
   useEffect(() => {
-    // Obtener el usuario actual de forma segura
-    const loadUser = async () => {
-      try {
-        const currentUser = await authService.getCurrentUser()
-        setUser(currentUser)
-      } catch (error) {
-        console.error('Error loading user:', error)
-      }
-    }
-    
-    loadUser()
+    loadMovimientos()
   }, [])
-
-  useEffect(() => {
-    if (user?.tenantId) {
-      loadMovimientos()
-    }
-  }, [user])
 
   useEffect(() => {
     applyFilters()
@@ -136,50 +115,10 @@ export function FinanzasPage() {
 
   const uniqueCategories = [...new Set(movimientos.map((m) => m.categoria))]
 
-  // Acceso basado en rol
   if (!user || !["Admin", "Finanzas"].includes(user.rol)) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>
-      </div>
-    )
-  }
-  
-  // Si el plan no incluye finanzas, mostrar mensaje de actualización
-  if (!canAccessFinanzas) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6">
-        <div className="max-w-md w-full">
-          <Card className="border-2 border-dashed border-muted-foreground/25">
-            <CardHeader>
-              <CardTitle className="text-center flex flex-col items-center gap-2">
-                <DollarSign className="h-12 w-12 text-muted-foreground" />
-                <span>Módulo de Finanzas</span>
-              </CardTitle>
-              <CardDescription className="text-center">
-                Esta funcionalidad está disponible en planes superiores
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-center space-y-4">
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <p className="font-medium mb-2">Tu plan actual: {planInfo?.plan_display_name || 'Plan Básico'}</p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  El módulo de Finanzas te permite gestionar todos los ingresos y egresos de tu empresa,
-                  mantener un control de caja chica, y generar reportes financieros completos.
-                </p>
-                <div className="flex items-center justify-center gap-2 text-amber-600">
-                  <Crown className="h-4 w-4" />
-                  <span className="text-sm font-medium">Disponible en Plan Profesional o superior</span>
-                </div>
-              </div>
-              
-              <Button className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700">
-                <Crown className="h-4 w-4 mr-2" />
-                Actualizar Plan
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     )
   }

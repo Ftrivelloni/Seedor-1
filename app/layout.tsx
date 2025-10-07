@@ -6,9 +6,9 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
+import { UserProvider } from "../components/auth/UserContext"
 import { AuthErrorHandler } from "../components/auth/AuthErrorHandler"
 import { SessionCleanup } from "../components/auth/SessionCleanup"
-import { ConditionalUserProvider } from "../components/auth/ConditionalUserProvider"
 
 export const metadata: Metadata = {
   title: "Seedor - Gestión Agropecuaria",
@@ -26,9 +26,9 @@ export default function RootLayout({
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <SessionCleanup />
         <AuthErrorHandler>
-          <ConditionalUserProvider>
+          <UserProvider>
             <Suspense fallback={null}>{children}</Suspense>
-          </ConditionalUserProvider>
+          </UserProvider>
         </AuthErrorHandler>
         <Analytics />
       </body>

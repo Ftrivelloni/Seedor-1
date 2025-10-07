@@ -9,7 +9,7 @@ import { Badge } from '../ui/badge'
 import { Trash2, UserPlus, Edit3, Shield, User, Package, DollarSign, Sprout } from 'lucide-react'
 import { Alert, AlertDescription } from '../ui/alert'
 import { toast } from '../../hooks/use-toast'
-import type { AuthUser } from '../../lib/auth'
+import type { AuthUser } from '../../lib/supabaseAuth'
 
 interface TenantUser {
   id: string
@@ -183,8 +183,8 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
     if (!formData.password.trim()) {
       newErrors.password = 'La contraseña es requerida'
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'La contraseña debe tener al menos 8 caracteres'
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'La contraseña debe tener al menos 6 caracteres'
     }
 
     if (!formData.full_name.trim()) {
@@ -232,7 +232,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         return
       }
 
-      const response = await fetch('/api/admin/users/create', {
+      const response = await fetch('/api/admin/users/invite', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -240,7 +240,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         },
         body: JSON.stringify({
           email: formData.email,
-          password: formData.password,
           fullName: formData.full_name,
           role: formData.role,
           documentId: formData.document_id,
@@ -251,8 +250,8 @@ export function UserManagement({ currentUser }: UserManagementProps) {
       if (response.ok) {
         const result = await response.json()
         toast({
-          title: "Usuario creado",
-          description: result.message || "El usuario ha sido creado exitosamente."
+          title: "Usuario invitado",
+          description: result.message || "El usuario ha sido invitado exitosamente."
         })
         setIsCreateModalOpen(false)
         setFormData({
@@ -269,7 +268,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         const error = await response.json()
         toast({
           title: "Error",
-          description: error.error || "Error al crear el usuario",
+          description: error.error || "Error al invitar al usuario",
           variant: "destructive"
         })
       }
@@ -277,7 +276,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
       console.error('Error creating user:', error)
       toast({
         title: "Error",
-        description: "Error de conexión al crear el usuario",
+        description: "Error de conexión al invitar al usuario",
         variant: "destructive"
       })
     } finally {
@@ -430,7 +429,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
           <div>
             <h1 className="text-xl font-semibold">Gestión de Usuarios</h1>
             <p className="text-sm text-muted-foreground">
-              Usuarios activos: {userLimits.current} de {userLimits.max} - {currentUser?.tenant?.nombre || 'Tu Empresa'}
+              Usuarios activos: {userLimits.current} de {userLimits.max} - {currentUser?.tenant?.name || 'Tu Empresa'}
             </p>
           </div>
           <div className="flex items-center space-x-4">
@@ -492,7 +491,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 6 caracteres"
                 />
                 {errors.password && <p className="text-sm text-red-600">{errors.password}</p>}
               </div>

@@ -27,17 +27,6 @@ export interface AcceptInvitationParams {
   }
 }
 
-export interface CreateUserParams {
-  tenantId: string
-  email: string
-  password: string
-  full_name: string
-  document_id: string
-  phone?: string
-  role_code: 'admin' | 'campo' | 'empaque' | 'finanzas'
-  created_by: string
-}
-
 // Funciones de validación (mantener las existentes)
 export const validators = {
   email: (email: string): boolean => {
@@ -885,22 +874,10 @@ export const authService = {
         return { error: 'Credenciales inválidas' }
       }
 
-      // Crear una promesa con timeout para la solicitud de login
-      const loginPromise = supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: password,
       })
-
-      // Crear una promesa que se rechaza después de 10 segundos
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Tiempo de espera agotado. Por favor, inténtalo de nuevo.')), 10000)
-      })
-
-      // Usar Promise.race para tomar la que se resuelva primero
-      const { data, error } = await Promise.race([
-        loginPromise,
-        timeoutPromise
-      ]) as any
 
       if (error) {
         return { error: 'Email o contraseña incorrectos' }
@@ -937,8 +914,7 @@ export const authService = {
 
   getSafeSession: async () => {
     try {
-      // Reducir logs en producción
-      const isDevMode = process.env.NODE_ENV === 'development' && typeof window !== "undefined";
+      console.log('🔍 Getting safe session...');
       
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -948,9 +924,7 @@ export const authService = {
       });
 
       if (!session?.user) {
-        if (isDevMode) {
-          // console.log('📋 No user session found');
-        }
+        console.log('📋 No user session found');
         return { user: null }
       }
 
@@ -984,93 +958,48 @@ export const authService = {
 
   getCurrentUser: async () => {
     try {
-      // Reducir logs en producción
-      const isDevMode = process.env.NODE_ENV === 'development' && typeof window !== "undefined";
-      
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session?.user) {
-        if (isDevMode) {
-          // console.log('❌ No active session found');
-        }
         return null
       }
 
-      // Get user profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', session.user.id)
         .maybeSingle()
-        
-      // Only log in development mode
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📋 Profile data:', profile ? 'Found' : 'Not found');
-      }
 
-      // Get active memberships with tenant data
-      const { data: memberships, error: membershipError } = await supabase
+      const { data: memberships } = await supabase
         .from('tenant_memberships')
         .select('*, tenants(*)')
         .eq('user_id', session.user.id)
         .eq('status', 'active')
-
-      if (membershipError) {
-        console.error('❌ Error fetching memberships:', membershipError);
-      }
-      
-      // Determine role based on the first active membership
-      // Convert 'owner' role to 'admin' for UI purposes
-      const roleMap: { [key: string]: string } = {
-        'owner': 'Admin',
-        'admin': 'Admin',
-        'campo': 'Campo',
-        'empaque': 'Empaque',
-        'finanzas': 'Finanzas'
-      };
+        .first()
 
       if (memberships && memberships.length > 0) {
-        // Use the first membership as default
-        const defaultMembership = memberships[0];
-        const roleCode = defaultMembership.role_code?.toLowerCase() || '';
-        const mappedRole = roleMap[roleCode] || 'Admin';
-        
-        // Only log in development mode
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🔑 User has membership:', {
-            role: mappedRole,
-            tenantId: defaultMembership.tenant_id,
-            tenantName: defaultMembership.tenants?.name
-          });
-        }
-        
+        const defaultMembership = memberships[0]
         return {
           id: session.user.id,
           email: session.user.email,
-          nombre: profile?.full_name || session.user.user_metadata?.full_name || session.user.email,
-          rol: mappedRole,
+          nombre: profile?.full_name || session.user.email,
+          rol: defaultMembership.role_code,
           tenantId: defaultMembership.tenant_id,
-          tenant: defaultMembership.tenants || {
-            id: defaultMembership.tenant_id,
-            nombre: 'Mi Empresa',
-            tipo: 'general',
-            plan: 'basic'
-          }
+          tenant: defaultMembership.tenants
         }
       }
 
-      console.log('ℹ️ User has no active memberships');
       return {
         id: session.user.id,
         email: session.user.email,
-        nombre: profile?.full_name || session.user.user_metadata?.full_name || session.user.email,
+        nombre: profile?.full_name || session.user.email,
         rol: null,
         tenantId: null,
         tenant: null
       }
 
     } catch (error: any) {
-      console.error('❌ Error getting current user:', error);
+      console.error('Error getting current user:', error)
       return null
     }
   },
@@ -1203,225 +1132,12 @@ export const authService = {
     }
   },
 
-  createUser: async (params: CreateUserParams): Promise<{ success: boolean; error?: string; data?: any }> => {
-    try {
-      console.log('🔍 Starting direct user creation with params:', {
-        ...params,
-        password: '[HIDDEN]'
-      })
-      
-      // Validation
-      const cleanEmail = sanitizeInput.email(params.email)
-      if (!validators.email(cleanEmail)) {
-        return { success: false, error: 'Email inválido' }
-      }
-      
-      if (!validators.password(params.password)) {
-        return { success: false, error: 'La contraseña debe tener al menos 8 caracteres' }
-      }
-
-      if (!validators.text(params.full_name, 2)) {
-        return { success: false, error: 'Nombre inválido' }
-      }
-      
-      // Step 1: Check if tenant exists and has available user slots
-      console.log('🔍 Step 1: Checking tenant limits...')
-      const { data: tenant, error: tenantError } = await supabase
-        .from('tenants')
-        .select('current_users, max_users, name')
-        .eq('id', params.tenantId)
-        .single()
-
-      if (tenantError) {
-        console.error('Error getting tenant:', tenantError)
-        return { success: false, error: 'Error al verificar información del tenant' }
-      }
-
-      if (!tenant) {
-        return { success: false, error: 'Tenant no encontrado' }
-      }
-      
-      if (tenant.max_users > 0 && tenant.current_users >= tenant.max_users) {
-        return { 
-          success: false, 
-          error: `Has alcanzado el límite de ${tenant.max_users} usuarios para tu plan. Actualizá tu plan para agregar más usuarios.`
-        }
-      }
-      
-      // Step 2: Check if email is already in use
-      console.log('🔍 Step 2: Checking if email is available...')
-      const { data: existingUser, error: userError } = await supabase
-        .from('workers')
-        .select('id')
-        .eq('email', cleanEmail)
-        .maybeSingle()
-      
-      if (userError) {
-        console.error('Error checking existing user:', userError)
-      }
-      
-      if (existingUser) {
-        return { success: false, error: 'Este email ya está registrado en el sistema' }
-      }
-      
-      // Step 3: Create user in auth system
-      console.log('🔍 Step 3: Creating auth user...')
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: cleanEmail,
-        password: params.password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: params.full_name
-        }
-      })
-      
-      if (authError || !authData?.user) {
-        console.error('Error creating user:', authError)
-        return { 
-          success: false, 
-          error: authError?.message || 'Error al crear usuario'
-        }
-      }
-      
-      const userId = authData.user.id
-      
-      // Step 4: Create profile
-      console.log('🔍 Step 4: Creating profile...')
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([{
-          user_id: userId,
-          email: cleanEmail,
-          full_name: params.full_name,
-          phone: params.phone || null,
-          default_tenant_id: params.tenantId,
-        }])
-      
-      if (profileError) {
-        console.error('Error creating profile:', profileError)
-        // Continue anyway, as this isn't critical
-      }
-      
-      // Step 5: Create tenant membership
-      console.log('🔍 Step 5: Creating membership...')
-      const { data: membership, error: membershipError } = await supabase
-        .from('tenant_memberships')
-        .insert([{
-          tenant_id: params.tenantId,
-          user_id: userId,
-          role_code: params.role_code,
-          status: 'active',
-          accepted_at: new Date().toISOString(),
-        }])
-        .select()
-        .single()
-      
-      if (membershipError) {
-        console.error('Error creating membership:', membershipError)
-        return { success: false, error: 'Error al crear membresía en el tenant' }
-      }
-      
-      // Step 6: Create worker record
-      console.log('🔍 Step 6: Creating worker record...')
-      const { data: worker, error: workerError } = await supabase
-        .from('workers')
-        .insert([{
-          tenant_id: params.tenantId,
-          full_name: params.full_name,
-          document_id: params.document_id,
-          email: cleanEmail,
-          phone: params.phone || null,
-          area_module: params.role_code,
-          membership_id: membership.id,
-          status: 'active'
-        }])
-        .select()
-        .single()
-      
-      if (workerError) {
-        console.error('Error creating worker:', workerError)
-        return { success: false, error: 'Error al crear registro de trabajador' }
-      }
-      
-      // Step 7: Increment tenant user count
-      console.log('🔍 Step 7: Updating tenant user count...')
-      const { error: updateError } = await supabase
-        .from('tenants')
-        .update({ 
-          current_users: tenant.current_users + 1 
-        })
-        .eq('id', params.tenantId)
-      
-      if (updateError) {
-        console.error('Error updating tenant user count:', updateError)
-        // Non-critical error, continue
-      }
-      
-      // Step 8: Create audit log
-      await supabase
-        .from('audit_logs')
-        .insert([{
-          tenant_id: params.tenantId,
-          actor_user_id: params.created_by,
-          action: 'user_created',
-          entity: 'user',
-          entity_id: userId,
-          details: { 
-            email: cleanEmail, 
-            role: params.role_code,
-            worker_id: worker.id
-          }
-        }])
-        .catch((error: any) => console.error('Error creating audit log:', error))
-      
-      console.log('✅ User created successfully:', {
-        userId,
-        email: cleanEmail,
-        role: params.role_code
-      })
-      
-      return { 
-        success: true, 
-        data: { 
-          user: authData.user,
-          worker,
-          membership
-        }
-      }
-    } catch (error: any) {
-      console.error('❌ Unexpected error in createUser:', error)
-      return { success: false, error: `Error inesperado: ${error.message}` }
-    }
-  },
-
   logout: async (): Promise<{ error?: string }> => {
     try {
-      console.log('🔑 Supabase: Iniciando cierre de sesión');
-      
-      // Intentar hacer logout con un timeout para evitar bloqueos
-      const logoutPromise = supabase.auth.signOut();
-      
-      // Crear un timeout de 5 segundos para evitar que el proceso se quede bloqueado
-      const timeoutPromise = new Promise<{ error: string }>((resolve) => {
-        setTimeout(() => {
-          console.log('⚠️ Supabase: Logout timeout, forzando cierre');
-          resolve({ error: 'Timeout al cerrar sesión' });
-        }, 5000);
-      });
-      
-      // Usar Promise.race para no quedarnos bloqueados si supabase no responde
-      const result = await Promise.race([logoutPromise, timeoutPromise]);
-      
-      if ('error' in result && result.error) {
-        console.error('❌ Supabase: Error al cerrar sesión:', result.error);
-        return { error: result.error.message || 'Error desconocido al cerrar sesión' };
-      }
-      
-      console.log('✅ Supabase: Sesión cerrada correctamente');
-      return {};
+      const { error } = await supabase.auth.signOut()
+      return error ? { error: error.message } : {}
     } catch (error: any) {
-      console.error('❌ Supabase: Excepción al cerrar sesión:', error);
-      return { error: error.message || 'Error inesperado al cerrar sesión' };
+      return { error: error.message }
     }
   }
 }

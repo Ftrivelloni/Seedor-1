@@ -1,3 +1,5 @@
+import DatabaseCleanupTool from '../../components/database-cleanup-tool';
+
 export default function CleanupPage() {
   return (
     <div className="min-h-screen bg-background p-6">
@@ -9,9 +11,7 @@ export default function CleanupPage() {
           </p>
         </div>
         
-        <div className="p-6 border rounded-lg shadow-sm">
-          <p className="text-center text-muted-foreground">Database cleanup tools are under development.</p>
-        </div>
+        <DatabaseCleanupTool />
       </div>
     </div>
   );

@@ -86,27 +86,15 @@ export async function POST(request: NextRequest) {
       createdUserId = authData.user.id;
 
       // 4. Create the tenant
-      // Configuración de límites según el plan
-      const planLimits = {
-        basico: { maxUsers: 10, maxFields: 5 },
-        profesional: { maxUsers: 30, maxFields: 20 }
-      };
-      
-      const limits = planLimits[plan as keyof typeof planLimits] || planLimits.basico;
-
       const { data: tenant, error: tenantError } = await supabaseAdmin
         .from('tenants')
         .insert([{
           name: tenantName,
           slug: slug,
           plan: plan,
+          primary_crop: primaryCrop || 'general',
           contact_email: contactEmail,
-          contact_name: adminFullName, // Usar el nombre del admin como contacto
           created_by: authData.user.id,
-          max_users: limits.maxUsers,
-          max_fields: limits.maxFields,
-          current_users: 1, // El admin es el primer usuario
-          current_fields: 0
         }])
         .select()
         .single();

@@ -204,7 +204,7 @@ export function AjustesPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="tenant-tipo">Tipo de Cultivo</Label>
-                    <Input id="tenant-tipo" value="No disponible" disabled />
+                    <Input id="tenant-tipo" value={user.tenant?.primary_crop || 'No disponible'} disabled />
                   </div>
 
                   <div className="space-y-2">

@@ -8,64 +8,35 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const isUpdatingRef = useRef(false)
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    // Debounced user loading function to prevent excessive calls
     const loadUser = async () => {
       if (isUpdatingRef.current) return
       
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
-
-      debounceTimerRef.current = setTimeout(async () => {
-        setLoading(true)
-        try {
-          // Check cached user first
-          const cachedUser = typeof window !== 'undefined' ? 
-            JSON.parse(localStorage.getItem('seedor_cached_user') || 'null') : null;
-            
-          // Use cached user temporarily if available and recent (less than 5 minutes old)
-          if (cachedUser && cachedUser.timestamp && 
-              (Date.now() - cachedUser.timestamp < 5 * 60 * 1000)) {
-            setUser(cachedUser.data);
-            setLoading(false); // Stop loading if using cached data
-          }
-          
-          // Always fetch fresh data
-          const sessionUser = await authService.checkSession()
-          
-          if (sessionUser) {
-            // Log condicional solo para desarrollo
-            if (process.env.NODE_ENV === 'development') {
-              console.log('UserContext: User loaded successfully:', {
-                email: sessionUser.email,
-                rol: sessionUser.rol,
-                tenantId: sessionUser.tenantId
-              })
-            }
-            
-            // Cache the user data
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('seedor_cached_user', JSON.stringify({
-                data: sessionUser,
-                timestamp: Date.now()
-              }));
-            }
-            
-            setUser(sessionUser)
-          } else {
-            setUser(null)
-          }
-        } catch (error: any) {
-          console.error('UserContext: Error loading user session:', error)
-          setUser(null)
-        } finally {
-          setLoading(false)
+      setLoading(true)
+      try {
+        console.log('UserContext: Loading user session...')
+        const sessionUser = await authService.checkSession()
+        
+        if (sessionUser) {
+          console.log('UserContext: User loaded successfully:', {
+            email: sessionUser.email,
+            rol: sessionUser.rol,
+            tenantId: sessionUser.tenantId
+          })
+        } else {
+          console.log('UserContext: No user session found')
         }
-      }, 100); // Small timeout to debounce multiple rapid calls
-    };
+        setUser(sessionUser)
+      } catch (error: any) {
+        console.error('UserContext: Error loading user session:', error)
+        setUser(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadUser()
 
     const setupAuthListener = async () => {
       try {
@@ -73,15 +44,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
         
         if (supabase?.auth?.onAuthStateChange) {
           const { data: authListener } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
-            // Log condicional solo para desarrollo
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Auth state changed:', event, session?.user?.email)
-            }
+            console.log('Auth state changed:', event, session?.user?.email)
             
             if (isUpdatingRef.current) {
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Skipping auth state change - already updating')
-              }
+              console.log('Skipping auth state change - already updating')
               return
             }
             
@@ -91,11 +57,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
               if (event === 'SIGNED_OUT') {
                 console.log('User signed out')
                 setUser(null)
-                
-                // Clear cached user
-                if (typeof window !== 'undefined') {
-                  localStorage.removeItem('seedor_cached_user')
-                }
               } else if (event === 'SIGNED_IN' && session?.user) {
                 console.log('User signed in, loading profile...')
                 const newUser = await authService.checkSession() // Usa auth unificado
@@ -117,18 +78,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Error setting up auth listener:', error)
       }
-    };
-    
-    // Call the functions
-    loadUser();
-    setupAuthListener();
-    
-    // Cleanup function
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
+    }
+
+    setupAuthListener()
   }, [])
 
   return (

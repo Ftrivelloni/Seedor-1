@@ -35,10 +35,10 @@ export type Feature = {
     // Configuración - Basic Plan
     { id: "ajustes",              title: "Configuración del sistema.",                    module: "Configuración", required: true },
 
-    // Gestión de campo - Basic Plan (tareas_campo & calendario_campo) & Pro Plan (rendimiento_lotes & seguimiento_tareas)
+    // Gestión de campo - Pro Plan
+    { id: "rendimiento_lotes",    title: "Cálculo de rendimientos por lotes.",            module: "Gestión de campo",     required: false },
     { id: "tareas_campo",         title: "Creación y asignación de tareas de campo.",     module: "Gestión de campo",     required: false },
     { id: "calendario_campo",     title: "Calendario de actividades y recordatorios.",    module: "Gestión de campo",     required: false },
-    { id: "rendimiento_lotes",    title: "Cálculo de rendimientos por lotes.",            module: "Gestión de campo",     required: false },
     { id: "seguimiento_tareas",   title: "Seguimiento de estado de tareas.",              module: "Gestión de campo",     required: false },
   
     // Gestión de finanzas - Enterprise Plan

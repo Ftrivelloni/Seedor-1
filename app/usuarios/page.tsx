@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { Sidebar } from "../../components/sidebar"
-import { EnhancedUserManagement } from "../../components/admin/enhanced-user-management"
+import { UserManagement } from "../../components/admin/user-management"
 import { useAuth } from "../../hooks/use-auth"
 import { FeatureProvider } from "../../lib/features-context"
 
@@ -58,7 +58,7 @@ export default function UsuariosRoutePage() {
           currentPage="usuarios"
         />
         <div className="flex-1 flex flex-col">
-          <EnhancedUserManagement currentUser={user} />
+          <UserManagement currentUser={user} />
         </div>
       </div>
     </FeatureProvider>

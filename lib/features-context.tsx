@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { AuthUser } from './auth'
+import type { AuthUser } from '../lib/supabaseAuth'
 
 // Function to get features based on plan
 function getPlanFeatures(planName: string): TenantFeature[] {
@@ -17,18 +17,18 @@ function getPlanFeatures(planName: string): TenantFeature[] {
   if (plan === 'basic' || plan === 'basico') {
     return [
       ...baseFeatures,
-      { feature_code: 'campo', feature_name: 'Gestión de Campo', is_enabled: true },
+      { feature_code: 'campo', feature_name: 'Gestión de Campo', is_enabled: false },
       { feature_code: 'finanzas', feature_name: 'Gestión de Finanzas', is_enabled: false },
       { feature_code: 'contactos', feature_name: 'Gestión de Contactos', is_enabled: false },
     ]
   }
 
-  if (plan === 'pro' || plan === 'profesional') {
+  if (plan === 'pro') {
     return [
       ...baseFeatures,
       { feature_code: 'campo', feature_name: 'Gestión de Campo', is_enabled: true },
-      { feature_code: 'finanzas', feature_name: 'Gestión de Finanzas', is_enabled: true },
-      { feature_code: 'contactos', feature_name: 'Gestión de Contactos', is_enabled: true },
+      { feature_code: 'finanzas', feature_name: 'Gestión de Finanzas', is_enabled: false },
+      { feature_code: 'contactos', feature_name: 'Gestión de Contactos', is_enabled: false },
     ]
   }
 
@@ -44,7 +44,7 @@ function getPlanFeatures(planName: string): TenantFeature[] {
   // Default to basic plan features
   return [
     ...baseFeatures,
-    { feature_code: 'campo', feature_name: 'Gestión de Campo', is_enabled: true },
+    { feature_code: 'campo', feature_name: 'Gestión de Campo', is_enabled: false },
     { feature_code: 'finanzas', feature_name: 'Gestión de Finanzas', is_enabled: false },
     { feature_code: 'contactos', feature_name: 'Gestión de Contactos', is_enabled: false },
   ]
@@ -72,7 +72,7 @@ interface FeatureContextType {
   features: TenantFeature[]
   planInfo: PlanInfo | null
   hasFeature: (featureCode: string) => boolean
-  canAccessModule: (module: string, userRole?: string | null) => boolean
+  canAccessModule: (module: string, userRole: string) => boolean
   isLoading: boolean
   refreshFeatures: () => Promise<void>
 }
@@ -104,54 +104,43 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
       setIsLoading(true)
       
       // Use tenant plan from user object instead of API call
-      // Handle cases where user.tenant or user.tenant.plan might be undefined
-      const tenantPlan = user?.tenant?.plan || 'basic'
+      const tenantPlan = user.tenant?.plan || 'basic'
       
       // Load tenant features based on plan
       const planFeatures = getPlanFeatures(tenantPlan)
       setFeatures(planFeatures)
 
       // Set plan info based on tenant plan
-      const planDisplayNames: Record<string, string> = {
+      const planDisplayNames = {
         'basic': 'Plan Básico',
-        'basico': 'Plan Básico',
-        'profesional': 'Plan Profesional',
+        'basico': 'Plan Básico', 
         'pro': 'Plan Profesional',
         'enterprise': 'Plan Empresarial',
         'empresarial': 'Plan Empresarial'
       }
       
-      const planPrices: Record<string, number> = {
+      const planPrices = {
         'basic': 29.99,
         'basico': 29.99,
-        'profesional': 79.99,
-        'pro': 79.99,
+        'pro': 79.99, 
         'enterprise': 199.99,
         'empresarial': 199.99
       }
 
-      // Determine plan name safely
-      const safePlanName = typeof tenantPlan === 'string' ? tenantPlan.toLowerCase() : 'basic'
-      
       setPlanInfo({
-        plan_name: safePlanName,
-        plan_display_name: planDisplayNames[safePlanName] || 'Plan Básico',
-        price_monthly: planPrices[safePlanName] || 29.99,
-        price_yearly: (planPrices[safePlanName] || 29.99) * 10,
+        plan_name: tenantPlan,
+        plan_display_name: planDisplayNames[tenantPlan as keyof typeof planDisplayNames] || 'Plan Básico',
+        price_monthly: planPrices[tenantPlan as keyof typeof planPrices] || 29.99,
+        price_yearly: (planPrices[tenantPlan as keyof typeof planPrices] || 29.99) * 10,
         current_users: 1,
-        max_users: 
-          safePlanName === 'enterprise' || safePlanName === 'empresarial' 
-            ? -1 
-            : (safePlanName === 'pro' || safePlanName === 'profesional' ? 10 : 3),
+        max_users: tenantPlan === 'enterprise' || tenantPlan === 'empresarial' ? -1 : (tenantPlan === 'pro' ? 10 : 3),
         plan_active: true
       })
     } catch (error) {
       console.error('Error loading features:', error)
       // Set minimal fallback features
       setFeatures([
-        { feature_code: 'dashboard', feature_name: 'Dashboard', is_enabled: true },
         { feature_code: 'campo', feature_name: 'Gestión de Campo', is_enabled: true },
-        { feature_code: 'empaque', feature_name: 'Gestión de Empaque', is_enabled: true },
         { feature_code: 'inventario', feature_name: 'Gestión de Inventario', is_enabled: true }
       ])
     } finally {
@@ -171,10 +160,6 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
   }
 
   // Role-based access control matrix
-  // Users with 'finanzas' role can only access finanzas, trabajadores, and inventario modules
-  // Users with 'campo' role can only access campo, trabajadores, and inventario modules
-  // Users with 'empaque' role can only access empaque, trabajadores, and inventario modules
-  // Admins have access to all modules
   const roleModuleAccess: Record<string, string[]> = {
     admin: ['dashboard', 'campo', 'empaque', 'finanzas', 'inventario', 'trabajadores', 'contactos', 'ajustes', 'user_management'],
     campo: ['dashboard', 'campo', 'inventario', 'trabajadores', 'ajustes'],
@@ -182,12 +167,7 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
     finanzas: ['dashboard', 'finanzas', 'inventario', 'trabajadores', 'ajustes']
   }
 
-  const canAccessModule = (module: string, userRole?: string | null): boolean => {
-    // Si no hay rol de usuario, no permitir acceso
-    if (!userRole) {
-      return false;
-    }
-    
+  const canAccessModule = (module: string, userRole: string): boolean => {
     const moduleKey = module.toLowerCase()
     const userRoleKey = userRole.toLowerCase()
     
@@ -236,7 +216,7 @@ export function useFeatureAccess(featureCode: string) {
 }
 
 // Hook for checking module access based on user role and plan
-export function useModuleAccess(module: string, userRole?: string | null) {
+export function useModuleAccess(module: string, userRole: string) {
   const { canAccessModule, isLoading } = useFeatures()
   return {
     hasAccess: canAccessModule(module, userRole),
@@ -264,7 +244,7 @@ export function FeatureGate({ feature, children, fallback = null }: FeatureGateP
 // Component for role + feature based rendering
 interface ModuleGateProps {
   module: string
-  userRole?: string | null
+  userRole: string
   children: React.ReactNode
   fallback?: React.ReactNode
 }

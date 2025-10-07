@@ -8,7 +8,7 @@ import { Badge } from "../ui/badge"
 import { Plus, ArrowLeft, Grid3x3, List, Pencil, Trash2 } from "lucide-react"
 import { farmsApi, lotsApi } from "../../lib/api"
 import type { Farm, Lot } from "../../lib/types"
-import type { AuthUser } from "../../lib/auth"
+import type { AuthUser } from "../../lib/supabaseAuth"
 import { LotFormModal, type LotFormData } from "./lot-form-modal"
 import { toast } from "../../hooks/use-toast"
 

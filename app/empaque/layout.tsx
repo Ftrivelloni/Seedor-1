@@ -81,20 +81,11 @@ function EmpaqueLayoutContent({
   }, [user, setEmpaqueUser]);
 
   const handleLogoutClick = async () => {
-    // Clear local context data first
     setEmpaqueUser(null);
     if (typeof window !== 'undefined') {
       window.empaqueLayoutUser = undefined;
     }
-    
-    // Small timeout to ensure React renders the updated state before navigation
-    setTimeout(async () => {
-      try {
-        await handleLogout();
-      } catch (error) {
-        console.error("Error durante logout desde empaque:", error);
-      }
-    }, 50);
+    await handleLogout();
   };
 
   return (
@@ -113,7 +104,7 @@ function EmpaqueLayoutContent({
               finanzas: "/finanzas",
               ajustes: "/ajustes",
               trabajadores: "/trabajadores",
-              usuarios: "/usuarios",
+              usuarios: "/home",
               contactos: "/contactos",
             };
 

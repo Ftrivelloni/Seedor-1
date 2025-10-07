@@ -157,7 +157,7 @@ export const tenantApi = {
             name: data.name,
             slug: data.slug,
             plan: data.plan,
-            // primary_crop eliminado - no existe en el esquema
+            primary_crop: data.primary_crop,
             contact_email: data.contact_email,
             created_by: userId,
           },
@@ -663,27 +663,14 @@ export const despachoApi = {
 // Farms API
 export const farmsApi = {
   async getFarms(tenantId: string): Promise<import('./types').Farm[]> {
-    try {
-      if (!tenantId) {
-        console.warn('No tenantId provided to getFarms')
-        return []
-      }
+    const { data, error } = await supabase
+      .from('farms')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
 
-      const { data, error } = await supabase
-        .from('farms')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        console.error('Error fetching farms:', error)
-        throw error
-      }
-      return data || []
-    } catch (error) {
-      console.error('Unexpected error in getFarms:', error)
-      return []
-    }
+    if (error) throw error
+    return data || []
   },
 
   async getFarmById(farmId: string): Promise<import('./types').Farm | null> {

@@ -95,13 +95,21 @@ export function useAuth(options: {
       return;
     }
     
-    // Priority 2: Check for active session if still loading or no user found
-    if (contextLoading || !contextUser) {
+    // Priority 2: Direct user from auth service cache
+    const directUser = authService.getCurrentUser();
+    if (directUser) {
+      setActiveUser(directUser);
+      setAuthChecking(false);
+      return;
+    }
+    
+    // Priority 3: Check for active session if still loading or no user found
+    if (contextLoading || (!contextUser && !directUser)) {
       checkAndGetSession();
     } else {
       setAuthChecking(false);
     }
-  }, [contextUser, contextLoading]); // Removed router and redirectToLogin to prevent unnecessary re-renders
+  }, [contextUser, contextLoading, router, redirectToLogin]);
 
   // Try to get user from EmpaqueAuth context first, then fall back to window global
   // Use try-catch to handle cases where the context isn't available yet
@@ -161,6 +169,8 @@ export function useAuth(options: {
           // If we failed to find the parent user, fall back to normal auth flow
           if (contextUser) {
             setActiveUser(contextUser);
+          } else if (authService.getCurrentUser()) {
+            setActiveUser(authService.getCurrentUser());
           } else {
             checkAndGetSession();
           }
@@ -173,7 +183,7 @@ export function useAuth(options: {
   }, [useLayoutSession, contextUser]);
   
   const parentUser = useLayoutSession ? (empaqueUser || getParentUser()) : null;
-  const currentUser = parentUser || activeUser || contextUser;
+  const currentUser = parentUser || activeUser || contextUser || authService.getCurrentUser();
   
   // Check role-based access if required
   // Skip role checking entirely if using layout session (layout handles it)
@@ -261,40 +271,13 @@ export function useAuth(options: {
 
   // Logout handler
   const handleLogout = async () => {
-    try {
-      console.log("🚪 Iniciando cierre de sesión...");
-      
-      // Inmediatamente navegar a la página de login para evitar problemas de renderizado
-      // con componentes que dependen del usuario
-      router.push("/login");
-      
-      // Pequeña pausa para dejar que la navegación comience
-      await new Promise(resolve => setTimeout(resolve, 10));
-      
-      // Limpiar estado local después de iniciar la navegación
-      setActiveUser(null);
-      
-      // Clear parent reference if it exists
-      if (typeof window !== 'undefined') {
-        window.empaqueLayoutUser = undefined;
-        
-        // Limpiar también localStorage si hay algo que limpiar
-        localStorage.removeItem('seedor_user');
-        sessionStorage.clear();
-      }
-      
-      // Finalmente, hacer logout en Supabase en segundo plano
-      authService.logout().catch(error => {
-        console.error("❌ Error secundario al cerrar sesión en Supabase:", error);
-      });
-      
-      console.log("✅ Sesión cerrada correctamente");
-    } catch (error) {
-      console.error("❌ Error al cerrar sesión:", error);
-      
-      // En caso de error en el proceso general, intentar redirigir de nuevo
-      router.push("/login");
+    await authService.logout();
+    setActiveUser(null);
+    // Clear parent reference if it exists
+    if (typeof window !== 'undefined') {
+      window.empaqueLayoutUser = undefined;
     }
+    router.push("/login");
   };
 
   return {
