@@ -110,7 +110,7 @@ export function FinanzasPage() {
 
   const uniqueCategories = [...new Set(movimientos.map((m) => m.categoria))]
 
-  if (!user || !["Admin", "Finanzas"].includes(user.rol)) {
+  if (!user || !["admin", "finanzas"].includes(user.rol?.toLowerCase())) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>

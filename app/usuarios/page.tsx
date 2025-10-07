@@ -2,18 +2,18 @@
 
 import { useRouter } from "next/navigation"
 import { Sidebar } from "../../components/sidebar"
-import { UserManagement } from "../../components/admin/user-management"
+import { EnProcesoPage } from "../../components/ui/en-proceso-page"
 import { useAuth } from "../../hooks/use-auth"
 import { FeatureProvider } from "../../lib/features-context"
 
 export default function UsuariosRoutePage() {
   const { user, loading, handleLogout } = useAuth({
     redirectToLogin: true,
-    requireRoles: ["Admin"]
+    requireRoles: ["admin"]
   });
   const router = useRouter();
 
-  console.log('👥 Usuarios Page - User:', user?.email, 'Rol:', user?.rol, 'Loading:', loading);
+
 
   if (loading) {
     return (
@@ -56,7 +56,10 @@ export default function UsuariosRoutePage() {
           currentPage="usuarios"
         />
         <div className="flex-1 flex flex-col">
-          <UserManagement currentUser={user} />
+          <EnProcesoPage 
+            moduleName="Gestión de Usuarios" 
+            description="Este módulo permitirá gestionar usuarios, roles y permisos del sistema. Estamos trabajando en mejorar la experiencia de administración."
+          />
         </div>
       </div>
     </FeatureProvider>

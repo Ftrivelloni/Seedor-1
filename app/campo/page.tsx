@@ -9,11 +9,11 @@ import { FeatureProvider } from "../../lib/features-context";
 export default function CampoRoutePage() {
   const { user, loading, handleLogout } = useAuth({
     redirectToLogin: true,
-    requireRoles: ["Admin", "Campo"]
+    requireRoles: ["admin", "campo"]
   });
   const router = useRouter();
 
-  console.log('🌾 Campo Page - User:', user?.email, 'Rol:', user?.rol, 'Loading:', loading);
+
 
   if (loading) {
     return (

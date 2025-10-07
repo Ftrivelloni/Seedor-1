@@ -11,7 +11,7 @@ export default function FarmPage({ params }: { params: Promise<{ farmId: string 
   const { farmId } = use(params)
   const { user, loading, handleLogout } = useAuth({
     redirectToLogin: true,
-    requireRoles: ["Admin", "Campo"]
+    requireRoles: ["admin", "campo"]
   })
   const router = useRouter()
 

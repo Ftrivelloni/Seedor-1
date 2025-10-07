@@ -115,7 +115,7 @@ export function InventarioPage() {
     return { label: "Stock Normal", variant: "outline" as const, color: "text-green-600" }
   }
 
-  if (!user || !["Admin", "Campo", "Empaque"].includes(user.rol)) {
+  if (!user || !["admin", "campo", "empaque"].includes(user.rol?.toLowerCase())) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>

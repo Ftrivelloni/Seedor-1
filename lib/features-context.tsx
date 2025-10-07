@@ -154,10 +154,10 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
   }
 
   const roleModuleAccess: Record<string, string[]> = {
-    admin: ['dashboard', 'campo', 'empaque', 'finanzas', 'inventario', 'trabajadores', 'contactos', 'ajustes', 'user_management'],
-    campo: ['dashboard', 'campo', 'inventario', 'trabajadores', 'ajustes'],
-    empaque: ['dashboard', 'empaque', 'inventario', 'trabajadores', 'ajustes'],
-    finanzas: ['dashboard', 'finanzas', 'inventario', 'trabajadores', 'ajustes']
+    admin: ['dashboard', 'campo', 'empaque', 'finanzas', 'inventario', 'trabajadores', 'ajustes', 'user_management'],
+    campo: ['dashboard', 'campo', 'inventario', 'ajustes'],
+    empaque: ['dashboard', 'empaque', 'inventario', 'ajustes'],
+    finanzas: ['dashboard', 'finanzas', 'trabajadores', 'ajustes']
   }
 
   const canAccessModule = (module: string, userRole: string): boolean => {
@@ -171,6 +171,13 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
     
     const roleAllowed = roleModuleAccess[userRoleKey]?.includes(moduleKey) || false
     
+    // For basic modules, only check role permissions
+    const basicModules = ['dashboard', 'campo', 'empaque', 'finanzas', 'inventario', 'trabajadores', 'contactos', 'ajustes']
+    if (basicModules.includes(moduleKey)) {
+      return roleAllowed
+    }
+    
+    // For advanced modules like user_management, check both role and feature
     const featureEnabled = hasFeature(moduleKey)
     
     if (moduleKey === 'user_management') {

@@ -1,7 +1,7 @@
 // components/empaque/preproceso-page.tsx
 "use client"
 import PreprocesoFormModal from "./preproceso-form-modal";
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Input } from "../ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { supabase } from "../../lib/supabaseClient"
-import { useEmpaqueAuth } from "./EmpaqueAuthContext"
+import { useAuth } from "../../hooks/use-auth"
 import { Plus, Download, ArrowLeft, Cog, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 
@@ -25,13 +25,46 @@ export function PreprocesoPage() {
 
     const router = useRouter()
     
-    const { empaqueUser: user } = useEmpaqueAuth();
+    const { user } = useAuth({});
+    
+    // Estabilizar tenantId
+    const tenantId = useMemo(() => user?.tenantId, [user?.tenantId])
+
+    const loadRegistros = useCallback(async () => {
+        if (!tenantId) {
+            console.error('No tenantId found para preproceso');
+            setIsLoading(false);
+            return;
+        }
+        
+        try {
+            setIsLoading(true)
+            const { data, error } = await supabase
+                .from("preseleccion")
+                .select("*")
+                .eq("tenant_id", tenantId)
+            
+            if (error) {
+                console.error('Error cargando registros de preproceso:', error);
+                setRegistros([]);
+            } else {
+                setRegistros(data || []);
+            }
+        } catch (err) {
+            console.error('Error cargando preproceso:', err);
+            setRegistros([]);
+        } finally {
+            setIsLoading(false)
+        }
+    }, [tenantId])
 
     useEffect(() => {
-        if (user?.tenantId) {
+        if (tenantId) {
             loadRegistros();
+        } else {
+            setIsLoading(false);
         }
-    }, [user?.tenantId]);
+    }, [tenantId, loadRegistros]);
 
     useEffect(() => {
         let filtered = registros
@@ -46,21 +79,6 @@ export function PreprocesoPage() {
         setFilteredRegistros(filtered)
         setPage(1) 
     }, [registros, searchTerm])
-
-    const loadRegistros = async () => {
-        if (!user?.tenantId) {
-            console.error('No se encontró ID del tenant');
-            return;
-        }
-        
-        setIsLoading(true)
-        const { data, error } = await supabase
-            .from("preseleccion")
-            .select("*")
-            .eq("tenant_id", user.tenantId)
-        setIsLoading(false)
-        setRegistros(error ? [] : (data || []))
-    }
 
     const exportToExcel = () => {
         const headers = {

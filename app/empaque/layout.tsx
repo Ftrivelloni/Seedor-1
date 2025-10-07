@@ -14,7 +14,7 @@ export default function EmpaqueLayout({
 }) {
   const { user, loading, handleLogout } = useAuth({
     redirectToLogin: true,
-    requireRoles: ["Admin", "Empaque"]
+    requireRoles: ["admin", "empaque"]
   });
   const router = useRouter();
 

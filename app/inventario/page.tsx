@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation"
 import { Sidebar } from "../../components/sidebar"
-import { InventarioPage } from "../../components/inventario/inventario-page";
+import { EnProcesoPage } from "../../components/ui/en-proceso-page";
 import { useAuth } from "../../hooks/use-auth";
 import { FeatureProvider } from "../../lib/features-context";
 
 export default function InventarioRoutePage() {
   const { user, loading, handleLogout } = useAuth({
     redirectToLogin: true,
-    requireRoles: ["Admin", "Inventario"]
+    requireRoles: ["admin", "campo", "empaque"]
   });
   const router = useRouter();
 
@@ -55,7 +55,10 @@ export default function InventarioRoutePage() {
           currentPage="inventario" 
         />
         <div className="flex-1 flex flex-col">
-          <InventarioPage />
+          <EnProcesoPage 
+            moduleName="Inventario"
+            description="Módulo de gestión de inventario y stock"
+          />
         </div>
       </div>
     </FeatureProvider>

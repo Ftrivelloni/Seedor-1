@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
 import DespachoFormModal from "./despacho-form-modal"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
-import { useEmpaqueAuth } from "./EmpaqueAuthContext"
+import { useAuth } from "../../hooks/use-auth"
 
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -38,7 +38,7 @@ export function DespachoPage() {
     const [modalOpen, setModalOpen] = useState(false)
     const router = useRouter()
     
-    const { empaqueUser: user } = useEmpaqueAuth();
+    const { user } = useAuth({});
 
     useEffect(() => {
         if (user?.tenantId) {

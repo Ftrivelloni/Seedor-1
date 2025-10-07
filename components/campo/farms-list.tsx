@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
@@ -24,31 +24,49 @@ export function FarmsList({ user }: FarmsListProps) {
   
   const router = useRouter()
 
-  useEffect(() => {
-    console.log("User in FarmsList:", user)
-    if (user) {
-      loadFarms()
+  // Estabilizar tenantId para evitar re-renders
+  const tenantId = useMemo(() => user?.tenantId, [user?.tenantId])
+  
+  const loadFarms = useCallback(async () => {
+    if (!user) {
+      return
     }
-  }, [user])
 
-  const loadFarms = async () => {
-    if (!user) return
+    if (!user.tenantId) {
+      console.error("Usuario sin tenantId asignado:", user)
+      setIsLoading(false)
+      toast({
+        title: "Error",
+        description: "Usuario sin tenant configurado",
+        variant: "destructive"
+      })
+      return
+    }
 
     try {
       setIsLoading(true)
       const data = await farmsApi.getFarms(user.tenantId)
       setFarms(data)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al cargar campos:", error)
+      setFarms([])
       toast({
-        title: "Error",
-        description: "No se pudieron cargar los campos",
+        title: "Error al cargar campos",
+        description: error?.message || "No se pudieron cargar los campos",
         variant: "destructive"
       })
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [user, tenantId])
+
+  useEffect(() => {
+    if (tenantId) {
+      loadFarms()
+    } else {
+      setIsLoading(false)
+    }
+  }, [tenantId, loadFarms])
 
   const handleCreateFarm = async (farmData: any) => {
     if (!user) {
@@ -56,15 +74,8 @@ export function FarmsList({ user }: FarmsListProps) {
       return
     }
     
-    console.log("Creating farm with:", { 
-      tenantId: user.tenantId, 
-      userId: user.id, 
-      farmData 
-    })
-    
     try {
       const result = await farmsApi.createFarm(user.tenantId, user.id, farmData)
-      console.log("Farm created successfully:", result)
       toast({
         title: "Campo creado",
         description: "El campo se ha creado exitosamente"
@@ -73,9 +84,6 @@ export function FarmsList({ user }: FarmsListProps) {
       setIsModalOpen(false)
     } catch (error: any) {
       console.error("Error al crear campo:", error)
-      console.error("Error message:", error?.message)
-      console.error("Error details:", error?.details)
-      console.error("Error hint:", error?.hint)
       toast({
         title: "Error",
         description: error?.message || "No se pudo crear el campo",

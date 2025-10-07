@@ -9,7 +9,7 @@ import { FeatureProvider } from "../../lib/features-context"
 export default function AjustesRoutePage() {
   const { user, loading, handleLogout } = useAuth({
     redirectToLogin: true,
-    requireRoles: ["Admin"]
+    requireRoles: ["admin", "campo", "empaque", "finanzas"]
   });
   const router = useRouter();
 

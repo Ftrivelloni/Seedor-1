@@ -1,10 +1,10 @@
 // components/empaque/ingreso-fruta-page.tsx
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
-import { useEmpaqueAuth } from "./EmpaqueAuthContext"
+import { useAuth } from "../../hooks/use-auth"
 
 import { IngresoFrutaFormModal } from "./ingreso-fruta-form-modal"
 import { Button } from "../ui/button"
@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { ArrowLeft, ChevronLeft, ChevronRight, Download, Package, Scale, Search, Plus } from "lucide-react"
 
 export function IngresoFrutaPage() {
-    const { empaqueUser: currentUser } = useEmpaqueAuth();
+    const { user: currentUser } = useAuth({});
     
 
     const [registros, setRegistros] = useState<any[]>([])
@@ -30,9 +30,12 @@ export function IngresoFrutaPage() {
     const [saving, setSaving] = useState(false)
     const router = useRouter()
 
-    const loadRegistros = async () => {
-        if (!currentUser?.tenantId) {
-            console.error('No se encontró el ID del tenant');
+    // Estabilizar tenantId
+    const tenantId = useMemo(() => currentUser?.tenantId, [currentUser?.tenantId])
+
+    const loadRegistros = useCallback(async () => {
+        if (!tenantId) {
+            console.error('No tenantId found para ingreso de fruta');
             setIsLoading(false);
             return;
         }
@@ -40,21 +43,23 @@ export function IngresoFrutaPage() {
         try {
             setIsLoading(true)
             const { ingresoFrutaApi } = await import("../../lib/api")
-            const data = await ingresoFrutaApi.getIngresos(currentUser.tenantId)
+            const data = await ingresoFrutaApi.getIngresos(tenantId)
             setRegistros(data || [])
-        } catch (error) {
-            console.error("Error al cargar registros:", error)
+        } catch (error: any) {
+            console.error("Error al cargar registros de ingreso de fruta:", error)
             setRegistros([])
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [tenantId])
 
     useEffect(() => {
-        if (currentUser?.tenantId) {
+        if (tenantId) {
             loadRegistros();
+        } else {
+            setIsLoading(false);
         }
-    }, [currentUser?.tenantId])
+    }, [tenantId, loadRegistros])
 
     useEffect(() => {
         let list = [...registros]
@@ -153,6 +158,9 @@ export function IngresoFrutaPage() {
         return (
             <div className="flex h-64 items-center justify-center">
                 <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+                <div className="ml-3 text-sm text-muted-foreground">
+                    {!currentUser ? 'Cargando usuario...' : 'Cargando registros...'}
+                </div>
             </div>
         )
     }

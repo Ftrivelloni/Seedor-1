@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
-import { useEmpaqueAuth } from "./EmpaqueAuthContext"
+import { useAuth } from "../../hooks/use-auth"
 
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -17,7 +17,7 @@ import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, Search }
 import EgresoFrutaFormModal from "./egreso-fruta-form-modal"
 
 export function EgresoFrutaPage() {
-    const { empaqueUser: user } = useEmpaqueAuth();
+    const { user } = useAuth({});
     
     const [egresos, setEgresos] = useState<any[]>([])
     const [filtered, setFiltered] = useState<any[]>([])

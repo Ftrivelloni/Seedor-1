@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation"
 import { Sidebar } from "../../components/sidebar"
-import { FinanzasPage } from "../../components/finanzas/finanzas-page";
+import { EnProcesoPage } from "../../components/ui/en-proceso-page";
 import { useAuth } from "../../hooks/use-auth";
 import { FeatureProvider } from "../../lib/features-context";
 
 export default function FinanzasRoutePage() {
   const { user, loading, handleLogout } = useAuth({
     redirectToLogin: true,
-    requireRoles: ["Admin", "Finanzas"]
+    requireRoles: ["admin", "finanzas"]
   });
   const router = useRouter();
 
@@ -55,7 +55,10 @@ export default function FinanzasRoutePage() {
           currentPage="finanzas" 
         />
         <div className="flex-1 flex flex-col">
-          <FinanzasPage />
+          <EnProcesoPage 
+            moduleName="Finanzas"
+            description="Módulo de gestión financiera y contabilidad"
+          />
         </div>
       </div>
     </FeatureProvider>

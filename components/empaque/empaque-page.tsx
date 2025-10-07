@@ -10,7 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Badge } from "../ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { empaqueApi, ingresoFrutaApi, palletsApi, despachoApi } from "../../lib/api"
-import type { AuthUser } from "../../lib/supabaseAuth"
 import type { RegistroEmpaque } from "../../lib/mocks"
 import { Search, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
 import { useEmpaqueAuth } from "./EmpaqueAuthContext"
@@ -210,7 +209,7 @@ export function EmpaquePage() {
         )
     }
 
-    if (!['Admin', 'Empaque'].includes(user.rol)) {
+    if (!['admin', 'empaque'].includes(user.rol?.toLowerCase())) {
         return (
             <div className="flex items-center justify-center h-64">
                 <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>

@@ -510,7 +510,9 @@ export const finanzasApi = {
 // Ingreso Fruta API
 export const ingresoFrutaApi = {
   async getIngresos(tenantId: string): Promise<any[]> {
-    // Traer todos los ingresos de fruta para el tenant, omitiendo campos técnicos
+    console.log('🍎 ingresoFrutaApi.getIngresos called with tenantId:', tenantId);
+    console.log('🍎 Supabase client available:', !!supabase);
+    
     try {
       const { data, error } = await supabase
         .from('ingreso_fruta')
@@ -534,16 +536,30 @@ export const ingresoFrutaApi = {
           acoplado,
           operario
         `)
-  .eq('tenant_id', tenantId)
+        .eq('tenant_id', tenantId)
         .order('fecha', { ascending: false });
 
+      console.log('🍎 Supabase response - data:', data);
+      console.log('🍎 Supabase response - error:', error);
+
       if (error) {
-        console.error('Error fetching ingresos_fruta:', error);
+        console.error('🍎 Supabase error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         return [];
       }
+      
+      console.log('🍎 Returning data:', data || []);
       return data || [];
-    } catch (error) {
-      console.error('Error connecting to Supabase:', error);
+    } catch (error: any) {
+      console.error('🍎 Exception in getIngresos:', {
+        message: error?.message,
+        stack: error?.stack,
+        error
+      });
       return [];
     }
   },
@@ -663,14 +679,35 @@ export const despachoApi = {
 // Farms API
 export const farmsApi = {
   async getFarms(tenantId: string): Promise<import('./types').Farm[]> {
-    const { data, error } = await supabase
-      .from('farms')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false })
+    console.log('🌾 farmsApi.getFarms called with tenantId:', tenantId);
+    console.log('🌾 Supabase client:', !!supabase);
+    
+    try {
+      const { data, error } = await supabase
+        .from('farms')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false })
 
-    if (error) throw error
-    return data || []
+      console.log('🌾 Supabase response - data:', data);
+      console.log('🌾 Supabase response - error:', error);
+
+      if (error) {
+        console.error('🌾 Supabase error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
+      
+      console.log('🌾 Returning data:', data || []);
+      return data || []
+    } catch (err) {
+      console.error('🌾 Caught exception in getFarms:', err);
+      throw err;
+    }
   },
 
   async getFarmById(farmId: string): Promise<import('./types').Farm | null> {

@@ -151,41 +151,16 @@ export function useAuth(options: {
   const hasRequiredRole = isSubpageUsingLayout.current ? true : (
     !currentUser ? false : (
       requireRoles.length === 0 || 
-      requireRoles.includes(currentUser.rol)
+      requireRoles.some(role => role.toLowerCase() === currentUser.rol?.toLowerCase())
     )
   );
   
-  if (requireRoles.length > 0 && currentUser && !isSubpageUsingLayout.current) {
-    console.log('🔐 Role Check:', {
-      userEmail: currentUser.email,
-      userRole: currentUser.rol,
-      requiredRoles: requireRoles,
-      hasAccess: hasRequiredRole,
-      authChecking: authChecking,
-      contextLoading: contextLoading,
-      willRedirect: !authChecking && !contextLoading && !hasRequiredRole
-    });
-  } else if (isSubpageUsingLayout.current) {
-    console.log('🔐 Role Check: Skipped (using layout session, layout will handle role verification)');
-  }
+
   
   useEffect(() => {
-    console.log('🔄 useEffect triggered:', {
-      isSubpage: isSubpageUsingLayout.current,
-      hasUser: !!currentUser,
-      userEmail: currentUser?.email,
-      userRol: currentUser?.rol,
-      requireRolesLength: requireRoles.length,
-      hasRequiredRole,
-      authChecking: authChecking,
-      contextLoading: contextLoading,
-      willRedirect: currentUser && requireRoles.length > 0 && !hasRequiredRole && !authChecking && !contextLoading
-    });
-    
     if (isSubpageUsingLayout.current) return;
     
     if (authChecking || contextLoading) {
-      console.log('⏳ Still loading, skipping role check');
       return;
     }
     

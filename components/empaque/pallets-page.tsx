@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { supabase } from "../../lib/supabaseClient"
 import PalletsFormModal from "./pallets-form-modal"
 import { useAuth } from "../../hooks/use-auth"
-import { useEmpaqueAuth } from "./EmpaqueAuthContext"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 type Pallet = {
     id: string
@@ -84,7 +83,7 @@ export function PalletsPage() {
     const [modalOpen, setModalOpen] = useState(false)
     const router = useRouter()
     
-    const { empaqueUser: currentUser } = useEmpaqueAuth();
+    const { user: currentUser } = useAuth({});
 
     const fetchPallets = async (tenantId: string) => {
         if (!tenantId) {
