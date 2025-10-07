@@ -14,7 +14,6 @@ export async function POST(req: Request) {
 
     let token: string | null = null;
 
-    // Si hay backend real, delegamos
     if (process.env.AUTH_ENDPOINT) {
       const r = await fetch(`${process.env.AUTH_ENDPOINT}/login`, {
         method: "POST",
@@ -32,7 +31,6 @@ export async function POST(req: Request) {
       const data = (await r.json().catch(() => ({}))) as any;
       token = data?.token || data?.accessToken || null;
     } else {
-      // ------- MODO DEMO: acepta demo@seedor.com o cualquier @latoma.com con DEMO_PASSWORD -------
       const pass = process.env.DEMO_PASSWORD || "demo123";
       const okEmail =
         emailNormalized === "demo@seedor.com" || emailNormalized.endsWith("@latoma.com");
@@ -42,21 +40,19 @@ export async function POST(req: Request) {
       } else {
         return NextResponse.json({ message: "Credenciales inválidas" }, { status: 401 });
       }
-      // --------------------------------------------------------------------------------------------
     }
 
     if (!token) {
       return NextResponse.json({ message: "No se recibió token" }, { status: 500 });
     }
 
-    // ⬇️ ⬇️ CAMBIO CLAVE EN NEXT 15: cookies() ahora es async
     const cookieStore = await cookies();
     cookieStore.set("seedor_session", token, {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: remember ? 60 * 60 * 24 * 30 : 60 * 60 * 8, // 30 días o 8 hs
+      maxAge: remember ? 60 * 60 * 24 * 30 : 60 * 60 * 8, 
     });
 
     return NextResponse.json({ ok: true });

@@ -173,13 +173,12 @@ export default function AdminSetupForm() {
 
           console.log('🔄 Accepting admin invitation with active session...');
 
-          const { success, error: acceptError } = await authService.acceptAdminInvitation({
+          const { success, error: acceptError } = await authService.acceptInvitationWithSetup({
             token,
-            workerData: {
+            userData: {
               fullName: data.fullName,
               phone: data.phone,
-              documentId: data.documentId, // Incluir documentId del admin
-              workerId: null // No hay workerId para admin
+              password: data.password // ✅ La contraseña establecida en el primer paso
             }
           });
 

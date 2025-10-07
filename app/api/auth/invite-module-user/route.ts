@@ -85,10 +85,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/accept-invitacion?token=${token}`
+    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/user-setup?token=${token}`
 
     const { error: inviteError, data: inviteData } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      email.toLowerCase().trim(),
+      email.toLowerCase().trim(),  
       {
         redirectTo: inviteUrl,
         data: {
@@ -115,11 +115,9 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     } else {
-      // Si la invitación se envió correctamente, buscar el usuario creado y crear su profile
       console.log('✅ Invitation sent successfully, creating profile for user...')
       
       try {
-        // Buscar el usuario recién creado por email
         const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers()
         
         if (!listError && users) {
@@ -150,7 +148,6 @@ export async function POST(request: NextRequest) {
         }
       } catch (profileCreationError) {
         console.error('❌ Error in profile creation process:', profileCreationError)
-        // No fallar la invitación por esto
       }
     }
 

@@ -41,7 +41,6 @@ export default function LoginForm() {
 
     setLoading(true);
     try {
-      // Use the new Supabase authentication service
       const { user, error: authError } = await authService.login(email, password);
 
       if (authError) {
@@ -54,9 +53,13 @@ export default function LoginForm() {
         return;
       }
 
-      // Successful login - redirect to next page
-      const next = params.get("next") || "/home";
-      router.push(next);
+      console.log('✅ Login successful, user:', user.email);
+
+      setTimeout(() => {
+        const next = params.get("next") || "/home";
+        console.log('🔄 Redirecting to:', next);
+        router.push(next);
+      }, 500);
 
     } catch (err: any) {
       setError(err.message || "Error inesperado");
@@ -135,7 +138,8 @@ export default function LoginForm() {
           )}
 
           <Button type="submit" className="h-11 w-full text-base" disabled={loading}>
-            {loading && <Loader2 className="mr-2 size-4 animate-spin" />} Ingresar
+            {loading && <Loader2 className="mr-2 size-4 animate-spin" />} 
+            {loading ? "Ingresando..." : "Ingresar"}
           </Button>
         </form>
       </CardContent>

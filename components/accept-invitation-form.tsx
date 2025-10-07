@@ -59,6 +59,12 @@ export default function AcceptInvitationForm() {
           if (sessionData.session?.user?.email === data.email) {
             console.log('✅ User already authenticated with correct email');
             setIsExistingUser(true);
+            
+            const fromSetPassword = window.location.search.includes('from=set-password');
+            if (fromSetPassword && !['admin', 'campo', 'empaque', 'finanzas'].includes(data.role_code)) {
+              console.log('🔄 Auto-accepting simple invitation from set-password...');
+              setTimeout(() => acceptInvitation(), 1000);
+            }
           } else if (sessionData.session?.user) {
             console.log('⚠️ User authenticated but with different email');
             setIsExistingUser(false);
@@ -96,15 +102,13 @@ export default function AcceptInvitationForm() {
         return;
       }
 
-      // ✅ CAMBIO: Para usuarios de módulos, redirigir a user-setup
       if (['campo', 'empaque', 'finanzas'].includes(invitation.role_code)) {
         console.log('👤 Module user invitation, redirecting to user setup...');
         router.push(`/user-setup?token=${token}`);
         return;
       }
 
-      // Para otros roles, aceptar directamente
-      const { success, error: acceptError, data } = await authService.acceptInvitation({ token });
+      const { success, error: acceptError } = await authService.acceptInvitationSimple(token);
 
       if (!success) {
         console.error('❌ Error accepting invitation:', acceptError);
@@ -124,14 +128,12 @@ export default function AcceptInvitationForm() {
     }
   };
 
-  // ✅ CAMBIO: Para nuevos usuarios, redirigir según el rol
   const redirectToSetup = () => {
     if (invitation.role_code === 'admin') {
       router.push(`/admin-setup?token=${token}`);
     } else if (['campo', 'empaque', 'finanzas'].includes(invitation.role_code)) {
       router.push(`/user-setup?token=${token}`);
     } else {
-      // Para otros roles, mantener lógica anterior si existiera
       setError("Tipo de invitación no soportado");
     }
   };
@@ -258,7 +260,6 @@ export default function AcceptInvitationForm() {
     );
   }
 
-  // ✅ CAMBIO: Nuevo usuario - redirigir a setup según el rol
   return (
     <Card className="mx-auto w-full max-w-lg rounded-3xl border-2 border-slate-200 bg-white shadow-2xl">
       <CardHeader className="text-center pb-6">
@@ -271,7 +272,6 @@ export default function AcceptInvitationForm() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Información del rol */}
         <div className="rounded-xl border-2 border-[#81C101]/20 bg-[#81C101]/5 p-4">
           <div className="flex items-center gap-3 mb-2">
             <User className="size-5 text-[#81C101]" />

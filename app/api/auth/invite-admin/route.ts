@@ -85,7 +85,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verificar que el usuario invitador tenga un profile
     const { data: inviterProfile } = await supabaseAdmin
       .from('profiles')
       .select('user_id')
@@ -124,9 +123,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/accept-invitacion?token=${token}`
+    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin-setup?token=${token}`
 
-    // Enviar invitación usando Supabase Auth (crea el usuario y manda email)
     const { error: inviteError, data: inviteData } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       adminEmail.toLowerCase().trim(),
       {
@@ -145,7 +143,6 @@ export async function POST(request: NextRequest) {
     if (inviteError) {
       console.error('Error sending admin invitation email:', inviteError)
 
-      // Si falla el envío de email, eliminamos la invitación creada para evitar basura
       await supabaseAdmin
         .from('invitations')
         .delete()
