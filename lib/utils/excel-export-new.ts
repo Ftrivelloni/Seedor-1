@@ -65,14 +65,12 @@ export function exportToExcel(config: ExcelExportConfig): void {
         columns.forEach((column) => {
           if (column) {
             let maxLength = 0;
-            if (column.eachCell) {
-              column.eachCell({ includeEmpty: true }, (cell) => {
-                const columnLength = cell.value ? cell.value.toString().length : 10;
-                if (columnLength > maxLength) {
-                  maxLength = columnLength;
-                }
-              });
-            }
+            column.eachCell({ includeEmpty: true }, (cell) => {
+              const columnLength = cell.value ? cell.value.toString().length : 10;
+              if (columnLength > maxLength) {
+                maxLength = columnLength;
+              }
+            });
             column.width = maxLength < 10 ? 10 : maxLength + 2;
           }
         });
@@ -182,14 +180,12 @@ export function exportMultipleSheetsToExcel(
             columns.forEach((column) => {
               if (column) {
                 let maxLength = 0;
-                if (column.eachCell) {
-                  column.eachCell({ includeEmpty: true }, (cell) => {
-                    const columnLength = cell.value ? cell.value.toString().length : 10;
-                    if (columnLength > maxLength) {
-                      maxLength = columnLength;
-                    }
-                  });
-                }
+                column.eachCell({ includeEmpty: true }, (cell) => {
+                  const columnLength = cell.value ? cell.value.toString().length : 10;
+                  if (columnLength > maxLength) {
+                    maxLength = columnLength;
+                  }
+                });
                 column.width = maxLength < 10 ? 10 : maxLength + 2;
               }
             });
