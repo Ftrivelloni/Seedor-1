@@ -41,27 +41,32 @@ export default function LoginForm() {
 
     setLoading(true);
     try {
+      console.log('🔄 Starting login process...');
       const { user, error: authError } = await authService.login(email, password);
 
       if (authError) {
+        console.error('❌ Login error:', authError);
         setError(authError);
         return;
       }
 
       if (!user) {
+        console.error('❌ No user returned from login');
         setError("Usuario no encontrado o credenciales incorrectas");
         return;
       }
 
       console.log('✅ Login successful, user:', user.email);
 
+      // Dar un momento para que se establezca la sesión
       setTimeout(() => {
         const next = params.get("next") || "/home";
         console.log('🔄 Redirecting to:', next);
         router.push(next);
-      }, 500);
+      }, 300);
 
     } catch (err: any) {
+      console.error('❌ Unexpected login error:', err);
       setError(err.message || "Error inesperado");
     } finally {
       setLoading(false);
