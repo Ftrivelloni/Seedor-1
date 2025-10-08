@@ -70,6 +70,48 @@ export default function AdminSetupForm() {
       }
 
       try {
+        console.log('🔧 AdminSetupForm: Checking if user is already authenticated...');
+        // Primero verificar si el usuario ya está autenticado
+        const { user: currentUser } = await authService.getSafeSession();
+        
+        console.log('🔧 AdminSetupForm: Session result:', {
+          hasUser: !!currentUser,
+          tenantId: currentUser?.tenantId,
+          rol: currentUser?.rol
+        });
+        
+        if (currentUser && currentUser.tenantId && currentUser.rol === 'admin') {
+          console.log('✅ AdminSetupForm: User is authenticated as admin, using session data');
+          // El usuario ya está autenticado como admin, usar datos de la sesión
+          const mockInvitation = {
+            tenant_id: currentUser.tenantId,
+            role: currentUser.rol,
+            tenants: currentUser.tenant
+          };
+          
+          setInvitation(mockInvitation);
+
+          console.log('🔧 AdminSetupForm: Getting tenant limits for:', currentUser.tenantId);
+          const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(currentUser.tenantId);
+          
+          console.log('🔧 AdminSetupForm: Tenant limits result:', { limitsSuccess, limitsData });
+          
+          if (limitsSuccess && limitsData) {
+            setTenantPlan(limitsData.plan);
+            const available = Object.keys(AVAILABLE_MODULES).filter(moduleId => 
+              AVAILABLE_MODULES[moduleId as keyof typeof AVAILABLE_MODULES].available.includes(limitsData.plan)
+            );
+            setAvailableModules(available);
+          }
+
+          console.log('✅ AdminSetupForm: Setup complete, setting loading to false');
+          setLoading(false);
+          return;
+        }
+
+        console.log('⚠️ AdminSetupForm: User not authenticated as admin, falling back to token lookup');
+
+        // Si no está autenticado, buscar la invitación por token (flujo original)
         const { success, data, error: inviteError } = await authService.getInvitationByToken(token);
         
         if (!success || !data) {

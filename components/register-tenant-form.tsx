@@ -533,25 +533,16 @@ export default function RegisterTenantForm() {
         setVerifyingCode(true);
 
         try {
-            const verificationPromise = authService.verifyOwnerCode(
-            registrationData.contactEmail,
-            verificationCode.trim()
+            const { success, error: verifyError } = await authService.verifyOwnerCode(
+                registrationData.contactEmail,
+                verificationCode.trim()
             );
-
-            const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('La verificación está tomando demasiado tiempo. Intentá de nuevo.')), 30000);
-            });
-
-            const { success, error: verifyError } = await Promise.race([
-            verificationPromise,
-            timeoutPromise
-            ]) as any;
 
             console.log('📧 Verification result:', { success, verifyError });
 
             if (!success || verifyError) {
-            setError(verifyError || "Código inválido. Verificá y volvé a intentar.");
-            return;
+                setError(verifyError || "Código inválido. Verificá y volvé a intentar.");
+                return;
             }
 
             console.log('🏢 Creating tenant with owner...');
