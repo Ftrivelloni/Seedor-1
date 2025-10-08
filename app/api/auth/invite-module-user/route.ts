@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const inviteUrl = buildUrl(`/auth/callback?token=${token}&next=/user-setup`)
+    const inviteUrl = buildUrl(`/user-setup?token=${token}`)
 
     const { error: inviteError, data: inviteData } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email.toLowerCase().trim(),  

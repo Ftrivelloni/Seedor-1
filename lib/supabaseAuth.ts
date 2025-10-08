@@ -518,7 +518,7 @@ export const authService = {
         return { success: false, error: 'No se retornó la invitación creada' }
       }
 
-      const inviteUrl = buildUrl(`/auth/callback?token=${token}&next=/user-setup`)
+      const inviteUrl = buildUrl(`/user-setup?token=${token}`)
 
       const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
         cleanEmail,
