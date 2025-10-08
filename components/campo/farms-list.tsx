@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Badge } from "../ui/badge"
 import { farmsApi } from "../../lib/api"
 import type { Farm } from "../../lib/types"
-import type { AuthUser } from "../../lib/supabaseAuth"
+import type { AuthUser } from "../../lib/types"
 import { Plus, MapPin, Maximize2, Sprout, Edit, Trash2 } from "lucide-react"
 import { FarmFormModal } from "./farm-form-modal"
 import { toast } from "../../hooks/use-toast"

@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from '../ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog'
 import { Crown, Check, X, Users, HardDrive, Zap, ArrowUp, ArrowDown, Calendar, DollarSign } from 'lucide-react'
 import { toast } from '../../hooks/use-toast'
-import type { AuthUser } from '../../lib/supabaseAuth'
+import type { AuthUser } from '../../lib/types'
 import { useFeatures, type PlanInfo, type TenantFeature } from '../../lib/features-context'
 
 interface Plan {
