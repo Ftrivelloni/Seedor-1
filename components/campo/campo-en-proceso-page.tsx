@@ -1,5 +1,5 @@
 "use client"
-//prueba a ver si estoy en repo bien
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Badge } from "../ui/badge"
 import { Button } from "../ui/button"
