@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { supabase } from './supabaseClient'
 import { getSessionManager } from './sessionManager'
+import { buildUrl } from './utils/url'
 import crypto from 'crypto'
 
 export interface CreateTenantParams {
@@ -517,7 +518,7 @@ export const authService = {
         return { success: false, error: 'No se retornó la invitación creada' }
       }
 
-      const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/user-setup?token=${token}`
+      const inviteUrl = buildUrl(`/user-setup?token=${token}`)
 
       const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
         cleanEmail,
