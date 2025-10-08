@@ -1,22 +1,31 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('❌ Missing Supabase environment variables');
 }
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+const supabaseAdmin = supabaseUrl && supabaseServiceKey 
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null;
 
 export async function GET(request: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase configuration missing. Please check environment variables.' },
+        { status: 500 }
+      );
+    }
+    
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'No authorization token' }, { status: 401 });
@@ -84,6 +93,13 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase configuration missing. Please check environment variables.' },
+        { status: 500 }
+      );
+    }
+    
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'No authorization token' }, { status: 401 });
@@ -168,6 +184,13 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Supabase configuration missing. Please check environment variables.' },
+        { status: 500 }
+      );
+    }
+    
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'No authorization token' }, { status: 401 });
