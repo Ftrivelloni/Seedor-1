@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { AuthUser } from '../lib/supabaseAuth'
+import type { AuthUser } from './types'
 
 function getPlanFeatures(planName: string): TenantFeature[] {
   const plan = planName.toLowerCase()

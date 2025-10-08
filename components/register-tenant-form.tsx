@@ -815,17 +815,23 @@ export default function RegisterTenantForm() {
                         Se envió la invitación a <strong className="text-[#81C101]">{adminEmail}</strong>
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="text-center">
+                <CardContent className="text-center space-y-4">
                     <p className="text-sm text-slate-600">
                         Una vez que el administrador complete sus datos, podrás gestionar tu campo completamente.
                     </p>
+                    <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-4">
+                        <p className="text-sm text-blue-700">
+                            <strong>Importante:</strong> Si te equivocaste en el email, podés volver y reenviarlo con la dirección correcta.
+                        </p>
+                    </div>
                 </CardContent>
                 <CardFooter className="justify-center pt-4">
                     <Button 
-                        onClick={() => router.push("/home")}
-                        className="bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer"
+                        onClick={() => setCurrentStep('admin-invite')}
+                        variant="outline"
+                        className="bg-white border-2 border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
                     >
-                        Ir al dashboard
+                        Volver y corregir email
                     </Button>
                 </CardFooter>
             </Card>

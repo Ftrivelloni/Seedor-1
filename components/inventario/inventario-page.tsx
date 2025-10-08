@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { inventarioApi } from "../../lib/api"
-import { authService } from "../../lib/supabaseAuth"
+import { useAuth } from "../../hooks/use-auth"
 import type { ItemInventario } from "../../lib/types"
 import { Search, Package, AlertTriangle, Plus, Minus, Warehouse, Truck, Box } from "lucide-react"
 
@@ -29,14 +29,13 @@ const categoriaLabels = {
 }
 
 export function InventarioPage() {
+  const { user, loading: authLoading } = useAuth({ requireRoles: ['admin', 'campo', 'empaque'] })
   const [items, setItems] = useState<ItemInventario[]>([])
   const [filteredItems, setFilteredItems] = useState<ItemInventario[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterCategoria, setFilterCategoria] = useState("all")
   const [filterStock, setFilterStock] = useState("all")
-
-  const user = authService.getCurrentUser()
 
   useEffect(() => {
     loadItems()
@@ -115,7 +114,15 @@ export function InventarioPage() {
     return { label: "Stock Normal", variant: "outline" as const, color: "text-green-600" }
   }
 
-  if (!user || !["admin", "campo", "empaque"].includes(user.rol?.toLowerCase())) {
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Cargando...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-muted-foreground">No tienes permisos para acceder a esta sección</p>

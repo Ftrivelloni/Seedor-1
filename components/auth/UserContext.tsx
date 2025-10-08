@@ -1,32 +1,32 @@
 "use client"
-import { createContext, useContext, useEffect, useState, ReactNode, useRef } from "react"
-import { authService } from "../../lib/auth" // Ahora usa auth unificado
+import { createContext, useContext, useEffect, useState, ReactNode } from "react"
+import { authService } from "../../lib/supabaseAuth"
+import { getSessionManager } from "../../lib/sessionManager"
 
 export const UserContext = createContext<any>(null)
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const isUpdatingRef = useRef(false)
 
   useEffect(() => {
     const loadUser = async () => {
-      if (isUpdatingRef.current) return
-      
       setLoading(true)
       try {
-        console.log('UserContext: Loading user session...')
-        const sessionUser = await authService.checkSession()
+
         
-        if (sessionUser) {
-          console.log('UserContext: User loaded successfully:', {
-            email: sessionUser.email,
-            rol: sessionUser.rol,
-            tenantId: sessionUser.tenantId
-          })
-        } else {
-          console.log('UserContext: No user session found')
+        const sessionManager = getSessionManager()
+        
+        // Primero intentar obtener de la sesión de la pestaña (sin actualizar actividad)
+        let sessionUser = sessionManager.peekCurrentUser()
+        
+        if (!sessionUser) {
+          // Si no hay sesión de pestaña, verificar con getSafeSession
+          const { user } = await authService.getSafeSession()
+          sessionUser = user
         }
+        
+        // Session loaded successfully
         setUser(sessionUser)
       } catch (error: any) {
         console.error('UserContext: Error loading user session:', error)
@@ -44,35 +44,26 @@ export function UserProvider({ children }: { children: ReactNode }) {
         
         if (supabase?.auth?.onAuthStateChange) {
           const { data: authListener } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
-            console.log('Auth state changed:', event, session?.user?.email)
+
             
-            if (isUpdatingRef.current) {
-              console.log('Skipping auth state change - already updating')
-              return
-            }
-            
-            isUpdatingRef.current = true
-            
+            // Simplificar el manejo - no usar flags que puedan causar bloqueos
             try {
               if (event === 'SIGNED_OUT') {
-                console.log('User signed out')
+
                 setUser(null)
+                // Limpiar también el SessionManager
+                const sessionManager = getSessionManager()
+                sessionManager.clearCurrentTabSession()
               } else if (event === 'SIGNED_IN' && session?.user) {
-                console.log('User signed in, loading profile...')
-                
-                const { authService: supabaseAuthService } = await import("../../lib/supabaseAuth")
-                const { user: newUser } = await supabaseAuthService.getSafeSession()
-                setUser(newUser)
-                
-                console.log('✅ User profile loaded successfully')
-              } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-                console.log('Token refreshed')
+
+                // No actualizar aquí para evitar conflictos
+                // El login flow ya maneja esto a través del SessionManager
+              } else if (event === 'TOKEN_REFRESHED') {
+
+                // El SessionManager maneja la validación de tokens
               }
             } catch (error) {
               console.error('Error handling auth state change:', error)
-              setUser(null) 
-            } finally {
-              isUpdatingRef.current = false
             }
           })
 
@@ -97,4 +88,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
 export function useUser() {
   return useContext(UserContext)
+}
+
+export function useUserActions() {
+  const context = useContext(UserContext)
+  return {
+    clearUser: () => context?.setUser?.(null),
+    setUser: context?.setUser
+  }
 }

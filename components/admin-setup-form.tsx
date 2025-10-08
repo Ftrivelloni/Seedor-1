@@ -81,7 +81,7 @@ export default function AdminSetupForm() {
         });
         
         if (currentUser && currentUser.tenantId && currentUser.rol === 'admin') {
-          console.log('✅ AdminSetupForm: User is authenticated as admin, using session data');
+
           // El usuario ya está autenticado como admin, usar datos de la sesión
           const mockInvitation = {
             tenant_id: currentUser.tenantId,
@@ -104,7 +104,7 @@ export default function AdminSetupForm() {
             setAvailableModules(available);
           }
 
-          console.log('✅ AdminSetupForm: Setup complete, setting loading to false');
+
           setLoading(false);
           return;
         }
@@ -170,6 +170,21 @@ export default function AdminSetupForm() {
     setError(null);
 
     try {
+      // Validar emails antes de enviar invitaciones
+      const emailValidationErrors = [];
+      for (const [moduleId, email] of Object.entries(moduleInvitations)) {
+        if (selectedModules.includes(moduleId) && email.trim()) {
+          if (!email.includes('@') || !email.includes('.')) {
+            emailValidationErrors.push(`Email inválido para ${AVAILABLE_MODULES[moduleId as keyof typeof AVAILABLE_MODULES].name}: ${email}`);
+          }
+        }
+      }
+
+      if (emailValidationErrors.length > 0) {
+        setError(emailValidationErrors.join('\n'));
+        return;
+      }
+
       // Enviar invitaciones a usuarios de módulos
       const invitationPromises = Object.entries(moduleInvitations)
         .filter(([moduleId, email]) => selectedModules.includes(moduleId) && email.trim())
@@ -213,7 +228,7 @@ export default function AdminSetupForm() {
         if (authData) {
           const data = JSON.parse(authData);
 
-          console.log('🔄 Accepting admin invitation with active session...');
+
 
           const { success, error: acceptError } = await authService.acceptInvitationWithSetup({
             token,
@@ -230,11 +245,16 @@ export default function AdminSetupForm() {
           }
 
           sessionStorage.removeItem('admin_auth_data');
-          console.log('✅ Admin invitation accepted and membership created');
+
         }
       }
 
-      console.log('✅ Admin setup completed successfully');
+
+      
+      // Cerrar sesión para evitar inconsistencias
+
+      await authService.logout();
+      
       setCurrentStep('complete');
 
     } catch (err: any) {
@@ -284,7 +304,7 @@ export default function AdminSetupForm() {
           </div>
           <CardTitle className="text-2xl font-bold text-slate-800">¡Configuración completa!</CardTitle>
           <CardDescription className="text-slate-600 mt-2">
-            Ya podés acceder al dashboard de <strong className="text-[#81C101]">{invitation?.tenants?.name}</strong>
+            Ahora podés iniciar sesión como administrador de <strong className="text-[#81C101]">{invitation?.tenants?.name}</strong>
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center space-y-4">
@@ -306,10 +326,10 @@ export default function AdminSetupForm() {
         </CardContent>
         <CardFooter className="justify-center pt-4">
           <Button 
-            onClick={() => router.push("/home")}
+            onClick={() => router.push("/login")}
             className="bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
           >
-            Ir al dashboard
+            Ir al inicio de sesión
           </Button>
         </CardFooter>
       </Card>
@@ -434,16 +454,27 @@ export default function AdminSetupForm() {
                       <p className="text-sm text-slate-600">Responsable del módulo</p>
                     </div>
                   </div>
-                  <Input
-                    type="email"
-                    placeholder="email@empresa.com (opcional)"
-                    value={moduleInvitations[moduleId] || ''}
-                    onChange={(e) => setModuleInvitations(prev => ({
-                      ...prev,
-                      [moduleId]: e.target.value
-                    }))}
-                    className={inputStrong}
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      type="email"
+                      placeholder="email@empresa.com (opcional)"
+                      value={moduleInvitations[moduleId] || ''}
+                      onChange={(e) => setModuleInvitations(prev => ({
+                        ...prev,
+                        [moduleId]: e.target.value
+                      }))}
+                      className={inputStrong}
+                    />
+                    {moduleInvitations[moduleId] && moduleInvitations[moduleId].trim() && 
+                     (!moduleInvitations[moduleId].includes('@') || !moduleInvitations[moduleId].includes('.')) && (
+                      <p className="text-sm text-red-600 flex items-center gap-1">
+                        <span className="size-4 rounded-full bg-red-100 flex items-center justify-center">
+                          <span className="size-2 rounded-full bg-red-500"></span>
+                        </span>
+                        Formato de email inválido
+                      </p>
+                    )}
+                  </div>
                 </div>
               );
             })}
