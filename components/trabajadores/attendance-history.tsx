@@ -212,7 +212,7 @@ export function AttendanceHistory({ worker, tenantId }: AttendanceHistoryProps) 
                 {records.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell>
-                      {format(new Date(record.date), 'dd/MM/yyyy', { locale: es })}
+                      {format(new Date(record.date + 'T00:00:00'), 'dd/MM/yyyy', { locale: es })}
                     </TableCell>
                     <TableCell>{getStatusBadge(record.status)}</TableCell>
                     <TableCell>

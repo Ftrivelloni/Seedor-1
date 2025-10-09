@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { attendanceApi } from '@/lib/api'
-import { Worker, AttendanceStatus, CreateAttendanceData, AttendanceRecord } from '@/lib/types'
+import { Worker, AttendanceStatus, AttendanceRecord } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface DailyAttendanceProps {
@@ -20,14 +22,11 @@ interface DailyAttendanceProps {
   onSuccess: () => void
 }
 
-interface WorkerAttendanceState {
-  workerId: string
-  status: string
-  reason: string
-}
-
 export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanceProps) {
   const [date, setDate] = useState<Date>(new Date())
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string>('')
+  const [status, setStatus] = useState<string>('')
+  const [reason, setReason] = useState<string>('')
   const [statuses, setStatuses] = useState<AttendanceStatus[]>([
     { code: 'PRE', name: 'Presente' },
     { code: 'AUS', name: 'Ausente' },
@@ -35,8 +34,7 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
     { code: 'LIC', name: 'Licencia' },
     { code: 'VAC', name: 'Vacaciones' }
   ])
-  const [existingRecords, setExistingRecords] = useState<AttendanceRecord[]>([])
-  const [workerStates, setWorkerStates] = useState<Record<string, WorkerAttendanceState>>({})
+  const [existingRecord, setExistingRecord] = useState<AttendanceRecord | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
   const [success, setSuccess] = useState(false)
@@ -46,8 +44,10 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
   }, [])
 
   useEffect(() => {
-    loadExistingRecords()
-  }, [date, tenantId])
+    if (selectedWorkerId && date) {
+      loadExistingRecord()
+    }
+  }, [date, selectedWorkerId, tenantId])
 
   const loadStatuses = async () => {
     try {
@@ -55,55 +55,40 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
       if (data && data.length > 0) {
         setStatuses(data)
       }
-      // Si no hay datos en la BD, usa los valores predefinidos arriba
     } catch (err) {
       console.error('Error loading statuses:', err)
-      // Mantiene los valores predefinidos en caso de error
     }
   }
 
-  const loadExistingRecords = async () => {
+  const loadExistingRecord = async () => {
     try {
       const dateStr = format(date, 'yyyy-MM-dd')
       const records = await attendanceApi.getAttendanceByDate(tenantId, dateStr)
-      setExistingRecords(records)
-
-      // Pre-populate worker states with existing records
-      const newStates: Record<string, WorkerAttendanceState> = {}
-      records.forEach(record => {
-        newStates[record.worker_id] = {
-          workerId: record.worker_id,
-          status: record.status,
-          reason: record.reason || ''
-        }
-      })
-      setWorkerStates(newStates)
+      const record = records.find(r => r.worker_id === selectedWorkerId)
+      
+      if (record) {
+        setExistingRecord(record)
+        setStatus(record.status)
+        setReason(record.reason || '')
+      } else {
+        setExistingRecord(null)
+        setStatus('')
+        setReason('')
+      }
     } catch (err) {
-      console.error('Error loading existing records:', err)
+      console.error('Error loading existing record:', err)
+      setExistingRecord(null)
+      setStatus('')
+      setReason('')
     }
   }
 
-  const handleStatusChange = (workerId: string, status: string) => {
-    setWorkerStates(prev => ({
-      ...prev,
-      [workerId]: {
-        workerId,
-        status,
-        reason: prev[workerId]?.reason || ''
-      }
-    }))
-  }
-
-  const handleReasonChange = (workerId: string, reason: string) => {
-    setWorkerStates(prev => ({
-      ...prev,
-      [workerId]: {
-        ...prev[workerId],
-        workerId,
-        status: prev[workerId]?.status || '',
-        reason
-      }
-    }))
+  const handleWorkerChange = (workerId: string) => {
+    setSelectedWorkerId(workerId)
+    setStatus('')
+    setReason('')
+    setError('')
+    setSuccess(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -113,69 +98,91 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
     setSuccess(false)
 
     try {
-      const dateStr = format(date, 'yyyy-MM-dd')
+      // Validar que no sea una fecha futura
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const selectedDate = new Date(date)
+      selectedDate.setHours(0, 0, 0, 0)
       
-      // Filter workers with status selected
-      const attendancesToCreate: CreateAttendanceData[] = []
-      const recordsToUpdate: { id: string; updates: Partial<CreateAttendanceData> }[] = []
-
-      for (const worker of workers) {
-        const state = workerStates[worker.id]
-        if (!state?.status) continue
-
-        const existingRecord = existingRecords.find(r => r.worker_id === worker.id)
-
-        if (existingRecord) {
-          // Update existing record
-          recordsToUpdate.push({
-            id: existingRecord.id,
-            updates: {
-              status: state.status,
-              reason: state.reason.trim() || undefined
-            }
-          })
-        } else {
-          // Create new record
-          attendancesToCreate.push({
-            worker_id: worker.id,
-            date: dateStr,
-            status: state.status,
-            reason: state.reason.trim() || undefined
-          })
-        }
+      if (selectedDate > today) {
+        setError('No se puede registrar asistencia para fechas futuras')
+        setLoading(false)
+        return
       }
 
-      // Execute updates
-      const updatePromises = recordsToUpdate.map(({ id, updates }) =>
-        attendanceApi.updateAttendance(id, updates)
-      )
-      await Promise.all(updatePromises)
+      if (!status) {
+        setError('Debe seleccionar un estado')
+        setLoading(false)
+        return
+      }
 
-      // Execute creates
-      if (attendancesToCreate.length > 0) {
-        await attendanceApi.bulkCreateAttendance(tenantId, attendancesToCreate)
+      const dateStr = format(date, 'yyyy-MM-dd')
+
+      if (existingRecord) {
+        // Update existing record
+        await attendanceApi.updateAttendance(existingRecord.id, {
+          status,
+          reason: reason.trim() || undefined
+        })
+      } else {
+        // Create new record
+        await attendanceApi.createAttendance(tenantId, {
+          worker_id: selectedWorkerId,
+          date: dateStr,
+          status,
+          reason: reason.trim() || undefined
+        })
       }
 
       setSuccess(true)
       onSuccess()
+      
+      // Reload the record
+      await loadExistingRecord()
+      
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {
       console.error('Error saving attendance:', err)
-      setError(err.message || 'Error al guardar asistencias')
+      setError(err.message || 'Error al guardar asistencia')
     } finally {
       setLoading(false)
     }
   }
 
-  const hasRecordsForDate = existingRecords.length > 0
-  const hasChanges = Object.keys(workerStates).length > 0
+  const selectedWorker = workers.find(w => w.id === selectedWorkerId)
+  const needsReason = status && ['AUS', 'TAR'].includes(status)
+
+  const getAreaColor = (area: string) => {
+    switch (area) {
+      case "campo":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+      case "empaque":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+      case "finanzas":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+      case "admin":
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+    }
+  }
+
+  const getAreaLabel = (area: string) => {
+    const labels: Record<string, string> = {
+      campo: "Campo",
+      empaque: "Empaque",
+      finanzas: "Finanzas",
+      admin: "Administración"
+    }
+    return labels[area] || area
+  }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Tomar Asistencia Diaria</CardTitle>
         <CardDescription>
-          Registre la asistencia de todos los trabajadores para la fecha seleccionada
+          Registre la asistencia individual por trabajador para la fecha seleccionada
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -203,83 +210,103 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
                   onSelect={(newDate) => newDate && setDate(newDate)}
                   initialFocus
                   locale={es}
+                  disabled={(date) => {
+                    const today = new Date()
+                    today.setHours(0, 0, 0, 0)
+                    return date > today
+                  }}
                 />
               </PopoverContent>
             </Popover>
-            {hasRecordsForDate && (
-              <p className="text-xs text-amber-600">
-                ⚠️ Ya existen registros para esta fecha. Los cambios actualizarán los registros existentes.
-              </p>
-            )}
           </div>
 
-          {/* Workers List */}
-          <div className="space-y-3 max-h-[500px] overflow-y-auto">
-            {workers.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No hay trabajadores activos
-              </div>
-            ) : (
-              workers.map((worker) => {
-                const state = workerStates[worker.id]
-                const existingRecord = existingRecords.find(r => r.worker_id === worker.id)
-                const needsReason = state?.status && ['AUS', 'TAR'].includes(state.status)
-
-                return (
-                  <div key={worker.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium">{worker.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{worker.area_module}</p>
-                      </div>
-                      {existingRecord && (
-                        <span className="text-xs text-green-600 flex items-center gap-1">
-                          <Check className="h-3 w-3" />
-                          Registrado
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs">Estado</Label>
-                        <Select
-                          value={state?.status || ''}
-                          onValueChange={(value) => handleStatusChange(worker.id, value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {statuses.map((s) => (
-                              <SelectItem key={s.code} value={s.code}>
-                                {s.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {needsReason && (
-                        <div>
-                          <Label className="text-xs">
-                            Motivo <span className="text-red-500">*</span>
-                          </Label>
-                          <input
-                            type="text"
-                            value={state.reason}
-                            onChange={(e) => handleReasonChange(worker.id, e.target.value)}
-                            placeholder="Motivo..."
-                            className="w-full px-3 py-2 text-sm border rounded-md"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })
-            )}
+          {/* Worker Selector */}
+          <div className="space-y-2">
+            <Label>Seleccionar Trabajador</Label>
+            <Select value={selectedWorkerId} onValueChange={handleWorkerChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar trabajador" />
+              </SelectTrigger>
+              <SelectContent>
+                {workers.map((worker) => (
+                  <SelectItem key={worker.id} value={worker.id}>
+                    {worker.full_name} - {getAreaLabel(worker.area_module)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* Worker Info Card */}
+          {selectedWorker ? (
+            <Card className="bg-muted/50 border-2">
+              <CardContent className="p-4 space-y-3">
+                <div>
+                  <h3 className="font-semibold text-lg leading-tight">{selectedWorker.full_name}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedWorker.email}</p>
+                </div>
+                <div className="space-y-1 text-sm">
+                  <p className="text-muted-foreground">DNI: {selectedWorker.document_id}</p>
+                  {selectedWorker.phone && (
+                    <p className="text-muted-foreground">Tel: {selectedWorker.phone}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className={getAreaColor(selectedWorker.area_module)}>
+                    {getAreaLabel(selectedWorker.area_module)}
+                  </Badge>
+                  {existingRecord && (
+                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                      <Check className="h-3 w-3 mr-1" />
+                      Ya registrado
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="bg-muted/30 border-dashed border-2">
+              <CardContent className="p-8 text-center">
+                <p className="text-muted-foreground">
+                  Seleccione un trabajador para registrar su asistencia
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Status Selection */}
+          <div className="space-y-2">
+            <Label>Estado de Asistencia</Label>
+            <Select value={status} onValueChange={setStatus} disabled={!selectedWorkerId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar estado" />
+              </SelectTrigger>
+              <SelectContent>
+                {statuses.map((s) => (
+                  <SelectItem key={s.code} value={s.code}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Reason Input */}
+          {needsReason && (
+            <div className="space-y-2">
+              <Label>
+                Motivo <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="text"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Ingrese el motivo..."
+                required
+                disabled={!selectedWorkerId}
+              />
+            </div>
+          )}
 
           {error && (
             <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">
@@ -290,17 +317,17 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
           {success && (
             <div className="text-sm text-green-700 bg-green-50 p-3 rounded-md flex items-center gap-2">
               <Check className="h-4 w-4" />
-              Asistencias guardadas correctamente
+              Asistencia guardada correctamente
             </div>
           )}
 
           <Button
             type="submit"
-            disabled={loading || !hasChanges || workers.length === 0}
+            disabled={loading || !status || !selectedWorkerId || workers.length === 0}
             className="w-full"
           >
             <Save className="mr-2 h-4 w-4" />
-            {loading ? 'Guardando...' : 'Guardar Asistencias'}
+            {loading ? 'Guardando...' : existingRecord ? 'Actualizar Asistencia' : 'Guardar Asistencia'}
           </Button>
         </form>
       </CardContent>

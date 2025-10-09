@@ -57,11 +57,14 @@ export function TaskFormModal({ isOpen, onClose, onSubmit, farmId, lotId, tenant
 
   useEffect(() => {
     if (task) {
+      const responsibleValue = task.responsible_membership_id
+        ? task.responsible_membership_id
+        : (task.worker_id ? `worker-${task.worker_id}` : "")
       setFormData({
         title: task.title,
         type_code: task.type_code,
         scheduled_date: task.scheduled_date || "",
-        responsible_membership_id: task.responsible_membership_id || "",
+        responsible_membership_id: responsibleValue,
         status_code: task.status_code
       })
       if (task.scheduled_date) {

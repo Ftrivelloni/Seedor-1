@@ -37,9 +37,10 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
       const data = await workersApi.getWorkersByTenant(user?.tenantId || "", true)
       setWorkers(data)
       
-      // Auto-select first worker if none selected
-      if (data.length > 0 && !selectedWorkerForHistory) {
-        setSelectedWorkerForHistory(data[0].id)
+      // Auto-select first active worker if none selected
+      const activeWorkersData = data.filter(w => w.status === "active")
+      if (activeWorkersData.length > 0 && !selectedWorkerForHistory) {
+        setSelectedWorkerForHistory(activeWorkersData[0].id)
       }
     } catch (error) {
       console.error("Error loading workers:", error)
@@ -110,6 +111,26 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
       toast({
         title: "Error",
         description: "No se pudo desactivar el trabajador",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handlePermanentDeleteWorker = async (workerId: string, workerName: string) => {
+    if (!confirm(`⚠️ ATENCIÓN: ¿Estás seguro de que quieres eliminar permanentemente a ${workerName}?\n\nEsta acción NO se puede deshacer y se eliminarán todos los registros asociados.`)) return
+
+    try {
+      await workersApi.hardDeleteWorker(workerId)
+      toast({
+        title: "Éxito",
+        description: "Trabajador eliminado permanentemente"
+      })
+      loadWorkers()
+    } catch (error: any) {
+      console.error("Error permanently deleting worker:", error)
+      toast({
+        title: "Error",
+        description: error?.message || "No se pudo eliminar el trabajador permanentemente",
         variant: "destructive"
       })
     }
@@ -291,11 +312,47 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
                       {inactiveWorkers.map((worker) => (
                         <Card key={worker.id} className="p-4 opacity-60">
                           <div className="space-y-3">
-                            <div>
-                              <h3 className="font-semibold">{worker.full_name}</h3>
-                              <p className="text-sm text-muted-foreground">{worker.email}</p>
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="font-semibold">{worker.full_name}</h3>
+                                <p className="text-sm text-muted-foreground">{worker.email}</p>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    setSelectedWorker(worker)
+                                    setIsModalOpen(true)
+                                  }}
+                                  title="Editar trabajador"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => handlePermanentDeleteWorker(worker.id, worker.full_name)}
+                                  title="Eliminar permanentemente"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
-                            <Badge variant="secondary">Inactivo</Badge>
+                            <div className="space-y-1 text-sm">
+                              <p className="text-muted-foreground">DNI: {worker.document_id}</p>
+                              {worker.phone && (
+                                <p className="text-muted-foreground">Tel: {worker.phone}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary">Inactivo</Badge>
+                              <Badge className={getAreaColor(worker.area_module)}>
+                                {getAreaLabel(worker.area_module)}
+                              </Badge>
+                            </div>
                           </div>
                         </Card>
                       ))}
@@ -312,6 +369,10 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
               <Card className="p-12 text-center">
                 <p className="text-muted-foreground">Cargando trabajadores...</p>
               </Card>
+            ) : activeWorkers.length === 0 ? (
+              <Card className="p-12 text-center">
+                <p className="text-muted-foreground">No hay trabajadores activos</p>
+              </Card>
             ) : (
               <DailyAttendance
                 workers={activeWorkers}
@@ -326,9 +387,9 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
               <Card className="p-12 text-center">
                 <p className="text-muted-foreground">Cargando trabajadores...</p>
               </Card>
-            ) : workers.length === 0 ? (
+            ) : activeWorkers.length === 0 ? (
               <Card className="p-12 text-center">
-                <p className="text-muted-foreground">No hay trabajadores registrados</p>
+                <p className="text-muted-foreground">No hay trabajadores activos</p>
               </Card>
             ) : (
               <div className="space-y-6">
@@ -340,7 +401,7 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
                         <SelectValue placeholder="Seleccionar trabajador" />
                       </SelectTrigger>
                       <SelectContent>
-                        {workers.map((worker) => (
+                        {activeWorkers.map((worker) => (
                           <SelectItem key={worker.id} value={worker.id}>
                             {worker.full_name} - {worker.area_module}
                           </SelectItem>

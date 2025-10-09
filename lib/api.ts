@@ -944,12 +944,40 @@ export const workersApi = {
 
   async hardDeleteWorker(workerId: string): Promise<void> {
     // Hard delete - eliminar permanentemente
-    const { error } = await supabase
+    // Primero eliminar todos los registros relacionados en orden
+    
+    // 1. Eliminar registros de asistencia
+    const { error: attendanceError } = await supabase
+      .from('attendance_records')
+      .delete()
+      .eq('worker_id', workerId)
+
+    if (attendanceError) {
+      console.error('Error deleting attendance records:', attendanceError)
+      throw new Error('Error al eliminar registros de asistencia: ' + attendanceError.message)
+    }
+
+    // 2. Eliminar tareas asignadas al trabajador
+    const { error: tasksError } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('worker_id', workerId)
+
+    if (tasksError) {
+      console.error('Error deleting tasks:', tasksError)
+      throw new Error('Error al eliminar tareas: ' + tasksError.message)
+    }
+
+    // 3. Finalmente eliminar el trabajador
+    const { error: workerError } = await supabase
       .from('workers')
       .delete()
       .eq('id', workerId)
 
-    if (error) throw error
+    if (workerError) {
+      console.error('Error deleting worker:', workerError)
+      throw new Error('Error al eliminar trabajador: ' + workerError.message)
+    }
   }
 }
 

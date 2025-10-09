@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "../ui/button"
 import { Card } from "../ui/card"
 import { Badge } from "../ui/badge"
-import { Plus, ArrowLeft, Circle, CheckCircle2 } from "lucide-react"
+import { Plus, ArrowLeft, Pencil, Trash2 } from "lucide-react"
 import { lotsApi, tasksApi, workersApi } from "../../lib/api"
 import type { Lot, Task, Worker, AuthUser } from "../../lib/types"
 import { TaskFormModal, type TaskFormData } from "./task-form-modal"
@@ -25,6 +25,10 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | undefined>(undefined)
+  const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null)
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null)
+  const [dragOrigin, setDragOrigin] = useState<"pending" | "completed" | "overdue" | null>(null)
+  const [isOverCompleted, setIsOverCompleted] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -96,18 +100,31 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
     }
   }
 
-  const toggleTaskStatus = async (task: Task) => {
+  // DnD: only allow drop into Completed from Pending or Overdue
+  const handleDropToCompleted = async () => {
     try {
-      const newStatus = task.status_code === "completada" ? "pendiente" : "completada"
-      await tasksApi.updateTask(task.id, { status_code: newStatus })
+      if (!draggingTaskId) return
+      // Only accept from pending or overdue
+      if (dragOrigin !== "pending" && dragOrigin !== "overdue") return
+      // Optimistic UI: move task to completed locally
+      setTasks(prev => prev.map(t => t.id === draggingTaskId ? { ...t, status_code: "completada" } as Task : t))
+      setIsOverCompleted(false)
+      const taskId = draggingTaskId
+      setDraggingTaskId(null)
+      setDragOrigin(null)
+      await tasksApi.updateTask(taskId, { status_code: "completada" })
+      // Refresh to re-evaluate overdue/pending correctly
       loadData()
+      toast({ title: "Tarea completada", description: "La tarea se movió a Completadas" })
     } catch (error) {
-      console.error("Error updating task status:", error)
+      console.error("Error moving task to completed:", error)
       toast({
         title: "Error",
-        description: "No se pudo actualizar el estado de la tarea",
+        description: "No se pudo completar la tarea",
         variant: "destructive"
       })
+      // rollback
+      loadData()
     }
   }
 
@@ -144,8 +161,64 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
     return "Sin asignar"
   }
 
-  const renderTaskCard = (task: Task) => (
-    <Card key={task.id} className="p-4 space-y-3">
+  const renderTaskCard = (task: Task, origin: "pending" | "completed" | "overdue") => (
+    <Card
+      key={task.id}
+      className="p-4 space-y-3 relative group"
+      draggable={origin !== "overdue"}
+      onDragStart={(e) => {
+        // Allow drag from pending and completed (to move back), but not from overdue
+        if (origin === "overdue") return
+        setDraggingTaskId(task.id)
+        setDragOrigin(origin)
+        e.dataTransfer.effectAllowed = "move"
+      }}
+      onDragEnd={() => {
+        setDraggingTaskId(null)
+        setDragOrigin(null)
+        setIsOverCompleted(false)
+      }}
+    >
+      {/* Action icons */}
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={(e) => {
+            e.stopPropagation()
+            setSelectedTask(task)
+            setIsModalOpen(true)
+          }}
+          aria-label="Editar tarea"
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+          onClick={async (e) => {
+            e.stopPropagation()
+            if (!confirm("¿Eliminar esta tarea?")) return
+            try {
+              setDeleteLoadingId(task.id)
+              await tasksApi.deleteTask(task.id)
+              toast({ title: "Tarea eliminada" })
+              loadData()
+            } catch (error) {
+              console.error("Error deleting task:", error)
+              toast({ title: "Error", description: "No se pudo eliminar la tarea", variant: "destructive" })
+            } finally {
+              setDeleteLoadingId(null)
+            }
+          }}
+          disabled={deleteLoadingId === task.id}
+          aria-label="Eliminar tarea"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <h4 className="font-medium text-sm">{task.title}</h4>
@@ -160,21 +233,6 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
         {task.scheduled_date && (
           <p>Fecha límite: {new Date(task.scheduled_date).toLocaleDateString()}</p>
         )}
-      </div>
-
-      <div className="flex items-center justify-between pt-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8"
-          onClick={() => toggleTaskStatus(task)}
-        >
-          {task.status_code === "completada" ? (
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-          ) : (
-            <Circle className="h-4 w-4" />
-          )}
-        </Button>
       </div>
     </Card>
   )
@@ -275,7 +333,34 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Tareas por hacer */}
-              <div className="space-y-4">
+              <div
+                className={`space-y-4`}
+                onDragOver={(e) => {
+                  // Allow drop from completed back to pending
+                  if (dragOrigin === "completed") {
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = "move"
+                  }
+                }}
+                onDrop={async (e) => {
+                  e.preventDefault()
+                  if (dragOrigin !== "completed" || !draggingTaskId) return
+                  try {
+                    // Optimistic UI: move to pending locally
+                    setTasks(prev => prev.map(t => t.id === draggingTaskId ? { ...t, status_code: "pendiente" } as Task : t))
+                    const taskId = draggingTaskId
+                    setDraggingTaskId(null)
+                    setDragOrigin(null)
+                    await tasksApi.updateTask(taskId, { status_code: "pendiente" })
+                    loadData()
+                    toast({ title: "Tarea reabierta", description: "La tarea volvió a Por hacer" })
+                  } catch (error) {
+                    console.error("Error moving task to pending:", error)
+                    toast({ title: "Error", description: "No se pudo reabrir la tarea", variant: "destructive" })
+                    loadData()
+                  }
+                }}
+              >
                 <div className="flex items-center gap-2 pb-2 border-b">
                   <div className="w-1 h-6 bg-gray-800 dark:bg-gray-200 rounded-full" />
                   <h2 className="font-semibold">Tareas por hacer</h2>
@@ -289,13 +374,32 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
                       No hay tareas pendientes
                     </p>
                   ) : (
-                    pending.map(renderTaskCard)
+                    pending.map(t => renderTaskCard(t, "pending"))
                   )}
                 </div>
               </div>
 
               {/* Tareas completadas */}
-              <div className="space-y-4">
+              <div
+                className={`space-y-4 ${isOverCompleted ? "outline outline-2 outline-green-400/60 rounded-md" : ""}`}
+                onDragOver={(e) => {
+                  // Allow drop only from pending/overdue
+                  if (dragOrigin === "pending" || dragOrigin === "overdue") {
+                    e.preventDefault()
+                    setIsOverCompleted(true)
+                    e.dataTransfer.dropEffect = "move"
+                  } else {
+                    setIsOverCompleted(false)
+                  }
+                }}
+                onDragLeave={() => setIsOverCompleted(false)}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  if (dragOrigin === "pending" || dragOrigin === "overdue") {
+                    handleDropToCompleted()
+                  }
+                }}
+              >
                 <div className="flex items-center gap-2 pb-2 border-b">
                   <div className="w-1 h-6 bg-green-600 rounded-full" />
                   <h2 className="font-semibold">Tareas completadas</h2>
@@ -303,13 +407,16 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
                     {completed.length}
                   </Badge>
                 </div>
+                {completed.length === 0 && (
+                  <div className="text-xs text-muted-foreground italic mb-2">Arrastrá tareas acá para marcarlas como completadas</div>
+                )}
                 <div className="space-y-3">
                   {completed.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">
                       No hay tareas completadas
                     </p>
                   ) : (
-                    completed.map(renderTaskCard)
+                    completed.map(t => renderTaskCard(t, "completed"))
                   )}
                 </div>
               </div>
@@ -329,7 +436,7 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
                       No hay tareas atrasadas
                     </p>
                   ) : (
-                    overdue.map(renderTaskCard)
+                    overdue.map(t => renderTaskCard(t, "overdue"))
                   )}
                 </div>
               </div>

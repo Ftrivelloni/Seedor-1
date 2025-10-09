@@ -1,12 +1,13 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
+import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
 import { useAuth } from "../hooks/use-auth"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { farmsApi } from "../lib/api"
-import { Package, Cog, Archive, Truck, ArrowUpRight, Sprout, ChevronRight, Boxes, Banknote, Users } from "lucide-react"
+import { farmsApi, workersApi, attendanceApi } from "../lib/api"
+import { Package, Cog, Archive, Truck, ArrowUpRight, Sprout, ChevronRight, Boxes, Banknote, Users, Wrench, Clock } from "lucide-react"
 
 type Farm = {
   id: string
@@ -18,6 +19,10 @@ export function DashboardStats() {
   const router = useRouter()
   const [farms, setFarms] = useState<Farm[]>([])
   const [loadingFarms, setLoadingFarms] = useState(false)
+  const [workers, setWorkers] = useState<import("../lib/types").Worker[]>([])
+  const [loadingWorkers, setLoadingWorkers] = useState(false)
+  const [attendance, setAttendance] = useState<import("../lib/types").AttendanceRecord[]>([])
+  const [loadingAttendance, setLoadingAttendance] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -33,6 +38,46 @@ export function DashboardStats() {
       }
     }
     load()
+  }, [user?.tenantId])
+
+  useEffect(() => {
+    const loadWorkers = async () => {
+      if (!user?.tenantId) return
+      try {
+        setLoadingWorkers(true)
+        const data = await workersApi.getWorkersByTenant(user.tenantId)
+        setWorkers(Array.isArray(data) ? data : [])
+      } catch (e) {
+        setWorkers([])
+      } finally {
+        setLoadingWorkers(false)
+      }
+    }
+    loadWorkers()
+  }, [user?.tenantId])
+
+  // Get local YYYY-MM-DD (avoid UTC shift)
+  const getLocalDate = () => {
+    const d = new Date()
+    const tz = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+    return tz.toISOString().slice(0, 10)
+  }
+
+  useEffect(() => {
+    const loadAttendance = async () => {
+      if (!user?.tenantId) return
+      try {
+        setLoadingAttendance(true)
+        const today = getLocalDate()
+        const data = await attendanceApi.getAttendanceByDate(user.tenantId, today)
+        setAttendance(Array.isArray(data) ? data : [])
+      } catch (e) {
+        setAttendance([])
+      } finally {
+        setLoadingAttendance(false)
+      }
+    }
+    loadAttendance()
   }, [user?.tenantId])
 
   if (!user) return null
@@ -183,32 +228,140 @@ export function DashboardStats() {
           </Card>
 
           {/* Placeholder squares */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
             {/* Inventario */}
-            <Card className="h-48 border-sky-200/40 bg-gradient-to-br from-white to-sky-50 dark:from-neutral-900 dark:to-sky-900/10">
+            <Card className="h-full border-sky-200/40 bg-gradient-to-br from-white to-sky-50 dark:from-neutral-900 dark:to-sky-900/10">
               <CardHeader className="flex flex-row items-start gap-3">
                 <InventarioIcon />
                 <CardTitle>Inventario</CardTitle>
               </CardHeader>
-              <CardContent className="h-full flex items-center justify-center text-muted-foreground">Próximamente</CardContent>
+              <CardContent className="h-full flex items-center justify-center">
+                <div className="text-center space-y-3">
+                  <div className="flex items-center justify-center mb-1">
+                    <div className="relative">
+                      <Wrench className="h-10 w-10 text-orange-500" />
+                      <Clock className="h-5 w-5 text-orange-600 absolute -bottom-1 -right-1" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-orange-700">Módulo en Proceso</h3>
+                    <p className="text-sm text-muted-foreground">Inventario</p>
+                  </div>
+                  <div>
+                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 px-3 py-1 inline-flex items-center">
+                      <Clock className="h-3.5 w-3.5 mr-1" />
+                      En Desarrollo
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                    Módulo de gestión de inventario y stock
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    ¿Tienes alguna sugerencia?{' '}
+                    <a href="/contactenos" className="text-orange-600 hover:text-orange-700 underline">Contáctanos</a>
+                  </p>
+                </div>
+              </CardContent>
             </Card>
 
             {/* Finanzas */}
-            <Card className="h-48 border-amber-200/40 bg-gradient-to-br from-white to-amber-50 dark:from-neutral-900 dark:to-amber-900/10">
+            <Card className="h-full border-amber-200/40 bg-gradient-to-br from-white to-amber-50 dark:from-neutral-900 dark:to-amber-900/10">
               <CardHeader className="flex flex-row items-start gap-3">
                 <FinanzasIcon />
                 <CardTitle>Finanzas</CardTitle>
               </CardHeader>
-              <CardContent className="h-full flex items-center justify-center text-muted-foreground">Próximamente</CardContent>
+              <CardContent className="h-full flex items-center justify-center">
+                <div className="text-center space-y-3">
+                  <div className="flex items-center justify-center mb-1">
+                    <div className="relative">
+                      <Wrench className="h-10 w-10 text-orange-500" />
+                      <Clock className="h-5 w-5 text-orange-600 absolute -bottom-1 -right-1" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-orange-700">Módulo en Proceso</h3>
+                    <p className="text-sm text-muted-foreground">Finanzas</p>
+                  </div>
+                  <div>
+                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 px-3 py-1 inline-flex items-center">
+                      <Clock className="h-3.5 w-3.5 mr-1" />
+                      En Desarrollo
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                    Módulo de gestión financiera y contabilidad
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    ¿Tienes alguna sugerencia?{' '}
+                    <a href="/contactenos" className="text-orange-600 hover:text-orange-700 underline">Contáctanos</a>
+                  </p>
+                </div>
+              </CardContent>
             </Card>
 
-            {/* Trabajadores */}
-            <Card className="h-48 border-violet-200/40 bg-gradient-to-br from-white to-violet-50 dark:from-neutral-900 dark:to-violet-900/10">
+            {/* Trabajadores - Asistencia de hoy */}
+            <Card className="h-full border-violet-200/40 bg-gradient-to-br from-white to-violet-50 dark:from-neutral-900 dark:to-violet-900/10">
               <CardHeader className="flex flex-row items-start gap-3">
                 <TrabajadoresIcon />
-                <CardTitle>Trabajadores</CardTitle>
+                <div>
+                  <CardTitle>Trabajadores</CardTitle>
+                  <CardDescription>
+                    {loadingWorkers || loadingAttendance
+                      ? 'Cargando asistencia de hoy...'
+                      : `Hoy: ${workers.length > 0 ? Math.round((attendance.filter(a => a.status === 'PRE').length * 100) / workers.length) : 0}% presente`}
+                  </CardDescription>
+                </div>
               </CardHeader>
-              <CardContent className="h-full flex items-center justify-center text-muted-foreground">Próximamente</CardContent>
+              <CardContent>
+                {loadingWorkers || loadingAttendance ? (
+                  <div className="grid grid-cols-1 gap-3">
+                    {[1,2,3].map((i) => (
+                      <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    {/* Summary chips */}
+                    <div className="flex flex-wrap items-center gap-2 mb-4">
+                      <span className="text-xs rounded-md bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-200 px-2 py-1">
+                        Activos: {workers.length}
+                      </span>
+                      <span className="text-xs rounded-md bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200 px-2 py-1">
+                        Registrados: {new Set(attendance.map(a => a.worker_id)).size}
+                      </span>
+                      <span className="text-xs rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200 px-2 py-1">
+                        Faltan: {Math.max(workers.length - new Set(attendance.map(a => a.worker_id)).size, 0)}
+                      </span>
+                    </div>
+
+                    {/* Breakdown */}
+                    <div className="grid grid-cols-1 gap-2">
+                      {[
+                        { code: 'PRE', label: 'Presente', color: 'text-emerald-700 bg-emerald-100 dark:text-emerald-200 dark:bg-emerald-900/40' },
+                        { code: 'AUS', label: 'Ausente', color: 'text-rose-700 bg-rose-100 dark:text-rose-200 dark:bg-rose-900/40' },
+                        { code: 'TAR', label: 'Tardanza', color: 'text-amber-700 bg-amber-100 dark:text-amber-200 dark:bg-amber-900/40' },
+                        { code: 'LIC', label: 'Licencia', color: 'text-sky-700 bg-sky-100 dark:text-sky-200 dark:bg-sky-900/40' },
+                        { code: 'VAC', label: 'Vacaciones', color: 'text-indigo-700 bg-indigo-100 dark:text-indigo-200 dark:bg-indigo-900/40' },
+                      ].map(({ code, label, color }) => {
+                        const count = attendance.filter(a => a.status === code).length
+                        return (
+                          <div key={code} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-block h-2 w-2 rounded-full ${color.split(' ')[1]}`}></span>
+                              <span className="text-sm">{label}</span>
+                            </div>
+                            <span className={`text-xs rounded px-2 py-0.5 ${color}`}>{count}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <Button variant="ghost" className="mt-4 px-0 text-violet-600 underline hover:text-violet-500 dark:text-violet-300 dark:hover:text-violet-200" onClick={() => go('/trabajadores')}>
+                      Ver detalles de asistencia
+                    </Button>
+                  </>
+                )}
+              </CardContent>
             </Card>
           </div>
         </div>
