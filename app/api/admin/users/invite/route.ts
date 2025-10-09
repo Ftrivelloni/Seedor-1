@@ -1,169 +1,152 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { buildInvitationUrl } from '../../../../../lib/utils/url'
+import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-if (!supabaseUrl || !serviceRoleKey) {
-  console.error('Missing required Supabase environment variables');
-}
-
-const supabaseAdmin = supabaseUrl && serviceRoleKey
-  ? createClient(
-      supabaseUrl,
-      serviceRoleKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
-  : null
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
 
 export async function POST(request: NextRequest) {
   try {
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: 'Supabase configuration missing. Please check environment variables.' },
-        { status: 500 }
-      );
-    }
-    
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'No authorization token' }, { status: 401 });
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { email, role } = await request.json();
+    const body = await request.json();
+    const { email, fullName, role, documentId, phone } = body;
 
-    console.log('🔄 Processing user invitation:', { email, role })
-
-    if (!email || !role) {
-      return NextResponse.json({ error: 'Email and role are required' }, { status: 400 });
+    if (!email || !fullName || !role) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Get user from token
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
     if (userError || !user) {
-      return NextResponse.json({ error: 'Invalid authentication token' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Verify user is admin in a tenant
-    const { data: userMemberships, error: membershipError } = await supabaseAdmin
+    const { data: currentWorker, error: currentWorkerError } = await supabaseAdmin
+      .from('workers')
+      .select('*, membership:tenant_memberships!workers_membership_id_fkey(*)')
+      .eq('email', user.email)
+      .single();
+
+    if (currentWorkerError || !currentWorker) {
+      return NextResponse.json({ error: 'Worker profile not found' }, { status: 404 });
+    }
+
+    if (!currentWorker.membership || currentWorker.membership.role_code !== 'admin') {
+      return NextResponse.json({ error: 'Access denied. Admin role required.' }, { status: 403 });
+    }
+
+    const { data: existingWorker } = await supabaseAdmin
+      .from('workers')
+      .select('email')
+      .eq('email', email)
+      .eq('tenant_id', currentWorker.tenant_id)
+      .single();
+
+    if (existingWorker) {
+      return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
+    }
+
+    const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!`;
+
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: tempPassword,
+      email_confirm: false, 
+      user_metadata: {
+        full_name: fullName,
+        invited_by: currentWorker.id
+      }
+    });
+
+    if (authError || !authData.user) {
+      console.error('Auth error:', authError);
+      return NextResponse.json({ 
+        error: 'Failed to create auth user: ' + authError?.message 
+      }, { status: 500 });
+    }
+
+    const { data: membership, error: membershipError } = await supabaseAdmin
       .from('tenant_memberships')
-      .select(`
-        *,
-        tenant:tenants(*)
-      `)
-      .eq('user_id', user.id)
-      .eq('role_code', 'admin')
-      .eq('status', 'active');
-
-    if (membershipError || !userMemberships || userMemberships.length === 0) {
-      return NextResponse.json({ error: 'Admin access not found. Only admins can invite users.' }, { status: 403 });
-    }
-
-    const currentMembership = userMemberships[0];
-    const tenant = currentMembership.tenant;
-
-    // Generate invitation token
-    const token_invitation = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
-
-    console.log('🔄 Creating invitation record...')
-    
-    // Create invitation record
-    const expiresAt = new Date()
-    expiresAt.setHours(expiresAt.getHours() + 24) // 24 hours expiration
-    
-    const { data: invitation, error: invitationError } = await supabaseAdmin
-      .from('invitations')
       .insert([{
-        tenant_id: currentMembership.tenant_id,
-        email: email.toLowerCase().trim(),
+        tenant_id: currentWorker.tenant_id,
+        user_id: authData.user.id,
         role_code: role,
-        token_hash: token_invitation,
-        invited_by: user.id,
-        expires_at: expiresAt.toISOString()
+        status: 'pending',
+        invited_by: currentWorker.id
       }])
       .select()
-      .single()
+      .single();
 
-    if (invitationError) {
-      console.error('Error creating invitation:', invitationError)
-      return NextResponse.json(
-        { error: `Error al crear invitación: ${invitationError.message}` },
-        { status: 500 }
-      )
+    if (membershipError) {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      console.error('Membership error:', membershipError);
+      return NextResponse.json({ 
+        error: 'Failed to create membership: ' + membershipError.message 
+      }, { status: 500 });
     }
+    const { data: profileData, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert([{
+        user_id: authData.user.id,
+        full_name: fullName,
+        phone: phone || null,
+        default_tenant_id: currentWorker.tenant_id
+      }])
+      .select()
+      .single();
 
-    const inviteUrl = buildInvitationUrl('user', token_invitation)
-
-    console.log('🔄 Enviando invitación usuario:', {
-      email: email.toLowerCase().trim(),
-      redirectTo: inviteUrl,
-      environment: process.env.NODE_ENV,
-      timestamp: new Date().toISOString()
-    })
-
-    const { error: inviteError, data: inviteData } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      email.toLowerCase().trim(),
-      {
-        redirectTo: inviteUrl,
-        data: {
-          tenant_id: currentMembership.tenant_id,
-          tenant_name: tenant.name,
-          role: role,
-          invitation_token: token_invitation,
-          invited_by_id: user.id,
-          is_user_invite: true
-        }
-      }
-    )
-
-    if (inviteError) {
-      console.error('❌ Error enviando invitación usuario:', {
-        error: inviteError,
-        email: email,
-        code: inviteError.status || inviteError.code,
-        message: inviteError.message
-      })
-      console.error('Error sending user invitation email:', inviteError)
-
-      await supabaseAdmin
-        .from('invitations')
-        .delete()
-        .eq('id', invitation.id)
-
-      return NextResponse.json(
-        { 
-          error: `Error al enviar email: ${inviteError.message}`,
-          details: {
-            code: inviteError.status || inviteError.code,
-            inviteUrl: inviteUrl,
-            email: email,
-            environment: process.env.NODE_ENV
-          }
-        },
-        { status: 500 }
-      )
+    if (profileError) {
     } else {
-      console.log('✅ User invitation sent successfully')
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Invitación enviada exitosamente',
-        data: {
-          email: email,
-          role: role,
-          tenant: tenant.name,
-          invitation_id: invitation.id
-        }
-      })
     }
+
+    const { data: worker, error: workerError } = await supabaseAdmin
+      .from('workers')
+      .insert([{
+        tenant_id: currentWorker.tenant_id,
+        full_name: fullName,
+        document_id: documentId || '',
+        email: email,
+        phone: phone || null,
+        area_module: role,
+        membership_id: membership.id,
+        status: 'active'
+      }])
+      .select()
+      .single();
+
+    if (workerError) {
+      await supabaseAdmin.from('tenant_memberships').delete().eq('id', membership.id);
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      console.error('Worker error:', workerError);
+      return NextResponse.json({ 
+        error: 'Failed to create worker profile: ' + workerError.message 
+      }, { status: 500 });
+    }
+
+    try {
+      await supabaseAdmin.auth.resetPasswordForEmail(email, {
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password`
+      });
+    } catch (emailError) {
+      console.error('Failed to send reset email:', emailError);
+    }
+
+    return NextResponse.json({ 
+      success: true,
+      worker: worker,
+      message: 'User invited successfully. They will receive an email to set their password.'
+    });
 
   } catch (error) {
     console.error('POST /api/admin/users/invite error:', error);
