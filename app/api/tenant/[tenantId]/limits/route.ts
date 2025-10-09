@@ -44,12 +44,16 @@ export async function GET(
       })
     }
 
-    // Count current active users/workers in this tenant
+    // Count current active users/workers in this tenant (excluding tenants/owners)
     const { count: userCount, error: countError } = await supabaseAdmin
       .from('workers')
-      .select('*', { count: 'exact', head: true })
+      .select(`
+        *,
+        membership:tenant_memberships!workers_membership_id_fkey(role_code)
+      `, { count: 'exact', head: true })
       .eq('tenant_id', tenantId)
       .eq('status', 'active')
+      .neq('membership.role_code', 'owner')
 
     if (countError) {
       console.error('Error counting users:', countError)

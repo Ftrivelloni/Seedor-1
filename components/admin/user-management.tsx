@@ -82,6 +82,8 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
   const [errors, setErrors] = useState<Partial<CreateUserRequest>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [invitedUserEmail, setInvitedUserEmail] = useState('')
 
   const isAdmin = currentUser.rol.toLowerCase() === 'admin'
 
@@ -241,10 +243,8 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
       if (response.ok) {
         const result = await response.json()
-        toast({
-          title: "Usuario invitado",
-          description: result.message || "El usuario ha sido invitado exitosamente."
-        })
+        setInvitedUserEmail(formData.email)
+        setShowSuccessMessage(true)
         setIsCreateModalOpen(false)
         setFormData({
           email: '',
@@ -546,13 +546,43 @@ export function UserManagement({ currentUser }: UserManagementProps) {
       </div>
 
       {!canAddMoreUsers && (
-        <Alert>
-          <Shield className="h-4 w-4" />
-          <AlertDescription>
-            Has alcanzado el límite de usuarios para tu plan actual ({userLimits.max} usuarios). 
-            <Button variant="link" className="p-0 h-auto ml-1">
-              Actualizar plan
+        <Alert className="border-orange-200 bg-orange-50">
+          <Shield className="h-4 w-4 text-orange-600" />
+          <AlertDescription className="text-orange-800">
+            <strong>No se pueden crear más usuarios.</strong> Has alcanzado el límite de usuarios para tu plan actual ({userLimits.max} usuarios). 
+            Para agregar más usuarios, debes mejorar al plan Pro.
+            <br />
+            <Button variant="link" className="p-0 h-auto ml-0 mt-1 text-orange-700 hover:text-orange-900">
+              Actualizar al Plan Pro →
             </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {showSuccessMessage && (
+        <Alert className="border-green-200 bg-green-50">
+          <UserPlus className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            <strong>¡Invitación enviada exitosamente!</strong>
+            <br />
+            Se ha enviado una invitación a <strong>{invitedUserEmail}</strong>. El usuario recibirá un email con las instrucciones para completar su registro.
+            <div className="flex gap-2 mt-3">
+              <Button 
+                size="sm" 
+                onClick={() => setShowSuccessMessage(false)}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Continuar gestionando usuarios
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => window.location.href = '/home'}
+                className="border-green-300 text-green-700 hover:bg-green-100"
+              >
+                Volver al dashboard
+              </Button>
+            </div>
           </AlertDescription>
         </Alert>
       )}
