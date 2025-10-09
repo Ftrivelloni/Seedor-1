@@ -128,6 +128,10 @@ export function UserManagement({ currentUser }: UserManagementProps) {
           created_at: worker.created_at,
           accepted_at: worker.membership?.accepted_at
         }))
+        
+        console.log('🔍 UserManagement: Raw users data:', data.users)
+        console.log('🔍 UserManagement: Transformed users:', transformedUsers)
+        
         setUsers(transformedUsers)
       } else {
         const errorData = await response.json()

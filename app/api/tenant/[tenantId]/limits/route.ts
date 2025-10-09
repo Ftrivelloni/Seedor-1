@@ -27,10 +27,10 @@ export async function GET(
       })
     }
 
-    // Get tenant information including plan
+    // Get tenant information including current_users, max_users, and plan
     const { data: tenant, error: tenantError } = await supabaseAdmin
       .from('tenants')
-      .select('plan')
+      .select('plan, current_users, max_users')
       .eq('id', tenantId)
       .single()
 
@@ -44,38 +44,15 @@ export async function GET(
       })
     }
 
-    // Count current active users/workers in this tenant (excluding tenants/owners)
-    const { count: userCount, error: countError } = await supabaseAdmin
-      .from('workers')
-      .select(`
-        *,
-        membership:tenant_memberships!workers_membership_id_fkey(role_code)
-      `, { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-      .eq('status', 'active')
-      .neq('membership.role_code', 'owner')
-
-    if (countError) {
-      console.error('Error counting users:', countError)
-    }
-
-    // Determine max users based on plan
-    const planLimits: Record<string, number> = {
-      'basic': 3,
-      'basico': 3,
-      'pro': 10,
-      'enterprise': -1, // unlimited
-      'empresarial': -1
-    }
-
-    const plan = tenant.plan?.toLowerCase() || 'basic'
-    const maxUsers = planLimits[plan] || 3
+    // Use the values directly from the tenant table
+    const currentUsers = tenant.current_users || 0
+    const maxUsers = tenant.max_users || 3
 
     return NextResponse.json({
-      current_users: userCount || 0,
+      current_users: currentUsers,
       max_users: maxUsers,
       plan: tenant.plan || 'basic',
-      can_add_more: maxUsers === -1 || (userCount || 0) < maxUsers
+      can_add_more: maxUsers === -1 || currentUsers < maxUsers
     })
   } catch (error) {
     console.error('Error in tenant limits API:', error)
