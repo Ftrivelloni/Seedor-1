@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: existingInvitation } = await supabaseAdmin
+    // Revocar cualquier invitación pendiente anterior para este email y tenant
+    const { data: existingInvitations } = await supabaseAdmin
       .from('invitations')
       .select('id')
       .eq('tenant_id', tenantId)
@@ -80,13 +81,20 @@ export async function POST(request: NextRequest) {
       .eq('role_code', 'admin')
       .is('accepted_at', null)
       .is('revoked_at', null)
-      .maybeSingle()
 
-    if (existingInvitation) {
-      return NextResponse.json(
-        { error: 'Ya existe una invitación pendiente para este email' },
-        { status: 400 }
-      )
+    if (existingInvitations && existingInvitations.length > 0) {
+      console.log('🔄 Revocando invitaciones anteriores:', existingInvitations.length)
+      
+      const { error: revokeError } = await supabaseAdmin
+        .from('invitations')
+        .update({ revoked_at: new Date().toISOString() })
+        .in('id', existingInvitations.map(inv => inv.id))
+
+      if (revokeError) {
+        console.error('❌ Error revocando invitaciones anteriores:', revokeError)
+      } else {
+        console.log('✅ Invitaciones anteriores revocadas exitosamente')
+      }
     }
 
     const { data: tenant } = await supabaseAdmin

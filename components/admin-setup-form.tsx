@@ -122,7 +122,14 @@ export default function AdminSetupForm() {
         
         if (!success || !data) {
           console.log('❌ AdminSetupForm: No invitation found for token');
-          setError(inviteError || "Invitación no encontrada");
+          
+          // Verificar si es un error de invitación más nueva
+          if (data?.errorType === 'NEWER_INVITATION_EXISTS') {
+            setError(inviteError || "Esta invitación ha sido reemplazada por una más reciente");
+          } else {
+            setError(inviteError || "Invitación no encontrada");
+          }
+          
           setLoading(false);
           return;
         }
@@ -239,18 +246,20 @@ export default function AdminSetupForm() {
       // Finalizar aceptando la invitación de admin
       if (typeof window !== 'undefined') {
         const authData = sessionStorage.getItem('admin_auth_data');
-        if (authData) {
+        if (authData && adminData) {
           const data = JSON.parse(authData);
 
-
+          // Combinar datos de auth y datos del admin
+          const completeUserData = {
+            fullName: adminData.fullName || data.fullName,
+            phone: adminData.phone || data.phone,
+            documentId: adminData.documentId || adminData.document_id, // Incluir document_id
+            password: data.password // ✅ La contraseña establecida en el primer paso
+          };
 
           const { success, error: acceptError } = await authService.acceptInvitationWithSetup({
             token,
-            userData: {
-              fullName: data.fullName,
-              phone: data.phone,
-              password: data.password // ✅ La contraseña establecida en el primer paso
-            }
+            userData: completeUserData
           });
 
           if (!success) {

@@ -124,7 +124,7 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
         {!isCollapsed && (
           <div className="flex items-center space-x-3">
             <img
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/logo-Di7jTOuyhExHDeoZxfX2tUDW0x6CK7.png"
+              src="/logo-seedor.png"
               alt="Seedor"
               className="h-8 w-auto"
             />
