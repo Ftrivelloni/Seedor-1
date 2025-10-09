@@ -7,8 +7,7 @@ import { Card } from "../ui/card"
 import { Badge } from "../ui/badge"
 import { Plus, ArrowLeft, Grid3x3, List, Pencil, Trash2 } from "lucide-react"
 import { farmsApi, lotsApi } from "../../lib/api"
-import type { Farm, Lot } from "../../lib/types"
-import type { AuthUser } from "../../lib/supabaseAuth"
+import type { Farm, Lot, AuthUser } from "../../lib/types"
 import { LotFormModal, type LotFormData } from "./lot-form-modal"
 import { toast } from "../../hooks/use-toast"
 
@@ -243,6 +242,7 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
                 <Card
                   key={lot.id}
                   className="p-6 hover:shadow-lg transition-shadow cursor-pointer group relative"
+                  onClick={() => router.push(`/campo/${farmId}/${lot.id}`)}
                 >
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                     <Button
@@ -299,7 +299,11 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
           ) : (
             <div className="space-y-2">
               {lots.map((lot) => (
-                <Card key={lot.id} className="p-4 hover:shadow-md transition-shadow">
+                <Card 
+                  key={lot.id} 
+                  className="p-4 hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => router.push(`/campo/${farmId}/${lot.id}`)}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 grid grid-cols-5 gap-4">
                       <div>
@@ -327,7 +331,8 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           setSelectedLot(lot)
                           setIsModalOpen(true)
                         }}
@@ -338,7 +343,10 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => handleDeleteLot(lot.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteLot(lot.id)
+                        }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

@@ -1,20 +1,23 @@
 "use client"
 
+import { use } from "react"
 import { useRouter } from "next/navigation"
-import { Sidebar } from "../../components/sidebar"
-import TrabajadoresPage from "../../components/trabajadores/trabajadores-page";
-import { useAuth } from "../../hooks/use-auth";
-import { FeatureProvider } from "../../lib/features-context";
+import { Sidebar } from "../../../../components/sidebar"
+import { LotTasksPage } from "../../../../components/campo/lot-tasks-page"
+import { useAuth } from "../../../../hooks/use-auth"
+import { FeatureProvider } from "../../../../lib/features-context"
 
-export default function TrabajadoresRoutePage() {
+export default function LotPage({ 
+  params 
+}: { 
+  params: Promise<{ farmId: string; lotId: string }> 
+}) {
+  const { farmId, lotId } = use(params)
   const { user, loading, handleLogout } = useAuth({
     redirectToLogin: true,
-    requireRoles: ["admin", "finanzas"]
-  });
-  const router = useRouter();
-
-  // Debug logs
-  console.log('👷 Trabajadores Page - User:', user?.email, 'Rol:', user?.rol, 'Loading:', loading);
+    requireRoles: ["admin", "campo"]
+  })
+  const router = useRouter()
 
   if (loading) {
     return (
@@ -48,15 +51,14 @@ export default function TrabajadoresRoutePage() {
               ajustes: "/ajustes",
               trabajadores: "/trabajadores",
               contactos: "/contactos",
-            };
-
-            const targetRoute = pageRoutes[page] || "/home";
-            router.push(targetRoute);
+            }
+            const targetRoute = pageRoutes[page] || "/home"
+            router.push(targetRoute)
           }} 
-          currentPage="trabajadores" 
+          currentPage="campo" 
         />
         <div className="flex-1 flex flex-col">
-          <TrabajadoresPage user={user} />
+          <LotTasksPage farmId={farmId} lotId={lotId} user={user} />
         </div>
       </div>
     </FeatureProvider>

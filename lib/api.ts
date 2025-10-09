@@ -849,3 +849,327 @@ export const lotsApi = {
   }
 }
 
+// Workers API
+export const workersApi = {
+  async getWorkersByTenant(tenantId: string, includeInactive = false): Promise<import('./types').Worker[]> {
+    let query = supabase
+      .from('workers')
+      .select('*')
+      .eq('tenant_id', tenantId)
+    
+    if (!includeInactive) {
+      query = query.eq('status', 'active')
+    }
+    
+    const { data, error } = await query.order('full_name', { ascending: true })
+
+    if (error) throw error
+    return data || []
+  },
+
+  async getWorkerById(workerId: string): Promise<import('./types').Worker | null> {
+    const { data, error } = await supabase
+      .from('workers')
+      .select('*')
+      .eq('id', workerId)
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async createWorker(tenantId: string, workerData: {
+    full_name: string
+    document_id: string
+    email: string
+    phone?: string
+    area_module: string
+    membership_id?: string
+  }): Promise<import('./types').Worker> {
+    console.log('🔍 Creating worker with data:', { tenantId, workerData });
+    
+    const { data, error } = await supabase
+      .from('workers')
+      .insert({
+        tenant_id: tenantId,
+        full_name: workerData.full_name,
+        document_id: workerData.document_id,
+        email: workerData.email,
+        phone: workerData.phone || null,
+        area_module: workerData.area_module,
+        membership_id: workerData.membership_id || null,
+        status: 'active'
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('❌ Error creating worker in Supabase:', error)
+      throw new Error(error.message || 'Error al crear el trabajador en la base de datos');
+    }
+    
+    console.log('✅ Worker created successfully:', data);
+    return data
+  },
+
+  async updateWorker(workerId: string, workerData: Partial<{
+    full_name: string
+    document_id: string
+    email: string
+    phone: string
+    area_module: string
+    membership_id: string
+    status: string
+  }>): Promise<import('./types').Worker> {
+    const { data, error } = await supabase
+      .from('workers')
+      .update(workerData)
+      .eq('id', workerId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async deleteWorker(workerId: string): Promise<void> {
+    // Soft delete - cambiar status a inactive
+    const { error } = await supabase
+      .from('workers')
+      .update({ status: 'inactive' })
+      .eq('id', workerId)
+
+    if (error) throw error
+  },
+
+  async hardDeleteWorker(workerId: string): Promise<void> {
+    // Hard delete - eliminar permanentemente
+    const { error } = await supabase
+      .from('workers')
+      .delete()
+      .eq('id', workerId)
+
+    if (error) throw error
+  }
+}
+
+// Attendance API
+export const attendanceApi = {
+  async getAttendanceByTenant(tenantId: string, startDate?: string, endDate?: string): Promise<import('./types').AttendanceRecord[]> {
+    let query = supabase
+      .from('attendance_records')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('date', { ascending: false })
+
+    if (startDate) {
+      query = query.gte('date', startDate)
+    }
+    if (endDate) {
+      query = query.lte('date', endDate)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    return data || []
+  },
+
+  async getAttendanceByWorker(workerId: string, startDate?: string, endDate?: string): Promise<import('./types').AttendanceRecord[]> {
+    let query = supabase
+      .from('attendance_records')
+      .select('*')
+      .eq('worker_id', workerId)
+      .order('date', { ascending: false })
+
+    if (startDate) {
+      query = query.gte('date', startDate)
+    }
+    if (endDate) {
+      query = query.lte('date', endDate)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    return data || []
+  },
+
+  async getAttendanceByDate(tenantId: string, date: string): Promise<import('./types').AttendanceRecord[]> {
+    const { data, error } = await supabase
+      .from('attendance_records')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('date', date)
+
+    if (error) throw error
+    return data || []
+  },
+
+  async createAttendance(tenantId: string, attendanceData: import('./types').CreateAttendanceData): Promise<import('./types').AttendanceRecord> {
+    const { data, error } = await supabase
+      .from('attendance_records')
+      .insert({
+        tenant_id: tenantId,
+        worker_id: attendanceData.worker_id,
+        date: attendanceData.date,
+        status: attendanceData.status,
+        reason: attendanceData.reason || null
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('❌ Error creating attendance:', error)
+      throw new Error(error.message || 'Error al crear el registro de asistencia');
+    }
+    return data
+  },
+
+  async updateAttendance(attendanceId: string, updates: Partial<import('./types').CreateAttendanceData>): Promise<import('./types').AttendanceRecord> {
+    const { data, error } = await supabase
+      .from('attendance_records')
+      .update(updates)
+      .eq('id', attendanceId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async deleteAttendance(attendanceId: string): Promise<void> {
+    const { error } = await supabase
+      .from('attendance_records')
+      .delete()
+      .eq('id', attendanceId)
+
+    if (error) throw error
+  },
+
+  async getAttendanceStatuses(): Promise<import('./types').AttendanceStatus[]> {
+    const { data, error } = await supabase
+      .from('attendance_statuses')
+      .select('*')
+      .order('code')
+
+    if (error) throw error
+    return data || []
+  },
+
+  async bulkCreateAttendance(tenantId: string, attendances: import('./types').CreateAttendanceData[]): Promise<import('./types').AttendanceRecord[]> {
+    const recordsToInsert = attendances.map(att => ({
+      tenant_id: tenantId,
+      worker_id: att.worker_id,
+      date: att.date,
+      status: att.status,
+      reason: att.reason || null
+    }))
+
+    const { data, error } = await supabase
+      .from('attendance_records')
+      .insert(recordsToInsert)
+      .select()
+
+    if (error) {
+      console.error('❌ Error creating bulk attendance:', error)
+      throw new Error(error.message || 'Error al crear los registros de asistencia');
+    }
+    return data || []
+  }
+}
+
+// Tasks API
+export const tasksApi = {
+  async getTasksByLot(lotId: string): Promise<import('./types').Task[]> {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('lot_id', lotId)
+      .order('scheduled_date', { ascending: true })
+
+    if (error) throw error
+    return data || []
+  },
+
+  async getTaskById(taskId: string): Promise<import('./types').Task | null> {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('id', taskId)
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async createTask(tenantId: string, taskData: import('./types').CreateTaskData, userId?: string): Promise<import('./types').Task> {
+    console.log('🔍 Creating task with data:', { tenantId, taskData, userId });
+    
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert({
+        tenant_id: tenantId,
+        farm_id: taskData.farm_id,
+        lot_id: taskData.lot_id,
+        title: taskData.title,
+        description: taskData.description || '',
+        type_code: taskData.type_code || 'otro',
+        status_code: taskData.status_code,
+        scheduled_date: taskData.scheduled_date || null,
+        responsible_membership_id: taskData.responsible_membership_id || null,
+        worker_id: taskData.worker_id || null,
+        created_by: userId || tenantId
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('❌ Error creating task in Supabase:', error)
+      throw new Error(error.message || 'Error al crear la tarea en la base de datos');
+    }
+    
+    console.log('✅ Task created successfully:', data);
+    return data
+  },
+
+  async updateTask(taskId: string, taskData: Partial<import('./types').CreateTaskData>): Promise<import('./types').Task> {
+    const { data, error } = await supabase
+      .from('tasks')
+      .update(taskData)
+      .eq('id', taskId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async deleteTask(taskId: string): Promise<void> {
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', taskId)
+
+    if (error) throw error
+  },
+
+  async getTaskStatuses(): Promise<import('./types').TaskStatus[]> {
+    const { data, error } = await supabase
+      .from('task_statuses')
+      .select('*')
+      .order('code')
+
+    if (error) throw error
+    return data || []
+  },
+
+  async getTaskTypes(): Promise<import('./types').TaskType[]> {
+    const { data, error } = await supabase
+      .from('task_types')
+      .select('*')
+      .order('code')
+
+    if (error) throw error
+    return data || []
+  }
+}
+
