@@ -63,7 +63,11 @@ export default function AdminSetupForm() {
 
   useEffect(() => {
     const loadInitialData = async () => {
+      console.log('🚀 AdminSetupForm: Starting loadInitialData with token:', token ? 'present' : 'missing');
+      console.log('🔧 AdminSetupForm: AuthService available:', typeof authService, 'getSafeSession:', typeof authService.getSafeSession, 'getInvitationByToken:', typeof authService.getInvitationByToken);
+      
       if (!token) {
+        console.error('❌ AdminSetupForm: No token provided');
         setError("Token inválido");
         setLoading(false);
         return;
@@ -112,30 +116,40 @@ export default function AdminSetupForm() {
         console.log('⚠️ AdminSetupForm: User not authenticated as admin, falling back to token lookup');
 
         // Si no está autenticado, buscar la invitación por token (flujo original)
+        console.log('🔍 AdminSetupForm: Getting invitation by token...');
         const { success, data, error: inviteError } = await authService.getInvitationByToken(token);
+        console.log('📋 AdminSetupForm: Token invitation result:', { success, hasData: !!data, error: inviteError });
         
         if (!success || !data) {
+          console.log('❌ AdminSetupForm: No invitation found for token');
           setError(inviteError || "Invitación no encontrada");
           setLoading(false);
           return;
         }
 
+        console.log('✅ AdminSetupForm: Token invitation data received:', data);
         setInvitation(data);
 
+        console.log('🏢 AdminSetupForm: Getting tenant limits for tenant:', data.tenant_id);
         const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(data.tenant_id);
+        console.log('📊 AdminSetupForm: Tenant limits result:', { success: limitsSuccess, hasData: !!limitsData });
         
         if (limitsSuccess && limitsData) {
+          console.log('🎯 AdminSetupForm: Setting tenant plan:', limitsData.plan);
           setTenantPlan(limitsData.plan);
           
           const available = Object.keys(AVAILABLE_MODULES).filter(moduleId => 
             AVAILABLE_MODULES[moduleId as keyof typeof AVAILABLE_MODULES].available.includes(limitsData.plan)
           );
+          console.log('📦 AdminSetupForm: Available modules:', available);
           setAvailableModules(available);
         }
 
       } catch (err: any) {
+        console.error('💥 AdminSetupForm: Error in loadInitialData:', err);
         setError(err.message || "Error al cargar datos");
       } finally {
+        console.log('🏁 AdminSetupForm: Setting loading to false');
         setLoading(false);
       }
     };
