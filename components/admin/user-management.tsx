@@ -97,11 +97,13 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   const loadUsers = async () => {
     try {
       setLoading(true)
+      console.log('🔍 UserManagement: Loading users...')
       
       const { supabase } = await import('../../lib/supabaseClient')
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
+        console.error('🔍 UserManagement: No session found')
         toast({
           title: 'Error',
           description: 'No se encontró una sesión activa',
@@ -110,12 +112,15 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         return
       }
       
+      console.log('🔍 UserManagement: Making request to /api/admin/users')
       const response = await fetch('/api/admin/users', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         }
       })
+      
+      console.log('🔍 UserManagement: Users API response status:', response.status)
       
       if (response.ok) {
         const data = await response.json()
@@ -155,17 +160,22 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
   const checkUserLimits = async () => {
     try {
-      const response = await fetch(`/api/tenants/${currentUser.tenantId}/limits`)
+      console.log('🔍 UserManagement: Checking limits for tenant:', currentUser.tenantId)
+      const response = await fetch(`/api/tenant/${currentUser.tenantId}/limits`)
+      console.log('🔍 UserManagement: Limits response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('🔍 UserManagement: Limits data:', data)
         setUserLimits({ current: data.current_users, max: data.max_users })
         setCanAddMoreUsers(data.current_users < data.max_users)
       } else {
+        console.warn('🔍 UserManagement: Limits API failed, using fallback')
         setUserLimits({ current: users.length, max: 3 })
         setCanAddMoreUsers(users.length < 3)
       }
     } catch (error) {
-      console.error('Error checking user limits:', error)
+      console.error('🔍 UserManagement: Error checking user limits:', error)
       setUserLimits({ current: users.length, max: 3 })
       setCanAddMoreUsers(users.length < 3)
     }

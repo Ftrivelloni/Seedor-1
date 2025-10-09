@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '../../../../../lib/supabaseAdmin'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const supabaseAdmin = supabaseUrl && supabaseServiceKey 
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null;
 
 export async function GET(
   request: NextRequest,
@@ -8,18 +20,9 @@ export async function GET(
   try {
     const tenantId = params.tenantId
 
-    // Verify authentication
-    const authHeader = request.headers.get('Authorization')
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: 'No authorization header' },
-        { status: 401 }
-      )
-    }
-
     // Check if supabaseAdmin is available
     if (!supabaseAdmin) {
-      console.error('Supabase admin client not available')
+      console.error('Supabase admin client not available - missing environment variables')
       return NextResponse.json({
         current_users: 1,
         max_users: 3,
