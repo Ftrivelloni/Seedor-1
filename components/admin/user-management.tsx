@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog'
 import { Badge } from '../ui/badge'
-import { Trash2, UserPlus, Edit3, Shield, User, Package, DollarSign, Sprout } from 'lucide-react'
+import { Trash2, UserPlus, Edit3, Shield, User, Package, DollarSign, Sprout, Mail, Phone, IdCard, Calendar, CheckCircle, Clock, XCircle, AlertCircle, AlertTriangle } from 'lucide-react'
 import { Alert, AlertDescription } from '../ui/alert'
 import { toast } from '../../hooks/use-toast'
 import type { AuthUser } from '../../lib/types'
@@ -31,12 +31,8 @@ interface TenantUser {
   }
 }
 
-interface CreateUserRequest {
+interface InviteUserRequest {
   email: string
-  password: string
-  full_name: string
-  document_id: string
-  phone: string
   role: 'admin' | 'campo' | 'empaque' | 'finanzas'
 }
 
@@ -79,25 +75,39 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<TenantUser | null>(null)
+  const [editingRole, setEditingRole] = useState<'campo' | 'empaque' | 'finanzas'>('campo')
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<TenantUser | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [canAddMoreUsers, setCanAddMoreUsers] = useState(true)
   const [userLimits, setUserLimits] = useState({ current: 0, max: 3 })
   const [tenantPlan, setTenantPlan] = useState('basic')
 
-  const [formData, setFormData] = useState<CreateUserRequest>({
+  const [formData, setFormData] = useState<InviteUserRequest>({
     email: '',
-    password: '',
-    full_name: '',
-    document_id: '',
-    phone: '',
     role: 'campo'
   })
 
-  const [errors, setErrors] = useState<Partial<CreateUserRequest>>({})
+  const [errors, setErrors] = useState<Partial<InviteUserRequest>>({})
   const [submitting, setSubmitting] = useState(false)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [invitedUserEmail, setInvitedUserEmail] = useState('')
 
   const isAdmin = currentUser?.rol?.toLowerCase() === 'admin'
+
+  // Helper function to get session with retry mechanism
+  const getSessionWithRetry = async (retryCount = 0): Promise<any> => {
+    const { supabase } = await import('../../lib/supabaseClient')
+    let { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session && retryCount < 3) {
+      await new Promise(resolve => setTimeout(resolve, 500))
+      return getSessionWithRetry(retryCount + 1)
+    }
+    
+    return session
+  }
 
   // Available roles based on plan
   const availableRoles = {
@@ -116,17 +126,39 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     }
   }, [isAdmin])
 
+  // Listen for user registration completions to refresh the list
+  useEffect(() => {
+    const handleUserRegistrationComplete = () => {
+      loadUsers()
+      checkUserLimits()
+    }
+
+    // Listen for storage events (when user completes registration in another tab)
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'user_registration_complete') {
+        handleUserRegistrationComplete()
+      }
+    })
+
+    // Listen for custom events (same tab)
+    window.addEventListener('userRegistrationComplete', handleUserRegistrationComplete)
+
+    return () => {
+      window.removeEventListener('storage', handleUserRegistrationComplete)
+      window.removeEventListener('userRegistrationComplete', handleUserRegistrationComplete)
+    }
+  }, [])
+
   const loadUsers = async () => {
     try {
       setLoading(true)
       
-      const { supabase } = await import('../../lib/supabaseClient')
-      const { data: { session } } = await supabase.auth.getSession()
+      const session = await getSessionWithRetry()
       
       if (!session) {
         toast({
           title: 'Error',
-          description: 'No se encontró una sesión activa',
+          description: 'No se encontró una sesión activa. Por favor, recarga la página.',
           variant: 'destructive'
         })
         return
@@ -177,8 +209,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
   const checkUserLimits = async () => {
     try {
-      const { supabase } = await import('../../lib/supabaseClient')
-      const { data: { session } } = await supabase.auth.getSession()
+      const session = await getSessionWithRetry()
       
       if (!session) {
         setUserLimits({ current: users.length, max: 3 })
@@ -212,31 +243,39 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     }
   }
 
-  const validateForm = (): boolean => {
-    const newErrors: Partial<CreateUserRequest> = {}
-
+  const validateForm = async () => {
+    const newErrors: Partial<InviteUserRequest> = {}
+    
+    // Email validation
     if (!formData.email.trim()) {
       newErrors.email = 'El email es requerido'
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email)) {
       newErrors.email = 'Formato de email inválido'
-    }
-
-    if (!formData.password.trim()) {
-      newErrors.password = 'La contraseña es requerida'
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'La contraseña debe tener al menos 6 caracteres'
-    }
-
-    if (!formData.full_name.trim()) {
-      newErrors.full_name = 'El nombre completo es requerido'
-    }
-
-    if (!formData.document_id.trim()) {
-      newErrors.document_id = 'El documento de identidad es requerido'
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'El teléfono es requerido'
+    } else {
+      // Check if email already exists
+      try {
+        const session = await getSessionWithRetry()
+        
+        if (session) {
+          const response = await fetch('/api/admin/check-email', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email: formData.email })
+          })
+          
+          if (response.ok) {
+            const result = await response.json()
+            if (result.exists) {
+              newErrors.email = 'Ya existe un usuario con este email'
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking email:', error)
+      }
     }
 
     setErrors(newErrors)
@@ -246,7 +285,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!validateForm()) return
+    if (!(await validateForm())) return
     if (!canAddMoreUsers) {
       toast({
         title: "Límite alcanzado",
@@ -259,8 +298,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     setSubmitting(true)
     
     try {
-      const { supabase } = await import('../../lib/supabaseClient')
-      const { data: { session } } = await supabase.auth.getSession()
+      const session = await getSessionWithRetry()
       
       if (!session) {
         toast({
@@ -279,10 +317,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         },
         body: JSON.stringify({
           email: formData.email,
-          fullName: formData.full_name,
-          role: formData.role,
-          documentId: formData.document_id,
-          phone: formData.phone
+          role: formData.role
         })
       })
 
@@ -291,12 +326,13 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         setInvitedUserEmail(formData.email)
         setShowSuccessMessage(true)
         setIsCreateModalOpen(false)
+        
+        // Auto-hide success message after 10 seconds
+        setTimeout(() => {
+          setShowSuccessMessage(false)
+        }, 10000)
         setFormData({
           email: '',
-          password: '',
-          full_name: '',
-          document_id: '',
-          phone: '',
           role: 'campo'
         })
         loadUsers() 
@@ -321,14 +357,20 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     }
   }
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!window.confirm('¿Estás seguro de que quieres desactivar este usuario?')) {
-      return
-    }
+
+
+  const handleDeleteUser = (user: TenantUser) => {
+    setUserToDelete(user)
+    setIsDeleteModalOpen(true)
+  }
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return
+
+    setIsDeleting(true)
 
     try {
-      const { supabase } = await import('../../lib/supabaseClient')
-      const { data: { session } } = await supabase.auth.getSession()
+      const session = await getSessionWithRetry()
       
       if (!session) {
         toast({
@@ -339,7 +381,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         return
       }
 
-      const response = await fetch(`/api/admin/users?id=${userId}`, {
+      const response = await fetch(`/api/admin/users?id=${userToDelete.membership?.user_id || userToDelete.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -348,16 +390,19 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
       if (response.ok) {
         toast({
-          title: "Usuario desactivado",
-          description: "El usuario ha sido desactivado exitosamente."
+          title: "Usuario eliminado",
+          description: "El usuario ha sido eliminado permanentemente.",
+          variant: "default"
         })
+        setIsDeleteModalOpen(false)
+        setUserToDelete(null)
         loadUsers() 
         checkUserLimits()
       } else {
         const error = await response.json()
         toast({
           title: "Error",
-          description: error.error || "Error al desactivar el usuario",
+          description: error.error || "Error al eliminar el usuario",
           variant: "destructive"
         })
       }
@@ -368,18 +413,23 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         description: "Error de conexión al eliminar el usuario",
         variant: "destructive"
       })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
   const handleEditUser = (user: TenantUser) => {
     setEditingUser(user)
+    setEditingRole(user.role_code === 'admin' ? 'campo' : user.role_code)
     setIsEditModalOpen(true)
   }
 
-  const handleUpdateUserRole = async (userId: string, newRole: string) => {
+  const handleUpdateUserRole = async () => {
+    if (!editingUser) return
+
+    setIsUpdating(true)
     try {
-      const { supabase } = await import('../../lib/supabaseClient')
-      const { data: { session } } = await supabase.auth.getSession()
+      const session = await getSessionWithRetry()
       
       if (!session) {
         toast({
@@ -396,18 +446,21 @@ export function UserManagement({ currentUser }: UserManagementProps) {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ 
-          workerId: userId,
-          role: newRole 
+        body: JSON.stringify({
+          userId: editingUser.membership?.user_id || editingUser.id,
+          role: editingRole
         })
       })
 
       if (response.ok) {
         toast({
-          title: "Rol actualizado",
-          description: "El rol del usuario ha sido actualizado exitosamente."
+          title: "Éxito",
+          description: "Rol de usuario actualizado correctamente",
+          variant: "default"
         })
-        loadUsers() 
+        setIsEditModalOpen(false)
+        setEditingUser(null)
+        loadUsers()
       } else {
         const error = await response.json()
         toast({
@@ -417,12 +470,14 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         })
       }
     } catch (error) {
-      console.error('Error updating user role:', error)
+      console.error('Error updating user:', error)
       toast({
         title: "Error",
-        description: "Error de conexión al actualizar el rol",
+        description: "Error de conexión al actualizar el usuario",
         variant: "destructive"
       })
+    } finally {
+      setIsUpdating(false)
     }
   }
 
@@ -518,69 +573,27 @@ export function UserManagement({ currentUser }: UserManagementProps) {
             <DialogHeader>
               <DialogTitle className="text-xl flex items-center gap-2">
                 <UserPlus className="h-5 w-5 text-primary" />
-                Crear Nuevo Usuario
+                Invitar Nuevo Usuario
               </DialogTitle>
               <p className="text-sm text-gray-600 mt-2">
-                Invita a un nuevo miembro para que se una a tu equipo
+                El usuario recibirá un email de invitación para configurar su cuenta
               </p>
             </DialogHeader>
             
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="full_name">Nombre Completo</Label>
-                <Input
-                  id="full_name"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                  placeholder="Juan Pérez"
-                />
-                {errors.full_name && <p className="text-sm text-red-600">{errors.full_name}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email del Usuario</Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="juan@empresa.com"
+                  placeholder="usuario@empresa.com"
                 />
                 {errors.email && <p className="text-sm text-red-600">{errors.email}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="Mínimo 6 caracteres"
-                />
-                {errors.password && <p className="text-sm text-red-600">{errors.password}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="document_id">Documento de Identidad</Label>
-                <Input
-                  id="document_id"
-                  value={formData.document_id}
-                  onChange={(e) => setFormData(prev => ({ ...prev, document_id: e.target.value }))}
-                  placeholder="12345678"
-                />
-                {errors.document_id && <p className="text-sm text-red-600">{errors.document_id}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Teléfono</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="+56 9 1234 5678"
-                />
-                {errors.phone && <p className="text-sm text-red-600">{errors.phone}</p>}
+                <p className="text-xs text-gray-500">
+                  Se enviará una invitación a este email para completar el registro
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -609,8 +622,9 @@ export function UserManagement({ currentUser }: UserManagementProps) {
                   {roleDescriptions[formData.role as keyof typeof roleDescriptions]}
                 </p>
                 {tenantPlan === 'basic' && (
-                  <p className="text-xs text-amber-600">
-                    💡 El rol de Finanzas está disponible en el plan profesional
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    El rol de Finanzas está disponible en el plan profesional
                   </p>
                 )}
               </div>
@@ -624,13 +638,136 @@ export function UserManagement({ currentUser }: UserManagementProps) {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={submitting}>
-                  {submitting ? 'Creando...' : 'Crear Usuario'}
+                  {submitting ? 'Enviando invitación...' : 'Enviar Invitación'}
                 </Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Edit User Role Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <Edit3 className="h-5 w-5 text-primary" />
+              Editar Rol de Usuario
+            </DialogTitle>
+            <p className="text-sm text-gray-600 mt-2">
+              Cambiar el rol de {editingUser?.full_name}
+            </p>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-role">Nuevo Rol</Label>
+              <Select value={editingRole} onValueChange={(value: 'campo' | 'empaque' | 'finanzas') => setEditingRole(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((role) => {
+                    const RoleIcon = roleIcons[role as keyof typeof roleIcons]
+                    return (
+                      <SelectItem key={role} value={role}>
+                        <div className="flex items-center gap-2">
+                          <RoleIcon className="h-4 w-4" />
+                          {roleLabels[role as keyof typeof roleLabels]}
+                        </div>
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {roleDescriptions[editingRole as keyof typeof roleDescriptions]}
+              </p>
+              {tenantPlan === 'basic' && (
+                <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  El rol de Finanzas está disponible en el plan profesional
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsEditModalOpen(false)}
+                disabled={isUpdating}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleUpdateUserRole}
+                disabled={isUpdating}
+              >
+                {isUpdating ? 'Actualizando...' : 'Actualizar Rol'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation Modal */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              Eliminar Usuario
+            </DialogTitle>
+            <p className="text-sm text-gray-600 mt-2">
+              Esta acción no se puede deshacer
+            </p>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-red-800">
+                    ¿Estás seguro que quieres eliminar a {userToDelete?.full_name}?
+                  </p>
+                  <p className="text-sm text-red-700">
+                    La cuenta se eliminará permanentemente del sistema, incluyendo:
+                  </p>
+                  <ul className="text-sm text-red-700 space-y-1 ml-4">
+                    <li>• Acceso a la plataforma</li>
+                    <li>• Datos de perfil</li>
+                    <li>• Historial de actividades</li>
+                    <li>• Información de contacto</li>
+                  </ul>
+                  <p className="text-xs text-red-600 font-medium mt-3">
+                    Esta acción es irreversible.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={confirmDeleteUser}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {isDeleting ? 'Eliminando...' : 'Eliminar Usuario'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {!canAddMoreUsers && userLimits.max !== -1 && (
         <Alert className="border-orange-200 bg-orange-50">
@@ -706,28 +843,42 @@ export function UserManagement({ currentUser }: UserManagementProps) {
                                 : user.status === 'pending' 
                                 ? 'bg-orange-100 text-orange-800 border-orange-200'
                                 : 'bg-gray-100 text-gray-800 border-gray-200'
-                            } font-medium px-3 py-1`}
+                            } font-medium px-3 py-1 flex items-center gap-1`}
                           >
-                            {user.status === 'active' ? '✅ Activo' : 
-                             user.status === 'pending' ? '⏳ Pendiente' : '❌ Inactivo'}
+                            {user.status === 'active' ? (
+                              <>
+                                <CheckCircle className="h-3 w-3" />
+                                Activo
+                              </>
+                            ) : user.status === 'pending' ? (
+                              <>
+                                <Clock className="h-3 w-3" />
+                                Pendiente
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="h-3 w-3" />
+                                Inactivo
+                              </>
+                            )}
                           </Badge>
                         </div>
                       </div>
                       
                       <div className="space-y-1">
                         <p className="text-gray-600 flex items-center gap-2">
-                          <span className="text-gray-400">📧</span>
+                          <Mail className="h-4 w-4 text-gray-400" />
                           {user.email}
                         </p>
                         {user.phone && (
                           <p className="text-gray-600 flex items-center gap-2">
-                            <span className="text-gray-400">📱</span>
+                            <Phone className="h-4 w-4 text-gray-400" />
                             {user.phone}
                           </p>
                         )}
                         {user.document_id && (
                           <p className="text-gray-600 flex items-center gap-2">
-                            <span className="text-gray-400">🆔</span>
+                            <IdCard className="h-4 w-4 text-gray-400" />
                             {user.document_id}
                           </p>
                         )}
@@ -749,7 +900,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDeleteUser(user.id)}
+                        onClick={() => handleDeleteUser(user)}
                         className="hover:bg-red-50 hover:border-red-200 text-red-600 hover:text-red-700"
                       >
                         <Trash2 className="h-4 w-4 mr-1" />
@@ -762,7 +913,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
                 {user.accepted_at && (
                   <div className="mt-4 pt-4 border-t border-gray-100">
                     <p className="text-sm text-gray-500 flex items-center gap-2">
-                      <span className="text-gray-400">📅</span>
+                      <Calendar className="h-4 w-4 text-gray-400" />
                       Se unió el {new Date(user.accepted_at).toLocaleDateString('es-ES', {
                         year: 'numeric',
                         month: 'long', 
@@ -787,24 +938,15 @@ export function UserManagement({ currentUser }: UserManagementProps) {
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
               Aún no has creado usuarios para tu empresa. Comienza invitando a tu equipo para que puedan acceder a los diferentes módulos.
             </p>
-            <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  disabled={!canAddMoreUsers}
-                  className="gap-2 bg-primary hover:bg-primary/90"
-                  size="lg"
-                >
-                  <UserPlus className="h-5 w-5" />
-                  Crear Mi Primer Usuario
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Crear Nuevo Usuario</DialogTitle>
-                </DialogHeader>
-                {/* Form content will be here - same as current */}
-              </DialogContent>
-            </Dialog>
+            <Button 
+              disabled={!canAddMoreUsers}
+              className="gap-2 bg-primary hover:bg-primary/90"
+              size="lg"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              <UserPlus className="h-5 w-5" />
+              Crear Mi Primer Usuario
+            </Button>
           </CardContent>
         </Card>
       )}
