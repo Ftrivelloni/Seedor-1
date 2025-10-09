@@ -30,7 +30,7 @@ export function useAuth(options: {
   const [authChecking, setAuthChecking] = useState(true);
   
   const checkAndGetSession = async () => {
-    if (sessionCheckAttempted.current) return;
+    // Reset the flag to allow re-checking if needed
     sessionCheckAttempted.current = true;
     
     try {
@@ -40,7 +40,7 @@ export function useAuth(options: {
       let tabUser = sessionManager.getCurrentUser();
       
       if (tabUser) {
-
+        console.log('✅ Session found in tab storage');
         setActiveUser(tabUser);
         setAuthChecking(false);
         return;
@@ -50,6 +50,9 @@ export function useAuth(options: {
       const { user: sessionUser, error } = await authService.getSafeSession();
       
       if (sessionUser) {
+        console.log('✅ Session found from authService');
+        // Store in session manager to avoid repeated checks
+        sessionManager.setCurrentUser(sessionUser);
         setActiveUser(sessionUser);
         setAuthChecking(false);
         return;
@@ -62,11 +65,13 @@ export function useAuth(options: {
       setAuthChecking(false);
       
       if (redirectToLogin && !isSubpageUsingLayout.current) {
+        // Increased delay to ensure all auth checks complete
         setTimeout(() => {
           if (!getParentUser() && !activeUser && !contextUser) {
+            console.log('⚠️ No session found, redirecting to login');
             router.push("/login");
           }
-        }, 100);
+        }, 250);
       }
     } catch (err) {
       console.error('Error checking session:', err);
