@@ -5,7 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import { Button } from "./ui/button"
 import { cn } from "../lib/utils"
-import type { AuthUser } from "../lib/supabaseAuth"
+import type { AuthUser } from "../lib/types"
 import { useFeatures, ModuleGate } from "../lib/features-context"
 import {
   LayoutDashboard,

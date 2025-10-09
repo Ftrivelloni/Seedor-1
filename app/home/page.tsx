@@ -20,8 +20,6 @@ const HomePage = () => {
   const [currentPage, setCurrentPage] = useState("dashboard")
   const router = useRouter()
 
-  console.log('🏠 Home Page - User:', user?.email, 'Rol:', user?.rol, 'Loading:', loading);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">

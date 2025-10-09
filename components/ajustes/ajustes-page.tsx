@@ -7,7 +7,7 @@ import { Label } from "../ui/label"
 import { Badge } from "../ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
-import { authService } from "../../lib/supabaseAuth"
+import { useAuth } from "../../hooks/use-auth"
 import { PlanManagement } from "../admin/plan-management"
 import { FeatureProvider } from "../../lib/features-context"
 import { User, Building, Shield, Settings, Info, CheckCircle, XCircle, Crown } from "lucide-react"
@@ -72,10 +72,17 @@ const rolePermissions = {
 }
 
 export function AjustesPage() {
+  const { user, loading: authLoading } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [editedName, setEditedName] = useState("")
 
-  const user = authService.getCurrentUser()
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Cargando...</p>
+      </div>
+    )
+  }
 
   if (!user) {
     return (

@@ -1,4 +1,7 @@
+import { createClient } from '@supabase/supabase-js'
 import { supabase } from './supabaseClient'
+import { getSessionManager } from './sessionManager'
+import { buildUrl, buildInvitationUrl } from './utils/url'
 import crypto from 'crypto'
 
 export interface CreateTenantParams {
@@ -68,8 +71,6 @@ const generateInvitationToken = (): string => {
 export const authService = {
   sendOwnerVerificationCode: async (email: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      console.log('Sending owner verification code to:', email)
-      
       if (!validators.email(email)) {
         return { success: false, error: 'Email inválido' }
       }
@@ -86,8 +87,6 @@ export const authService = {
       })
 
       if (error) {
-        console.error('Error sending owner verification:', error)
-        
         if (error.message.includes('Signups not allowed')) {
           return { success: false, error: 'El registro de nuevos usuarios está deshabilitado. Contacta al administrador.' }
         }
@@ -98,15 +97,12 @@ export const authService = {
       return { success: true }
 
     } catch (error: any) {
-      console.error('Unexpected error sending owner verification:', error)
       return { success: false, error: error.message || 'Error inesperado' }
     }
   },
 
   verifyOwnerCode: async (email: string, code: string): Promise<{ success: boolean; error?: string; session?: any }> => {
     try {
-      console.log('🔍 Verifying owner code for:', email, 'with code:', code)
-      
       const { data, error } = await supabase.auth.verifyOtp({
         email: email,
         token: code,
@@ -114,7 +110,6 @@ export const authService = {
       })
 
       if (error) {
-        console.error('❌ Owner code verification error:', error)
         if (error.message.includes('Invalid login credentials')) {
           return { success: false, error: 'Código inválido. Verificá que hayas ingresado el código correcto.' }
         }
@@ -131,23 +126,18 @@ export const authService = {
       }
 
       if (!data.session || !data.user) {
-        console.error('❌ No session/user returned from verification')
         return { success: false, error: 'No se pudo crear la sesión. Intentá de nuevo.' }
       }
 
-      console.log('✅ Owner code verified successfully for:', data.user.email)
       return { success: true, session: data.session }
 
     } catch (error: any) {
-      console.error('❌ Unexpected error verifying owner code:', error)
       return { success: false, error: error.message || 'Error inesperado durante la verificación' }
     }
   },
 
   createTenantWithOwner: async (params: CreateTenantParams): Promise<{ success: boolean; error?: string; data?: any }> => {
     try {
-      console.log('Creating tenant with owner...')
-      
       const cleanData = {
         tenantName: sanitizeInput.text(params.tenantName),
         slug: sanitizeInput.slug(params.slug),
@@ -175,20 +165,16 @@ export const authService = {
         session = sessionData.session
         
         if (!session?.user) {
-          console.log('⚠️ No session from getSession, trying refreshSession...')
           const { data: refreshData } = await supabase.auth.refreshSession()
           session = refreshData.session
         }
       } catch (sessionError) {
-        console.error('Error getting session:', sessionError)
+        // Continue with session validation below
       }
 
       if (!session?.user) {
-        console.error('❌ No valid session found')
         return { success: false, error: 'Sesión no válida. Por favor, reintentá el proceso.' }
       }
-
-      console.log('✅ Valid session found for user:', session.user.email)
 
       const planLimits = {
         basico: { maxUsers: 10, maxFields: 5 },
@@ -197,7 +183,7 @@ export const authService = {
       
       const limits = planLimits[params.plan as keyof typeof planLimits] || planLimits.basico
 
-      const { data: tenantData, error: tenantError } = await supabase
+      const tenantPromise = supabase
         .from('tenants')
         .insert([{
           name: cleanData.tenantName,
@@ -214,40 +200,59 @@ export const authService = {
         .select()
         .single()
 
+      const tenantTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout creating tenant')), 10000)
+      );
+
+      const { data: tenantData, error: tenantError } = await Promise.race([
+        tenantPromise, 
+        tenantTimeout
+      ]) as any;
+
       if (tenantError) {
-        console.error('Tenant creation error:', tenantError)
         return { success: false, error: `Error al crear empresa: ${tenantError.message}` }
       }
 
-      console.log('🔄 Updating user metadata with full name...')
-      const { error: updateUserError } = await supabase.auth.updateUser({
+      const metadataPromise = supabase.auth.updateUser({
         data: {
           full_name: cleanData.contactName,
           phone: cleanData.ownerPhone
         }
-      })
+      });
 
-      if (updateUserError) {
-        console.warn('⚠️ Warning: Could not update user metadata:', updateUserError)
-      } else {
-        console.log('✅ User metadata updated successfully')
+      const metadataTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout updating user metadata')), 5000)
+      );
+
+      try {
+        await Promise.race([metadataPromise, metadataTimeout]);
+      } catch (error: any) {
+        // Continue if metadata update fails
       }
 
-      const { error: profileError } = await supabase
+      const profilePromise = supabase
         .from('profiles')
         .upsert([{
           user_id: session.user.id,
           full_name: cleanData.contactName,
           phone: cleanData.ownerPhone,
           default_tenant_id: tenantData.id,
-        }])
+        }]);
+
+      const profileTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout creating profile')), 10000)
+      );
+
+      const { error: profileError } = await Promise.race([
+        profilePromise,
+        profileTimeout
+      ]) as any;
 
       if (profileError) {
-        console.error('❌ Profile creation error:', profileError)
         return { success: false, error: `Error al crear perfil de usuario: ${profileError.message}` }
       }
 
-      const { data: membershipData, error: membershipError } = await supabase
+      const membershipPromise = supabase
         .from('tenant_memberships')
         .insert([{
           tenant_id: tenantData.id,
@@ -256,14 +261,22 @@ export const authService = {
           status: 'active',
         }])
         .select()
-        .single()
+        .single();
+
+      const membershipTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout creating membership')), 10000)
+      );
+
+      const { data: membershipData, error: membershipError } = await Promise.race([
+        membershipPromise,
+        membershipTimeout
+      ]) as any;
 
       if (membershipError) {
-        console.error('Membership creation error:', membershipError)
         return { success: false, error: `Error al crear membresía: ${membershipError.message}` }
       }
 
-      await supabase
+      const auditPromise = supabase
         .from('audit_logs')
         .insert([{
           tenant_id: tenantData.id,
@@ -272,7 +285,17 @@ export const authService = {
           entity: 'tenant', 
           entity_id: tenantData.id, 
           details: { tenant_name: tenantData.name, slug: tenantData.slug, plan: cleanData.plan }
-        }])
+        }]);
+
+      const auditTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout creating audit log')), 5000)
+      );
+
+      try {
+        await Promise.race([auditPromise, auditTimeout]);
+      } catch (error: any) {
+        // Continue if audit log fails
+      }
 
       return { 
         success: true, 
@@ -284,7 +307,6 @@ export const authService = {
       }
 
     } catch (error: any) {
-      console.error('Unexpected error in createTenantWithOwner:', error)
       return { success: false, error: error.message || 'Error inesperado' }
     }
   },
@@ -411,15 +433,9 @@ export const authService = {
 
   inviteUser: async (params: InviteUserParams): Promise<{ success: boolean; error?: string; data?: any }> => {
     try {
-      console.log('🔍 Starting inviteUser with params:', params)
-      
       const token = generateInvitationToken()
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
-      
-      console.log('🔍 Generated token:', token)
-      console.log('🔍 Expires at:', expiresAt.toISOString())
 
-      console.log('🔍 Step 1: Checking tenant...')
       const { data: tenant, error: tenantError } = await supabase
         .from('tenants')
         .select('current_users, max_users, name')
@@ -427,18 +443,13 @@ export const authService = {
         .single()
 
       if (tenantError) {
-        console.error('❌ Tenant error:', tenantError)
         return { success: false, error: `Error al buscar tenant: ${tenantError.message}` }
       }
 
       if (!tenant) {
-        console.error('❌ Tenant not found')
         return { success: false, error: 'Tenant no encontrado' }
       }
 
-      console.log('✅ Tenant found:', tenant)
-
-      console.log('🔍 Step 2: Checking permissions...')
       const { data: membership, error: membershipError } = await supabase
         .from('tenant_memberships')
         .select('role_code')
@@ -448,18 +459,13 @@ export const authService = {
         .single()
 
       if (membershipError) {
-        console.error('❌ Membership error:', membershipError)
         return { success: false, error: `Error al verificar permisos: ${membershipError.message}` }
       }
 
       if (!membership) {
-        console.error('❌ No membership found')
         return { success: false, error: 'No se encontró membresía activa' }
       }
 
-      console.log('✅ Membership found:', membership)
-
-      console.log('🔍 Step 3: Checking existing invitation...')
       const cleanEmail = sanitizeInput.email(params.email)
 
       const { data: existingInvitation, error: existingError } = await supabase
@@ -472,19 +478,13 @@ export const authService = {
         .maybeSingle()
 
       if (existingError) {
-        console.error('❌ Existing invitation check error:', existingError)
         return { success: false, error: `Error al verificar invitaciones: ${existingError.message}` }
       }
 
       if (existingInvitation) {
-        console.error('❌ Existing invitation found:', existingInvitation)
         return { success: false, error: 'Ya existe una invitación pendiente para este email' }
       }
 
-      console.log('✅ No existing invitation')
-
-      console.log('🔍 Step 4: Verifying inviter profile...')
-      
       const { data: inviterProfile, error: profileError } = await supabase
         .from('profiles')
         .select('user_id')
@@ -492,14 +492,9 @@ export const authService = {
         .single()
 
       if (profileError || !inviterProfile) {
-        console.error('❌ Inviter profile not found:', profileError)
         return { success: false, error: 'El usuario invitador no tiene un perfil válido' }
       }
 
-      console.log('✅ Inviter profile verified')
-
-      console.log('🔍 Step 5: Creating invitation...')
-      
       const insertData = {
         tenant_id: params.tenantId,
         email: cleanEmail,
@@ -508,8 +503,6 @@ export const authService = {
         invited_by: params.invitedBy,
         expires_at: expiresAt.toISOString()
       }
-      
-      console.log('🔍 Insert data:', insertData)
 
       const { data: invitation, error: insertError } = await supabase
         .from('invitations')
@@ -518,26 +511,15 @@ export const authService = {
         .single()
 
       if (insertError) {
-        console.error('❌ Insert error:', insertError)
-        console.error('❌ Error code:', insertError.code)
-        console.error('❌ Error details:', insertError.details)
-        console.error('❌ Error hint:', insertError.hint)
-        console.error('❌ Error message:', insertError.message)
         return { success: false, error: `Error al crear invitación: ${insertError.message}` }
       }
 
       if (!invitation) {
-        console.error('❌ No invitation returned')
         return { success: false, error: 'No se retornó la invitación creada' }
       }
 
-      console.log('✅ Invitation created successfully:', invitation)
+      const inviteUrl = buildInvitationUrl('user', token)
 
-      const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/user-setup?token=${token}`
-      console.log('🔗 Invite URL:', inviteUrl)
-
-      console.log('🔍 Step 6: Sending invitation email...')
-      
       const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
         cleanEmail,
         {
@@ -554,8 +536,6 @@ export const authService = {
       )
 
       if (inviteError) {
-        console.error('❌ Error sending invitation email:', inviteError)
-        
         await supabase
           .from('invitations')
           .delete()
@@ -563,8 +543,6 @@ export const authService = {
 
         return { success: false, error: `Error al enviar invitación: ${inviteError.message}` }
       }
-
-      console.log('✅ Invitation email sent successfully')
 
       return { 
         success: true, 
@@ -579,16 +557,12 @@ export const authService = {
       }
 
     } catch (error: any) {
-      console.error('❌ Unexpected error in inviteUser:', error)
-      console.error('❌ Stack trace:', error.stack)
       return { success: false, error: `Error inesperado: ${error.message}` }
     }
   },
 
   inviteAdmin: async (tenantId: string, adminEmail: string, invitedBy: string): Promise<{ success: boolean; error?: string; data?: any }> => {
     try {
-      console.log('🔄 Calling invite-admin API...')
-
       const response = await fetch('/api/auth/invite-admin', {
         method: 'POST',
         headers: {
@@ -604,15 +578,12 @@ export const authService = {
       const result = await response.json()
 
       if (!response.ok) {
-        console.error('❌ API error:', result.error)
         return { success: false, error: result.error || 'Error al enviar invitación' }
       }
 
-      console.log('✅ Admin invitation API call successful')
       return { success: true, data: result.data }
 
     } catch (error: any) {
-      console.error('❌ Error calling invite-admin API:', error)
       return { success: false, error: error.message || 'Error inesperado' }
     }
   },
@@ -651,8 +622,6 @@ export const authService = {
 
   getInvitationByToken: async (token: string): Promise<{ success: boolean; error?: string; data?: any }> => {
     try {
-      console.log('🔍 Getting invitation by token...');
-      
       const { data: invitation, error } = await supabase
         .from('invitations')
         .select(`
@@ -666,7 +635,6 @@ export const authService = {
         .single()
 
       if (error) {
-        console.error('❌ Database error getting invitation:', error);
         if (error.code === 'PGRST116') {
           return { success: false, error: 'Invitación no encontrada o ya fue utilizada' }
         }
@@ -681,19 +649,15 @@ export const authService = {
         return { success: false, error: 'La invitación ha expirado' }
       }
 
-      console.log('✅ Invitation found and valid');
       return { success: true, data: invitation }
 
     } catch (error: any) {
-      console.error('❌ Error getting invitation:', error)
       return { success: false, error: error.message || 'Error inesperado' }
     }
   },
 
   acceptInvitationWithSetup: async (params: AcceptInvitationParams): Promise<{ success: boolean; error?: string; data?: any }> => {
     try {
-      console.log('🔄 Starting acceptInvitationWithSetup process...');
-      
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session?.user) {
@@ -706,14 +670,12 @@ export const authService = {
       }
 
       const invitation = invitationResult.data
-      console.log('✅ Invitation found:', invitation.email, invitation.role_code);
 
       if (session.user.email !== invitation.email) {
         return { success: false, error: 'El email de la sesión no coincide con la invitación' }
       }
 
       if (params.userData?.password) {
-        console.log('🔄 Setting password with temporal session...');
         const { error: passwordError } = await supabase.auth.updateUser({
           password: params.userData.password,
           data: {
@@ -723,10 +685,8 @@ export const authService = {
         })
 
         if (passwordError) {
-          console.error('❌ Error setting password:', passwordError)
           return { success: false, error: `Error al establecer contraseña: ${passwordError.message}` }
         }
-        console.log('✅ Password set successfully');
       }
 
       const { data: tenant } = await supabase
@@ -743,7 +703,6 @@ export const authService = {
         return { success: false, error: 'Se alcanzó el límite máximo de usuarios para este tenant' }
       }
 
-      console.log('🔄 Creating tenant membership...');
       const { data: membershipData, error: membershipError } = await supabase
         .from('tenant_memberships')
         .insert([{
@@ -758,7 +717,6 @@ export const authService = {
         .single()
 
       if (membershipError) {
-        console.error('❌ Membership creation error:', membershipError)
         return { success: false, error: `Error al crear membresía: ${membershipError.message}` }
       }
 
@@ -772,7 +730,7 @@ export const authService = {
         }], { onConflict: 'user_id' })
 
       if (profileError) {
-        console.warn('⚠️ Profile update warning:', profileError);
+        // Continue if profile update fails
       }
 
       const { error: updateError } = await supabase
@@ -781,7 +739,7 @@ export const authService = {
         .eq('id', invitation.tenant_id)
 
       if (updateError) {
-        console.warn('⚠️ Error updating tenant user count:', updateError);
+        // Continue if user count update fails
       }
 
       await supabase
@@ -806,8 +764,6 @@ export const authService = {
           }
         }])
 
-      console.log('✅ Invitation accepted successfully');
-
       return { 
         success: true, 
         data: { 
@@ -819,15 +775,12 @@ export const authService = {
       }
 
     } catch (error: any) {
-      console.error('❌ Error accepting invitation:', error)
       return { success: false, error: error.message || 'Error inesperado' }
     }
   },
 
   acceptInvitationSimple: async (token: string): Promise<{ success: boolean; error?: string; data?: any }> => {
     try {
-      console.log('🔄 Starting acceptInvitationSimple process...');
-      
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session?.user) {
@@ -840,7 +793,6 @@ export const authService = {
       }
 
       const invitation = invitationResult.data
-      console.log('✅ Invitation found:', invitation.email, invitation.role_code);
 
       if (session.user.email !== invitation.email) {
         return { success: false, error: 'El email de la sesión no coincide con la invitación' }
@@ -860,7 +812,6 @@ export const authService = {
         return { success: false, error: 'Se alcanzó el límite máximo de usuarios para este tenant' }
       }
 
-      console.log('🔄 Creating tenant membership...');
       const { data: membershipData, error: membershipError } = await supabase
         .from('tenant_memberships')
         .insert([{
@@ -875,7 +826,6 @@ export const authService = {
         .single()
 
       if (membershipError) {
-        console.error('❌ Membership creation error:', membershipError)
         return { success: false, error: `Error al crear membresía: ${membershipError.message}` }
       }
 
@@ -889,7 +839,7 @@ export const authService = {
         }], { onConflict: 'user_id' })
 
       if (profileError) {
-        console.warn('⚠️ Profile update warning:', profileError);
+        // Continue if profile update fails
       }
 
       const { error: updateError } = await supabase
@@ -898,7 +848,7 @@ export const authService = {
         .eq('id', invitation.tenant_id)
 
       if (updateError) {
-        console.warn('⚠️ Error updating tenant user count:', updateError);
+        // Continue if user count update fails
       }
 
       await supabase
@@ -923,8 +873,6 @@ export const authService = {
           }
         }])
 
-      console.log('✅ Invitation accepted successfully');
-
       return { 
         success: true, 
         data: { 
@@ -936,22 +884,19 @@ export const authService = {
       }
 
     } catch (error: any) {
-      console.error('❌ Error accepting invitation:', error)
       return { success: false, error: error.message || 'Error inesperado' }
     }
   },
 
   acceptInvitation: async (params: AcceptInvitationParams): Promise<{ success: boolean; error?: string; data?: any }> => {
     try {
-      console.log('🔄 Starting acceptInvitation process...');
-      
       const invitationResult = await authService.getInvitationByToken(params.token)
       if (!invitationResult.success || !invitationResult.data) {
         return { success: false, error: invitationResult.error }
       }
 
       const invitation = invitationResult.data
-      console.log('✅ Invitation found:', invitation.email, invitation.role_code);
+
 
       const { data: tenant } = await supabase
         .from('tenants')
@@ -973,15 +918,12 @@ export const authService = {
       const { data: currentSession } = await supabase.auth.getSession()
       
       if (currentSession.session && currentSession.session.user.email === invitation.email) {
-        console.log('✅ User already logged in with correct email');
         userId = currentSession.session.user.id
       } else {
         if (!params.userData) {
           return { success: false, error: 'Se requieren datos de usuario para crear la cuenta' }
         }
 
-        console.log('🔄 Updating existing user password...');
-        
         try {
           const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
             email: invitation.email,
@@ -1021,8 +963,6 @@ export const authService = {
             throw new Error(`Error actualizando usuario: ${updateError.message}`)
           }
 
-          console.log('✅ User password updated successfully');
-
           const { data: newSignIn, error: newSignInError } = await supabase.auth.signInWithPassword({
             email: invitation.email,
             password: params.userData.password
@@ -1035,11 +975,10 @@ export const authService = {
           isNewUser = false
 
         } catch (authError: any) {
-          console.error('❌ Error updating user password:', authError);
           return { success: false, error: authError.message || 'Error al configurar credenciales' }
         }
 
-        console.log('🔄 Creating/updating profile for user:', userId);
+
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .upsert([{
@@ -1052,15 +991,11 @@ export const authService = {
           .single()
 
         if (profileError) {
-          console.error('❌ Error creating/updating profile:', profileError);
-          console.error('❌ Profile error details:', profileError.details);
-          console.error('❌ Profile error hint:', profileError.hint);
-        } else {
-          console.log('✅ Profile created/updated successfully:', profileData);
+          // Continue if profile creation fails
         }
       }
 
-      console.log('🔄 Creating tenant membership...');
+
 
       const { data: membershipData, error: membershipError } = await supabase
         .from('tenant_memberships')
@@ -1076,7 +1011,6 @@ export const authService = {
         .single()
 
       if (membershipError) {
-        console.error('❌ Membership creation error:', membershipError)
         return { success: false, error: `Error al crear membresía: ${membershipError.message}` }
       }
 
@@ -1086,7 +1020,7 @@ export const authService = {
         .eq('id', invitation.tenant_id)
 
       if (updateError) {
-        console.warn('⚠️ Error updating tenant user count:', updateError);
+        // Continue if tenant user count update fails
       }
 
       await supabase
@@ -1111,8 +1045,6 @@ export const authService = {
           }
         }])
 
-      console.log('✅ Invitation accepted successfully');
-
       return { 
         success: true, 
         data: { 
@@ -1124,7 +1056,6 @@ export const authService = {
       }
 
     } catch (error: any) {
-      console.error('❌ Error accepting invitation:', error)
       return { success: false, error: error.message || 'Error inesperado' }
     }
   },
@@ -1207,6 +1138,23 @@ export const authService = {
         .eq('user_id', data.user.id)
         .eq('status', 'active')
 
+      // Crear el objeto de usuario para el SessionManager
+      const defaultMembership = memberships && memberships.length > 0 ? memberships[0] : null
+      const authUser = {
+        id: data.user.id,
+        email: data.user.email!,
+        nombre: profile?.full_name || data.user.email!,
+        rol: defaultMembership?.role_code || null,
+        tenantId: defaultMembership?.tenant_id || null,
+        tenant: defaultMembership?.tenants || null,
+        profile,
+        memberships
+      }
+
+      // Guardar la sesión en el SessionManager para esta pestaña
+      const sessionManager = getSessionManager()
+      sessionManager.setCurrentUser(authUser, data.session?.access_token)
+
       return {
         user: {
           ...data.user,
@@ -1222,17 +1170,18 @@ export const authService = {
 
   getSafeSession: async () => {
     try {
-      console.log('🔍 Getting safe session...');
+      const sessionManager = getSessionManager()
       
+      // Primero intentar obtener de la sesión de la pestaña
+      let tabUser = sessionManager.getCurrentUser()
+      if (tabUser) {
+        return { user: tabUser }
+      }
+
+      // Si no hay sesión en la pestaña, verificar Supabase
       const { data: { session } } = await supabase.auth.getSession();
-      
-      console.log('📋 Session obtained:', {
-        hasSession: !!session,
-        userEmail: session?.user?.email
-      });
 
       if (!session?.user) {
-        console.log('📋 No user session found');
         return { user: null }
       }
 
@@ -1242,19 +1191,32 @@ export const authService = {
         .eq('user_id', session.user.id)
         .maybeSingle();
 
-      const { data: memberships, error: membershipError } = await supabase
+      // Agregar timeout para evitar cuelgues durante el registro
+      const membershipPromise = supabase
         .from('tenant_memberships')
         .select('*, tenants(*)')
         .eq('user_id', session.user.id)
         .eq('status', 'active');
 
-      console.log('✅ Profile and memberships loaded');
-      console.log('📋 Debug memberships:', {
-        userId: session.user.id,
-        membershipCount: memberships?.length || 0,
-        memberships: memberships,
-        membershipError: membershipError
-      });
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 3000)
+      );
+
+      let memberships = null;
+      let membershipError = null;
+
+      try {
+        const result = await Promise.race([membershipPromise, timeoutPromise]) as any;
+        memberships = result.data;
+        membershipError = result.error;
+      } catch (error: any) {
+        if (error.message === 'Timeout') {
+          memberships = null;
+          membershipError = null;
+        } else {
+          membershipError = error;
+        }
+      }
 
       let mappedUser = null;
 
@@ -1283,24 +1245,29 @@ export const authService = {
         }
       }
 
-      console.log('✅ User mapped successfully:', {
-        email: mappedUser.email,
-        rol: mappedUser.rol,
-        tenantId: mappedUser.tenantId
-      });
+      // Guardar en el SessionManager para esta pestaña
+      sessionManager.setCurrentUser(mappedUser, session.access_token)
 
       return {
         user: mappedUser
       }
 
     } catch (error: any) {
-      console.error('❌ Error in getSafeSession:', error);
       return { user: null, error: error.message }
     }
   },
 
   getCurrentUser: async () => {
     try {
+      const sessionManager = getSessionManager()
+      
+      // Intentar obtener de la sesión de la pestaña primero
+      const tabUser = sessionManager.getCurrentUser()
+      if (tabUser) {
+        return tabUser
+      }
+
+      // Si no hay en tab, verificar Supabase y crear nueva sesión de tab
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session?.user) {
@@ -1319,26 +1286,37 @@ export const authService = {
         .eq('user_id', session.user.id)
         .eq('status', 'active')
 
+      let mappedUser = null;
+
       if (memberships && memberships.length > 0) {
         const defaultMembership = memberships[0]
-        return {
+        mappedUser = {
           id: session.user.id,
           email: session.user.email,
           nombre: profile?.full_name || session.user.email,
           rol: defaultMembership.role_code,
           tenantId: defaultMembership.tenant_id,
-          tenant: defaultMembership.tenants
+          tenant: defaultMembership.tenants,
+          profile,
+          memberships
+        }
+      } else {
+        mappedUser = {
+          id: session.user.id,
+          email: session.user.email,
+          nombre: profile?.full_name || session.user.email,
+          rol: null,
+          tenantId: null,
+          tenant: null,
+          profile,
+          memberships: []
         }
       }
 
-      return {
-        id: session.user.id,
-        email: session.user.email,
-        nombre: profile?.full_name || session.user.email,
-        rol: null,
-        tenantId: null,
-        tenant: null
-      }
+      // Guardar en la sesión de la pestaña
+      sessionManager.setCurrentUser(mappedUser, session.access_token)
+
+      return mappedUser
 
     } catch (error: any) {
       console.error('Error getting current user:', error)
@@ -1348,7 +1326,7 @@ export const authService = {
 
   acceptAdminInvitation: async (params: { token: string; workerData: any }): Promise<{ success: boolean; error?: string; data?: any }> => {
     try {
-      console.log('🔄 Starting acceptAdminInvitation process...');
+
       
       const invitationResult = await authService.getInvitationByToken(params.token)
       if (!invitationResult.success || !invitationResult.data) {
@@ -1356,7 +1334,7 @@ export const authService = {
       }
 
       const invitation = invitationResult.data
-      console.log('✅ Admin invitation found:', invitation.email);
+
 
       if (invitation.role_code !== 'admin') {
         return { success: false, error: 'Esta invitación no es para administrador' }
@@ -1384,7 +1362,7 @@ export const authService = {
 
       const userId = session.user.id
 
-      console.log('🔄 Creating admin membership...');
+
 
       const { data: membershipData, error: membershipError } = await supabase
         .from('tenant_memberships')
@@ -1400,7 +1378,7 @@ export const authService = {
         .single()
 
       if (membershipError) {
-        console.error('❌ Admin membership creation error:', membershipError)
+
         return { success: false, error: `Error al crear membresía: ${membershipError.message}` }
       }
 
@@ -1414,7 +1392,7 @@ export const authService = {
         }])
 
       if (profileError) {
-        console.warn('⚠️ Profile creation warning:', profileError);
+
       }
 
       const { data: workerData, error: workerError } = await supabase
@@ -1433,7 +1411,7 @@ export const authService = {
         .single()
 
       if (workerError) {
-        console.warn('⚠️ Error creating admin worker profile:', workerError);
+
       }
 
       const { error: updateError } = await supabase
@@ -1442,7 +1420,7 @@ export const authService = {
         .eq('id', invitation.tenant_id)
 
       if (updateError) {
-        console.warn('⚠️ Error updating tenant user count:', updateError);
+
       }
 
       await supabase
@@ -1467,7 +1445,7 @@ export const authService = {
           }
         }])
 
-      console.log('✅ Admin invitation accepted successfully');
+
 
       return { 
         success: true, 
@@ -1480,16 +1458,63 @@ export const authService = {
       }
 
     } catch (error: any) {
-      console.error('❌ Error accepting admin invitation:', error)
+
       return { success: false, error: error.message || 'Error inesperado' }
     }
   },
 
   logout: async (): Promise<{ error?: string }> => {
     try {
-      console.log('🔄 Starting logout process...')
+      const sessionManager = getSessionManager()
       
+      // Solo limpiar la sesión de esta pestaña
+      await sessionManager.logoutCurrentTab()
+      
+      // NO llamar a supabase.auth.signOut() porque afectaría todas las pestañas
+      // Las otras pestañas seguirán funcionando con sus propias sesiones
+      
+      return {}
+    } catch (error: any) {
+      return { error: error.message }
+    }
+  },
+
+  // Método para logout global (si se necesita)
+  logoutGlobal: async (): Promise<{ error?: string }> => {
+    try {
       const { error } = await supabase.auth.signOut()
+      
+      if (typeof window !== 'undefined') {
+        // Limpiar todas las sesiones de todas las pestañas
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-') || key.startsWith('supabase.') || key.includes('seedor')) {
+            localStorage.removeItem(key)
+          }
+        })
+        
+        Object.keys(sessionStorage).forEach(key => {
+          if (key.startsWith('sb-') || key.startsWith('supabase.') || key.includes('seedor')) {
+            sessionStorage.removeItem(key)
+          }
+        })
+        
+        const sessionManager = getSessionManager()
+        sessionManager.clearCurrentTabSession()
+      }
+      
+      if (error) {
+        return { error: error.message }
+      }
+      
+      return {}
+    } catch (error: any) {
+      return { error: error.message }
+    }
+  },
+
+  clearCorruptedSession: async (): Promise<void> => {
+    try {
+      await supabase.auth.signOut()
       
       if (typeof window !== 'undefined') {
         Object.keys(localStorage).forEach(key => {
@@ -1503,20 +1528,9 @@ export const authService = {
             sessionStorage.removeItem(key)
           }
         })
-        
-        console.log('✅ Local storage cleared')
       }
-      
-      if (error) {
-        console.error('❌ Logout error:', error)
-        return { error: error.message }
-      }
-      
-      console.log('✅ Logout successful')
-      return {}
     } catch (error: any) {
-      console.error('❌ Unexpected logout error:', error)
-      return { error: error.message }
+      // Silent fail for corrupted session cleanup
     }
   }
 }

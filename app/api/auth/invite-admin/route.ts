@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { buildInvitationUrl } from '../../../../lib/utils/url'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -139,7 +140,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin-setup?token=${token}`
+    const inviteUrl = buildInvitationUrl('admin', token)
 
     const { error: inviteError, data: inviteData } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       adminEmail.toLowerCase().trim(),

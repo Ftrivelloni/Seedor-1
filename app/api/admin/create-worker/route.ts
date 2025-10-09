@@ -64,7 +64,6 @@ export async function POST(request: NextRequest) {
 
     if (password) {
       try {
-        console.log('🔄 Creating user in Supabase Auth for:', email);
         
         const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
           email: email.toLowerCase().trim(),
@@ -78,19 +77,15 @@ export async function POST(request: NextRequest) {
 
         if (createUserError) {
           if (createUserError.message.includes('User already registered')) {
-            console.log('⚠️ User already exists, continuing...');
           } else {
-            console.error('❌ Error creating user:', createUserError);
             return NextResponse.json(
               { error: `Error al crear usuario: ${createUserError.message}` },
               { status: 500 }
             )
           }
         } else {
-          console.log('✅ User created successfully');
           
           // Crear profile para el usuario
-          console.log('🔄 Creating profile for user:', newUser.user.id);
           const { data: profileData, error: profileError } = await supabaseAdmin
             .from('profiles')
             .insert([{
@@ -103,23 +98,17 @@ export async function POST(request: NextRequest) {
             .single();
 
           if (profileError) {
-            console.error('❌ Error creating profile:', profileError);
-            console.error('❌ Profile error details:', profileError.details);
-            console.error('❌ Profile error hint:', profileError.hint);
           } else {
-            console.log('✅ Profile created successfully:', profileData);
           }
         }
 
       } catch (authError: any) {
-        console.error('❌ Auth error:', authError);
         return NextResponse.json(
           { error: `Error en autenticación: ${authError.message}` },
           { status: 500 }
         )
       }
     } else {
-      console.log('ℹ️ No password provided, skipping Supabase Auth user creation');
     }
 
     const { data: worker, error: workerError } = await supabaseAdmin

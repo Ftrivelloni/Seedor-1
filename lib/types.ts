@@ -54,6 +54,22 @@ export interface SubscriptionHistory {
   created_at: string
 }
 
+// Tipos para autenticación
+export interface AuthUser {
+  id: string
+  email: string
+  nombre: string
+  tenantId: string
+  rol: string
+  tenant: {
+    id: string
+    name: string
+    [key: string]: any
+  }
+  profile?: any
+  memberships?: any[]
+}
+
 export interface TenantMembership {
   id: string
   tenant_id: string

@@ -9,7 +9,7 @@ import { Badge } from '../ui/badge'
 import { Trash2, UserPlus, Edit3, Shield, User, Package, DollarSign, Sprout } from 'lucide-react'
 import { Alert, AlertDescription } from '../ui/alert'
 import { toast } from '../../hooks/use-toast'
-import type { AuthUser } from '../../lib/supabaseAuth'
+import type { AuthUser } from '../../lib/types'
 
 interface TenantUser {
   id: string

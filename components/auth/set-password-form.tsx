@@ -32,25 +32,25 @@ export default function SetPasswordForm() {
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
-          console.error('❌ Session error:', error)
+
           setError('Error al verificar sesión. Por favor, usa el link de invitación nuevamente.')
           setLoading(false)
           return
         }
 
         if (!session?.user) {
-          console.log('❌ No session found')
+
           setError('No hay una sesión válida. Por favor, usa el link de invitación enviado a tu email.')
           setLoading(false)
           return
         }
 
-        console.log('✅ Valid session found for:', session.user.email)
+
         setSessionUser(session.user)
         setLoading(false)
 
       } catch (err: any) {
-        console.error('❌ Error checking session:', err)
+
         setError('Error inesperado al verificar sesión.')
         setLoading(false)
       }
@@ -76,7 +76,7 @@ export default function SetPasswordForm() {
     setSetting(true)
 
     try {
-      console.log('🔄 Setting password for user:', sessionUser.email)
+
 
       // Actualizar contraseña usando la sesión activa
       const { error: updateError } = await supabase.auth.updateUser({
@@ -84,12 +84,12 @@ export default function SetPasswordForm() {
       })
 
       if (updateError) {
-        console.error('❌ Error updating password:', updateError)
+
         setError('Error al establecer contraseña: ' + updateError.message)
         return
       }
 
-      console.log('✅ Password set successfully')
+
       setSuccess(true)
 
       setTimeout(() => {
@@ -109,7 +109,7 @@ export default function SetPasswordForm() {
       }, 2000)
 
     } catch (err: any) {
-      console.error('❌ Error in handleSubmit:', err)
+
       setError(err.message || 'Error inesperado')
     } finally {
       setSetting(false)
