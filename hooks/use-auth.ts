@@ -203,7 +203,7 @@ export function useAuth(options: {
     
     // Solo validar roles si hay usuario completo con rol
     if (requireRoles.length > 0 && !hasRequiredRole) {
-      console.log('🚨 useAuth: Role validation failed. Required:', requireRoles, 'User role:', currentUser?.rol, 'Redirecting to /home');
+      
       router.push("/home");
     }
   }, [currentUser, hasRequiredRole, requireRoles, router, authChecking, contextLoading]);

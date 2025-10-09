@@ -19,6 +19,16 @@ interface TenantUser {
   status: 'active' | 'pending' | 'inactive'
   created_at: string
   accepted_at?: string
+  phone?: string
+  document_id?: string
+  membership?: {
+    id: string
+    role_code: string
+    status: string
+    user_id: string
+    invited_by?: string
+    accepted_at?: string
+  }
 }
 
 interface CreateUserRequest {
@@ -63,6 +73,7 @@ const roleBadgeColors = {
 }
 
 export function UserManagement({ currentUser }: UserManagementProps) {
+  
   const [users, setUsers] = useState<TenantUser[]>([])
   const [loading, setLoading] = useState(true)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -70,6 +81,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   const [editingUser, setEditingUser] = useState<TenantUser | null>(null)
   const [canAddMoreUsers, setCanAddMoreUsers] = useState(true)
   const [userLimits, setUserLimits] = useState({ current: 0, max: 3 })
+  const [tenantPlan, setTenantPlan] = useState('basic')
 
   const [formData, setFormData] = useState<CreateUserRequest>({
     email: '',
@@ -85,7 +97,17 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const [invitedUserEmail, setInvitedUserEmail] = useState('')
 
-  const isAdmin = currentUser.rol.toLowerCase() === 'admin'
+  const isAdmin = currentUser?.rol?.toLowerCase() === 'admin'
+
+  // Available roles based on plan
+  const availableRoles = {
+    basic: ['campo', 'empaque'],
+    profesional: ['campo', 'empaque', 'finanzas']
+  }
+
+  const roleOptions = tenantPlan === 'profesional' 
+    ? availableRoles.profesional 
+    : availableRoles.basic
 
   useEffect(() => {
     if (isAdmin) {
@@ -97,13 +119,11 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   const loadUsers = async () => {
     try {
       setLoading(true)
-      console.log('🔍 UserManagement: Loading users...')
       
       const { supabase } = await import('../../lib/supabaseClient')
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
-        console.error('🔍 UserManagement: No session found')
         toast({
           title: 'Error',
           description: 'No se encontró una sesión activa',
@@ -112,31 +132,28 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         return
       }
       
-      console.log('🔍 UserManagement: Making request to /api/admin/users')
       const response = await fetch('/api/admin/users', {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         }
       })
-      
-      console.log('🔍 UserManagement: Users API response status:', response.status)
-      
+
       if (response.ok) {
         const data = await response.json()
-        const transformedUsers = (data.users || []).map((worker: any) => ({
-          id: worker.id,
-          email: worker.email,
-          full_name: worker.full_name,
-          role_code: worker.membership?.role_code || worker.area_module,
-          status: worker.status,
-          created_at: worker.created_at,
-          accepted_at: worker.membership?.accepted_at
+        const transformedUsers = (data.users || []).map((user: any) => ({
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          role_code: user.role_code,
+          status: user.status,
+          created_at: user.created_at,
+          accepted_at: user.accepted_at,
+          phone: user.phone,
+          document_id: user.document_id,
+          membership: user.membership
         }))
-        
-        console.log('🔍 UserManagement: Raw users data:', data.users)
-        console.log('🔍 UserManagement: Transformed users:', transformedUsers)
-        
         setUsers(transformedUsers)
       } else {
         const errorData = await response.json()
@@ -160,22 +177,36 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
   const checkUserLimits = async () => {
     try {
-      console.log('🔍 UserManagement: Checking limits for tenant:', currentUser.tenantId)
-      const response = await fetch(`/api/tenant/${currentUser.tenantId}/limits`)
-      console.log('🔍 UserManagement: Limits response status:', response.status)
+      const { supabase } = await import('../../lib/supabaseClient')
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        setUserLimits({ current: users.length, max: 3 })
+        setCanAddMoreUsers(users.length < 3)
+        return
+      }
+
+
+      const response = await fetch(`/api/tenant/${currentUser.tenantId}/limits`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
       
       if (response.ok) {
         const data = await response.json()
-        console.log('🔍 UserManagement: Limits data:', data)
         setUserLimits({ current: data.current_users, max: data.max_users })
-        setCanAddMoreUsers(data.current_users < data.max_users)
+        setCanAddMoreUsers(data.can_add_more)
+        setTenantPlan(data.plan || 'basic')
       } else {
-        console.warn('🔍 UserManagement: Limits API failed, using fallback')
         setUserLimits({ current: users.length, max: 3 })
         setCanAddMoreUsers(users.length < 3)
+        setTenantPlan('basic')
       }
     } catch (error) {
-      console.error('🔍 UserManagement: Error checking user limits:', error)
+      console.error('Error checking user limits:', error)
       setUserLimits({ current: users.length, max: 3 })
       setCanAddMoreUsers(users.length < 3)
     }
@@ -412,34 +443,54 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div className="space-y-3">
-              <div className="h-4 bg-gray-200 rounded"></div>
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+      <div className="flex-1 flex flex-col">
+        <header className="border-b bg-gradient-to-r from-white to-gray-50">
+          <div className="flex h-20 items-center justify-between px-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">Gestión de Usuarios</h1>
+              <p className="text-sm text-gray-600">Cargando información de usuarios...</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </header>
+        <main className="flex-1 p-6 overflow-auto">
+          <div className="max-w-7xl mx-auto space-y-6">
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-primary"></div>
+                <div className="absolute inset-0 rounded-full h-12 w-12 border-4 border-transparent border-r-primary/30 animate-ping"></div>
+              </div>
+              <p className="mt-4 text-gray-600 font-medium">Cargando usuarios...</p>
+              <p className="text-sm text-gray-500">Por favor espera un momento</p>
+            </div>
+          </div>
+        </main>
+      </div>
     )
   }
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="border-b bg-card">
-        <div className="flex h-16 items-center justify-between px-6">
+      <header className="border-b bg-gradient-to-r from-white to-gray-50">
+        <div className="flex h-20 items-center justify-between px-6">
           <div>
-            <h1 className="text-xl font-semibold">Gestión de Usuarios</h1>
-            <p className="text-sm text-muted-foreground">
-              Usuarios activos: {userLimits.current} de {userLimits.max} - {currentUser?.tenant?.name || 'Tu Empresa'}
-            </p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">Gestión de Usuarios</h1>
+            <div className="flex items-center gap-4 text-sm">
+              <span className="flex items-center gap-2 text-gray-600">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {userLimits.current}/{userLimits.max === -1 ? '∞' : userLimits.max} usuarios
+                </span>
+                <span className="text-gray-400">•</span>
+                <span className="font-medium">{currentUser?.tenant?.name || 'Tu Empresa'}</span>
+              </span>
+            </div>
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-right">
-              <p className="text-sm font-medium">{currentUser?.nombre || currentUser?.email}</p>
-              <p className="text-xs text-muted-foreground">{currentUser?.rol || 'Usuario'}</p>
+              <p className="text-sm font-semibold text-gray-900">{currentUser?.nombre || currentUser?.email}</p>
+              <p className="text-xs text-gray-500 flex items-center gap-1">
+                <Shield className="h-3 w-3" />
+                {currentUser?.rol || 'Usuario'}
+              </p>
             </div>
           </div>
         </div>
@@ -447,20 +498,31 @@ export function UserManagement({ currentUser }: UserManagementProps) {
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-6">
           
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Equipo de Trabajo</h2>
+          <p className="text-sm text-gray-600">Gestiona los usuarios que tienen acceso a tu sistema</p>
+        </div>
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
             <Button 
               disabled={!canAddMoreUsers}
-              className="gap-2"
+              className="gap-2 bg-primary hover:bg-primary/90 shadow-sm"
+              size="lg"
             >
-              <UserPlus className="h-4 w-4" />
-              Crear Usuario
+              <UserPlus className="h-5 w-5" />
+              Agregar Usuario
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Crear Nuevo Usuario</DialogTitle>
+              <DialogTitle className="text-xl flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-primary" />
+                Crear Nuevo Usuario
+              </DialogTitle>
+              <p className="text-sm text-gray-600 mt-2">
+                Invita a un nuevo miembro para que se una a tu equipo
+              </p>
             </DialogHeader>
             
             <form onSubmit={handleCreateUser} className="space-y-4">
@@ -531,15 +593,26 @@ export function UserManagement({ currentUser }: UserManagementProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="campo">Campo</SelectItem>
-                    <SelectItem value="empaque">Empaque</SelectItem>
-                    <SelectItem value="finanzas">Finanzas</SelectItem>
-                    <SelectItem value="admin">Administrador</SelectItem>
+                    {roleOptions.map(role => (
+                      <SelectItem key={role} value={role}>
+                        <div className="flex items-center gap-2">
+                          {roleIcons[role as keyof typeof roleIcons] && 
+                            React.createElement(roleIcons[role as keyof typeof roleIcons], { className: "h-4 w-4" })
+                          }
+                          {roleLabels[role as keyof typeof roleLabels]}
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  {roleDescriptions[formData.role]}
+                  {roleDescriptions[formData.role as keyof typeof roleDescriptions]}
                 </p>
+                {tenantPlan === 'basic' && (
+                  <p className="text-xs text-amber-600">
+                    💡 El rol de Finanzas está disponible en el plan profesional
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-2 justify-end pt-4">
@@ -559,12 +632,12 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         </Dialog>
       </div>
 
-      {!canAddMoreUsers && (
+      {!canAddMoreUsers && userLimits.max !== -1 && (
         <Alert className="border-orange-200 bg-orange-50">
           <Shield className="h-4 w-4 text-orange-600" />
           <AlertDescription className="text-orange-800">
-            <strong>No se pueden crear más usuarios.</strong> Has alcanzado el límite de usuarios para tu plan actual ({userLimits.max} usuarios). 
-            Para agregar más usuarios, debes mejorar al plan Pro.
+            <strong>No se pueden crear más usuarios.</strong> Se llegó al límite de usuarios para tu plan actual ({userLimits.max} usuarios). 
+            Para más usuarios debe mejorar al plan pro.
             <br />
             <Button variant="link" className="p-0 h-auto ml-0 mt-1 text-orange-700 hover:text-orange-900">
               Actualizar al Plan Pro →
@@ -591,76 +664,147 @@ export function UserManagement({ currentUser }: UserManagementProps) {
               <Button 
                 size="sm" 
                 variant="outline" 
-                onClick={() => window.location.href = '/home'}
+                onClick={() => window.location.href = '/usuarios'}
                 className="border-green-300 text-green-700 hover:bg-green-100"
               >
-                Volver al dashboard
+                Volver al módulo de usuarios
               </Button>
             </div>
           </AlertDescription>
         </Alert>
       )}
 
-      <div className="grid gap-4">
+      <div className="grid gap-6">
         {users.map((user) => {
           const RoleIcon = roleIcons[user.role_code]
           
           return (
-            <Card key={user.id}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-full bg-gray-100">
-                      <RoleIcon className="h-4 w-4" />
+            <Card key={user.id} className="hover:shadow-md transition-shadow duration-200 border-l-4 border-l-primary/20">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-xl ${
+                      user.role_code === 'admin' ? 'bg-red-100 text-red-600' :
+                      user.role_code === 'campo' ? 'bg-green-100 text-green-600' :
+                      user.role_code === 'empaque' ? 'bg-blue-100 text-blue-600' :
+                      'bg-yellow-100 text-yellow-600'
+                    }`}>
+                      <RoleIcon className="h-5 w-5" />
                     </div>
-                    <div>
-                      <h4 className="font-medium">{user.full_name}</h4>
-                      <p className="text-sm text-muted-foreground">{user.email}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4 className="font-semibold text-lg text-gray-900">{user.full_name || 'Sin nombre'}</h4>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`${roleBadgeColors[user.role_code]} font-medium px-3 py-1`}>
+                            {roleLabels[user.role_code]}
+                          </Badge>
+                          <Badge 
+                            variant={user.status === 'active' ? 'default' : 'secondary'}
+                            className={`${
+                              user.status === 'active' 
+                                ? 'bg-green-100 text-green-800 border-green-200' 
+                                : user.status === 'pending' 
+                                ? 'bg-orange-100 text-orange-800 border-orange-200'
+                                : 'bg-gray-100 text-gray-800 border-gray-200'
+                            } font-medium px-3 py-1`}
+                          >
+                            {user.status === 'active' ? '✅ Activo' : 
+                             user.status === 'pending' ? '⏳ Pendiente' : '❌ Inactivo'}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <p className="text-gray-600 flex items-center gap-2">
+                          <span className="text-gray-400">📧</span>
+                          {user.email}
+                        </p>
+                        {user.phone && (
+                          <p className="text-gray-600 flex items-center gap-2">
+                            <span className="text-gray-400">📱</span>
+                            {user.phone}
+                          </p>
+                        )}
+                        {user.document_id && (
+                          <p className="text-gray-600 flex items-center gap-2">
+                            <span className="text-gray-400">🆔</span>
+                            {user.document_id}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <Badge className={roleBadgeColors[user.role_code]}>
-                      {roleLabels[user.role_code]}
-                    </Badge>
-                    
-                    <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
-                      {user.status === 'active' ? 'Activo' : 
-                       user.status === 'pending' ? 'Pendiente' : 'Inactivo'}
-                    </Badge>
-                    
-                    {user.email !== currentUser.email && (
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEditUser(user)}
-                        >
-                          <Edit3 className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+                  {user.email !== currentUser.email && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditUser(user)}
+                        className="hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700"
+                      >
+                        <Edit3 className="h-4 w-4 mr-1" />
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="hover:bg-red-50 hover:border-red-200 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Eliminar
+                      </Button>
+                    </div>
+                  )}
                 </div>
+                
+                {user.accepted_at && (
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                      <span className="text-gray-400">📅</span>
+                      Se unió el {new Date(user.accepted_at).toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: 'long', 
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )
         })}
       </div>
 
-      {users.length === 0 && (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No hay usuarios registrados</p>
+      {users.length === 0 && !loading && (
+        <Card className="border-dashed border-2 border-gray-200">
+          <CardContent className="p-12 text-center">
+            <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+              <User className="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay usuarios registrados</h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              Aún no has creado usuarios para tu empresa. Comienza invitando a tu equipo para que puedan acceder a los diferentes módulos.
+            </p>
+            <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  disabled={!canAddMoreUsers}
+                  className="gap-2 bg-primary hover:bg-primary/90"
+                  size="lg"
+                >
+                  <UserPlus className="h-5 w-5" />
+                  Crear Mi Primer Usuario
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Crear Nuevo Usuario</DialogTitle>
+                </DialogHeader>
+                {/* Form content will be here - same as current */}
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
       )}
