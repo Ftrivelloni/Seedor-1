@@ -341,8 +341,8 @@ export function EmpaquePage() {
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col gap-2">
-                            <div><span className="font-medium">Total empacado:</span> {pallets.reduce((sum, p) => sum + (p.peso || p.kilos || 0), 0).toLocaleString()} kg</div>
                             <div><span className="font-medium">Total pallets:</span> {pallets.length}</div>
+                            <div className="text-muted-foreground text-sm"><span className="font-medium">Total kg (info):</span> {pallets.reduce((sum, p) => sum + (p.peso || p.kilos || 0), 0).toLocaleString()} kg</div>
                             <div><span className="font-medium">Última fecha:</span> {pallets.length > 0 ? new Date(pallets[0].created_at).toLocaleDateString() : '-'}</div>
                         </div>
                     </CardContent>
@@ -375,8 +375,9 @@ export function EmpaquePage() {
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col gap-2">
-                            <div><span className="font-medium">Total enviado:</span> {egresosFruta.reduce((sum, e) => sum + (e.peso_neto || 0), 0).toLocaleString()} kg</div>
-                            <div><span className="font-medium">Total egresos:</span> {egresosFruta.length}</div>
+                            <div><span className="font-medium">Total enviado:</span> {pallets.filter((p: any) => ["egresado", "entregado"].includes(String(p.estado || "").toLowerCase())).length} pallets</div>
+                            <div className="text-muted-foreground text-sm"><span className="font-medium">Total kg (info):</span> {egresosFruta.reduce((sum, e) => sum + (e.peso_neto || 0), 0).toLocaleString()} kg</div>
+                            <div><span className="font-medium">Total egresos (movimientos):</span> {egresosFruta.length}</div>
                             <div><span className="font-medium">Última fecha:</span> {egresosFruta.length > 0 ? new Date(egresosFruta[0].created_at).toLocaleDateString() : '-'}</div>
                         </div>
                     </CardContent>
@@ -420,42 +421,45 @@ export function EmpaqueFlow(props: {
         return () => { mounted = false; };
     }, []);
 
+    // Totales y conteos en pallets (unidad principal del flujo)
     const sums = useMemo(() => {
         const sum = (arr: number[]) => arr.reduce((s, v) => s + (Number(v) || 0), 0);
 
-        const kgIngresados = sum(ingresosFruta.map((r: any) => Number(r.peso_neto) || 0));
+        // Ingreso y preproceso siguen medidos en bins para referencia
         const binsIngresados = sum(ingresosFruta.map((r: any) => Number(r.cant_bin) || 0));
-
         const binsPreproceso = sum(
             preprocesos.map((p: any) =>
-                (Number(p.bin_pleno) || 0) + (Number(p.bin_intermedio_I) || 0) + (Number(p.bin_intermedio_II) || 0) + (Number(p.bin_incipiente) || 0)
+                (Number(p.bin_pleno) || 0) +
+                (Number(p.bin_intermedio_I) || 0) +
+                (Number(p.bin_intermedio_II) || 0) +
+                (Number(p.bin_incipiente) || 0)
             )
         );
         const binVolcados = sum(preprocesos.map((p: any) => Number(p.bin_volcados) || 0));
-        const kgPallets = sum(pallets.map((p: any) => Number(p.kilos ?? p.peso ?? p.pesoTotal) || 0));
-        const palletsDespachados = pallets.filter((p: any) => p.estado === "despachado");
-        const kgDespachadoFallback = sum(palletsDespachados.map((p: any) => Number(p.kilos ?? p.peso ?? p.pesoTotal) || 0));
 
-        const kgFromDespachos = sum(despachos.map((d: any) => Number(d.kilos ?? d.total_kilos ?? 0) || 0));
+        // Pallets en cada etapa
+        const palletsCount = pallets.length;
+
+        // Pallets desde despachos (preferido) y fallback por estado en pallets
         const totalPalletsFromDespachos = despachos.reduce((s, d: any) => s + (Number(d.total_pallets || 0) || 0), 0);
+        const palletsDespachadosFallback = pallets.filter((p: any) => p.estado === "despachado").length;
+        const palletsDespacho = totalPalletsFromDespachos || palletsDespachadosFallback || 0;
+
+        // Pallets egresados: si existen por estado, usamos ese número; si no, igual a despachados
+        const palletsEgresadosState = pallets.filter((p: any) => p.estado === "egresado").length || 0;
+        const palletsEgresado = palletsEgresadosState > 0 ? palletsEgresadosState : palletsDespacho;
+
         const totalCajasFromDespachos = despachos.reduce((s, d: any) => s + (Number(d.total_cajas || 0) || 0), 0);
 
-        const kgDespacho = kgFromDespachos || kgDespachadoFallback || 0;
-        const kgEgresado = sum(egresosFruta.map((e: any) => Number(e.peso_neto) || 0));
-
         return {
-            kgIngresados,
             binsIngresados,
             binsPreproceso,
             binVolcados,
-            kgPallets,
-            kgDespachadoFallback,
-            kgFromDespachos,
-            kgDespacho,
+            palletsCount,
+            palletsDespacho,
+            palletsEgresado,
             totalPalletsFromDespachos,
             totalCajasFromDespachos,
-            kgEgresado,
-            palletsCount: pallets.length,
         };
     }, [ingresosFruta, preprocesos, pallets, despachos, egresosFruta]);
 
@@ -463,32 +467,28 @@ export function EmpaqueFlow(props: {
 
     const flags = useMemo(() => {
         const f: Record<string, string | null> = { ingreso: null, preproceso: null, pallets: null, despacho: null, egreso: null };
-
-        if (sums.binsIngresados > 0 && sums.binsPreproceso < sums.binsIngresados * 0.9) f.preproceso = "En cola";
-        if (sums.kgPallets + 1 < sums.kgIngresados && sums.binsPreproceso >= Math.floor(sums.binsIngresados * 0.8)) f.pallets = "Atrasado";
-        if (sums.kgDespacho + 1 < sums.kgPallets) f.despacho = "Pendiente";
-        if (sums.kgEgresado + 1 < sums.kgDespacho) f.egreso = "Pendiente";
-
+        if (sums.binsIngresados > 0 && sums.binsPreproceso < Math.floor(sums.binsIngresados * 0.9)) f.preproceso = "En cola";
+        if (sums.palletsDespacho + 1 < sums.palletsCount) f.despacho = "Pendiente";
+        if (sums.palletsEgresado + 1 < sums.palletsDespacho) f.egreso = "Pendiente";
         return f;
     }, [sums]);
 
     const kpis = useMemo(() => {
-        const pctPaletizado = pct(sums.kgPallets, sums.kgIngresados);
-        const pctDespachadoVsPalet = pct(sums.kgDespacho, sums.kgPallets);
-        const pctEgresadoVsIngreso = pct(sums.kgEgresado, sums.kgIngresados);
-        return { pctPaletizado, pctDespachadoVsPalet, pctEgresadoVsIngreso };
+        const pctDespachadoVsPallet = pct(sums.palletsDespacho, sums.palletsCount);
+        const pctEgresadoVsPallet = pct(sums.palletsEgresado, sums.palletsCount);
+        return { pctDespachadoVsPallet, pctEgresadoVsPallet };
     }, [sums]);
 
     const steps = useMemo(() => {
-        const ingresoMain = sums.kgIngresados;
+        const baseline = Math.max(1, sums.palletsCount);
         return [
             {
                 key: "ingreso",
                 title: "Ingreso",
                 icon: ArrowDown,
-                mainKg: sums.kgIngresados,
-                altUnits: sums.binsIngresados,
-                pctAgainstIngreso: 100,
+                mainKg: null, // usamos pallets como unidad principal; ingreso no tiene pallets
+                altUnits: sums.binsIngresados, // mostramos bins
+                pctAgainstIngreso: 0,
                 flag: null,
             },
             {
@@ -498,40 +498,40 @@ export function EmpaqueFlow(props: {
                 mainKg: null,
                 altUnits: sums.binsPreproceso,
                 binVolcados: sums.binVolcados,
-                pctAgainstIngreso: pct(sums.binsPreproceso, Math.max(1, sums.binsIngresados)),
+                pctAgainstIngreso: 0,
                 flag: flags.preproceso,
             },
             {
                 key: "pallets",
                 title: "Pallets",
                 icon: Archive,
-                mainKg: sums.kgPallets,
-                altUnits: sums.palletsCount,
-                pctAgainstIngreso: pct(sums.kgPallets, ingresoMain),
+                mainKg: sums.palletsCount, // mainKg ahora es cantidad de pallets
+                altUnits: null,
+                pctAgainstIngreso: 100,
                 flag: flags.pallets,
             },
             {
                 key: "despacho",
                 title: "Despacho",
                 icon: Truck,
-                mainKg: sums.kgFromDespachos || sums.kgDespachadoFallback || null,
-                altUnits: sums.totalPalletsFromDespachos || sums.totalCajasFromDespachos || null,
-                pctAgainstIngreso: pct(sums.kgFromDespachos || sums.kgDespachadoFallback, ingresoMain),
+                mainKg: sums.palletsDespacho,
+                altUnits: sums.totalCajasFromDespachos || null, // opcionalmente mostramos cajas
+                pctAgainstIngreso: pct(sums.palletsDespacho, baseline),
                 flag: flags.despacho,
             },
             {
                 key: "egreso",
                 title: "Egreso",
                 icon: ArrowUp,
-                mainKg: sums.kgEgresado,
+                mainKg: sums.palletsEgresado,
                 altUnits: null,
-                pctAgainstIngreso: pct(sums.kgEgresado, ingresoMain),
+                pctAgainstIngreso: pct(sums.palletsEgresado, baseline),
                 flag: flags.egreso,
             },
         ];
     }, [sums, flags]);
 
-    const fmtKg = (v: number | null | undefined) => (v == null ? "-" : `${Number(v).toLocaleString()} kg`);
+    const fmtPallets = (v: number | null | undefined) => (v == null ? "-" : `${Number(v).toLocaleString()} pallets`);
 
     return (
         <Card>
@@ -539,18 +539,18 @@ export function EmpaqueFlow(props: {
                 <div className="flex items-center justify-between gap-4 w-full">
                     <div>
                         <CardTitle className="text-base">Flujo de Empaque</CardTitle>
-                        <CardDescription>Visión global: Ingreso → Preproceso → Pallets → Despacho → Egreso</CardDescription>
+                        <CardDescription>Resumen del flujo — Ingreso/Preproceso en bins · Pallets/Despacho/Egreso en pallets</CardDescription>
                     </div>
 
                     <div className="flex gap-4 text-sm">
                         <div className="text-xs text-muted-foreground">
-                            % paletizado vs ingreso: <strong>{kpis.pctPaletizado.toFixed(0)}%</strong>
+                            Pallets totales: <strong>{sums.palletsCount.toLocaleString()}</strong>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                            % despachado vs paletizado: <strong>{kpis.pctDespachadoVsPalet.toFixed(0)}%</strong>
+                            % despachado vs pallets: <strong>{kpis.pctDespachadoVsPallet.toFixed(0)}%</strong>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                            % egresado vs ingreso: <strong>{kpis.pctEgresadoVsIngreso.toFixed(0)}%</strong>
+                            % egresado vs pallets: <strong>{kpis.pctEgresadoVsPallet.toFixed(0)}%</strong>
                         </div>
                     </div>
                 </div>
@@ -561,6 +561,7 @@ export function EmpaqueFlow(props: {
                     {steps.map((s) => {
                         const Icon = s.icon;
                         const pctValue = typeof s.pctAgainstIngreso === "number" ? Math.round(s.pctAgainstIngreso) : 0;
+                        const pctLabel = (s.key === "ingreso" || s.key === "preproceso") ? "% vs ingreso (bins)" : "% vs pallets";
                         return (
                             <div key={s.key} className="rounded-lg border p-3 bg-muted/30">
                                 <div className="flex items-center justify-between mb-2">
@@ -574,14 +575,18 @@ export function EmpaqueFlow(props: {
                                 </div>
 
                                 <div className="mb-2">
-                                    <div className="text-lg font-bold">{s.mainKg != null ? fmtKg(s.mainKg) : (s.altUnits != null ? `${s.altUnits} units` : "-")}</div>
+                                    <div className="text-lg font-bold">
+                                        {s.mainKg != null
+                                            ? fmtPallets(s.mainKg)
+                                            : (s.altUnits != null ? `${s.altUnits} bins` : "-")}
+                                    </div>
                                     {s.key === "preproceso" && (s as any).binVolcados ? (
                                         <div className="text-xs text-muted-foreground">Volcados: {(s as any).binVolcados}</div>
                                     ) : null}
                                 </div>
 
                                 <div className="mb-1 text-xs text-muted-foreground flex items-center justify-between">
-                                    <span title="(value / ingreso) * 100">% vs ingreso</span>
+                                    <span title={pctLabel}>{pctLabel}</span>
                                     <span className="font-mono">{pctValue}%</span>
                                 </div>
 
@@ -599,16 +604,16 @@ export function EmpaqueFlow(props: {
                             <RechartsComponents.ResponsiveContainer width="100%" height="100%">
                                 <RechartsComponents.BarChart
                                     data={[
-                                        { name: "Ingreso", value: sums.kgIngresados },
-                                        { name: "Preproceso", value: sums.kgIngresados ? nullToZeroFromBins(sums.binsPreproceso, sums.binsIngresados, sums.kgIngresados) : 0 },
-                                        { name: "Pallets", value: sums.kgPallets },
-                                        { name: "Despacho", value: sums.kgDespacho },
-                                        { name: "Egreso", value: sums.kgEgresado },
+                                        { name: "Ingreso", value: sums.binsIngresados, unit: "bins" },
+                                        { name: "Preproceso", value: sums.binsPreproceso, unit: "bins" },
+                                        { name: "Pallets", value: sums.palletsCount, unit: "pallets" },
+                                        { name: "Despacho", value: sums.palletsDespacho, unit: "pallets" },
+                                        { name: "Egreso", value: sums.palletsEgresado, unit: "pallets" },
                                     ]}
                                 >
                                     <RechartsComponents.XAxis dataKey="name" />
                                     <RechartsComponents.YAxis />
-                                    <RechartsComponents.Tooltip formatter={(v: any) => (v ? `${Number(v).toLocaleString()} kg` : "N/A")} />
+                                    <RechartsComponents.Tooltip formatter={(v: any, _name: any, item: any) => `${Number(v || 0).toLocaleString()} ${item?.payload?.unit || ''}` } />
                                     <RechartsComponents.Bar dataKey="value" fill="#60a5fa" />
                                 </RechartsComponents.BarChart>
                             </RechartsComponents.ResponsiveContainer>
@@ -616,36 +621,33 @@ export function EmpaqueFlow(props: {
                     ) : (
                         <div className="mt-3 grid grid-cols-1 gap-2">
                             <div className="text-xs text-muted-foreground">Chart unavailable. Showing compact bars:</div>
-                            {[
-                                ["Ingreso", sums.kgIngresados],
-                                ["Preproceso", sums.kgIngresados ? nullToZeroFromBins(sums.binsPreproceso, sums.binsIngresados, sums.kgIngresados) : 0],
-                                ["Pallets", sums.kgPallets],
-                                ["Despacho", sums.kgDespacho],
-                                ["Egreso", sums.kgEgresado],
-                            ].map(([name, val]: any, i: number) => {
-                                const v = Number(val || 0);
-                                const w = sums.kgIngresados > 0 ? Math.round((v / sums.kgIngresados) * 100) : 0;
-                                return (
-                                    <div key={i} className="flex items-center gap-3">
-                                        <div className="w-24 text-sm">{name}</div>
-                                        <div className="h-2 flex-1 rounded bg-gray-200">
-                                            <div className="h-2 rounded bg-green-400" style={{ width: `${w}%` }} />
+                            {(() => {
+                                const data = [
+                                    { name: "Ingreso", value: sums.binsIngresados, unit: "bins" },
+                                    { name: "Preproceso", value: sums.binsPreproceso, unit: "bins" },
+                                    { name: "Pallets", value: sums.palletsCount, unit: "pallets" },
+                                    { name: "Despacho", value: sums.palletsDespacho, unit: "pallets" },
+                                    { name: "Egreso", value: sums.palletsEgresado, unit: "pallets" },
+                                ];
+                                const maxVal = Math.max(1, ...data.map((d) => Number(d.value || 0)));
+                                return data.map((row, i) => {
+                                    const v = Number(row.value || 0);
+                                    const w = Math.round((v / maxVal) * 100);
+                                    return (
+                                        <div key={i} className="flex items-center gap-3">
+                                            <div className="w-24 text-sm">{row.name}</div>
+                                            <div className="h-2 flex-1 rounded bg-gray-200">
+                                                <div className="h-2 rounded bg-green-400" style={{ width: `${w}%` }} />
+                                            </div>
+                                            <div className="w-32 text-right text-sm font-mono">{v.toLocaleString()} {row.unit}</div>
                                         </div>
-                                        <div className="w-20 text-right text-sm font-mono">{v.toLocaleString()} kg</div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                });
+                            })()}
                         </div>
                     )}
                 </div>
             </CardContent>
         </Card>
     );
-
-    function nullToZeroFromBins(binsValue: number, binsIngreso: number, kgIngreso: number) {
-        if (kgIngreso > 0 && binsIngreso > 0) {
-            return Math.round((binsValue / binsIngreso) * kgIngreso);
-        }
-        return 0;
-    }
 }

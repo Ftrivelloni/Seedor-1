@@ -203,46 +203,6 @@ export function DespachoPage() {
             </div>
 
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Search className="h-5 w-5" />
-                        Buscar y filtrar
-                    </CardTitle>
-                    <CardDescription className="sm:hidden">
-                        Usá el buscador para filtrar por guía, cliente, transporte o destino.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <div className="relative sm:hidden">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Buscar…"
-                                className="w-full pl-9"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-
-                        {despachos.length > 0 && "estado" in despachos[0] && (
-                            <Select value={estadoFilter} onValueChange={(v) => setEstadoFilter(v)}>
-                                <SelectTrigger className="w-full sm:w-56">
-                                    <SelectValue placeholder="Estado" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Todos los estados</SelectItem>
-                                    <SelectItem value="preparando">Preparando</SelectItem>
-                                    <SelectItem value="en_transito">En tránsito</SelectItem>
-                                    <SelectItem value="entregado">Entregado</SelectItem>
-                                    <SelectItem value="devuelto">Devuelto</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
                 <CardHeader className="gap-2">
                     <CardTitle className="flex items-center gap-2">
                         <Truck className="h-5 w-5" />
