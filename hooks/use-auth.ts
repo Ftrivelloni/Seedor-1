@@ -202,8 +202,17 @@ export function useAuth(options: {
     }
     
     // Solo validar roles si hay usuario completo con rol
-    if (requireRoles.length > 0 && !hasRequiredRole) {
-      console.log('🚨 useAuth: Role validation failed. Required:', requireRoles, 'User role:', currentUser?.rol, 'Redirecting to /home');
+    // No redirigir si aún se están cargando los datos
+    // Agregar condición adicional: solo redirigir si el usuario tiene rol pero no el requerido
+    if (requireRoles.length > 0 && 
+        !hasRequiredRole && 
+        !authChecking && 
+        !contextLoading &&
+        currentUser && 
+        currentUser.rol && // Solo redirigir si ya tiene rol cargado
+        !requireRoles.includes(currentUser.rol)) { // Y ese rol no está en los requeridos
+      
+      console.log('🔄 User role mismatch, redirecting to home. User role:', currentUser.rol, 'Required:', requireRoles);
       router.push("/home");
     }
   }, [currentUser, hasRequiredRole, requireRoles, router, authChecking, contextLoading]);
