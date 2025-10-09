@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Access denied. Admin role required.' }, { status: 403 });
     }
 
+    // Get all users from the same tenant with roles: admin, empaque, finanzas, campo
     const { data: workers, error: workersError } = await supabaseAdmin
       .from('workers')
       .select(`
@@ -72,12 +73,16 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('tenant_id', currentWorker.tenant_id)
+      .in('area_module', ['admin', 'empaque', 'finanzas', 'campo'])
       .order('created_at', { ascending: false });
 
     if (workersError) {
       console.error('Error fetching workers:', workersError);
       return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
     }
+
+    console.log('🔍 API /admin/users: Retrieved workers:', workers?.length || 0, 'workers');
+    console.log('🔍 API /admin/users: Workers data:', workers);
 
     return NextResponse.json({
       users: workers || [],

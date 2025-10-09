@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: existingInvitation } = await supabaseAdmin
+    // Revocar cualquier invitación pendiente anterior para este email y tenant
+    const { data: existingInvitations } = await supabaseAdmin
       .from('invitations')
       .select('id')
       .eq('tenant_id', tenantId)
@@ -80,13 +81,20 @@ export async function POST(request: NextRequest) {
       .eq('role_code', 'admin')
       .is('accepted_at', null)
       .is('revoked_at', null)
-      .maybeSingle()
 
-    if (existingInvitation) {
-      return NextResponse.json(
-        { error: 'Ya existe una invitación pendiente para este email' },
-        { status: 400 }
-      )
+    if (existingInvitations && existingInvitations.length > 0) {
+      console.log('🔄 Revocando invitaciones anteriores:', existingInvitations.length)
+      
+      const { error: revokeError } = await supabaseAdmin
+        .from('invitations')
+        .update({ revoked_at: new Date().toISOString() })
+        .in('id', existingInvitations.map(inv => inv.id))
+
+      if (revokeError) {
+        console.error('❌ Error revocando invitaciones anteriores:', revokeError)
+      } else {
+        console.log('✅ Invitaciones anteriores revocadas exitosamente')
+      }
     }
 
     const { data: tenant } = await supabaseAdmin
@@ -142,6 +150,14 @@ export async function POST(request: NextRequest) {
 
     const inviteUrl = buildInvitationUrl('admin', token)
 
+    // Log detallado para debugging
+    console.log('🔄 Enviando invitación admin:', {
+      email: adminEmail.toLowerCase().trim(),
+      redirectTo: inviteUrl,
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString()
+    })
+
     const { error: inviteError, data: inviteData } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       adminEmail.toLowerCase().trim(),
       {
@@ -158,6 +174,12 @@ export async function POST(request: NextRequest) {
     )
 
     if (inviteError) {
+      console.error('❌ Error enviando invitación admin:', {
+        error: inviteError,
+        email: adminEmail,
+        code: inviteError.status || inviteError.code,
+        message: inviteError.message
+      })
       console.error('Error sending admin invitation email:', inviteError)
 
       await supabaseAdmin
@@ -166,10 +188,25 @@ export async function POST(request: NextRequest) {
         .eq('id', invitation.id)
 
       return NextResponse.json(
-        { error: `Error al enviar email: ${inviteError.message}` },
+        { 
+          error: `Error al enviar email: ${inviteError.message}`,
+          details: {
+            code: inviteError.status || inviteError.code,
+            inviteUrl: inviteUrl,
+            email: adminEmail,
+            environment: process.env.NODE_ENV
+          }
+        },
         { status: 500 }
       )
     }
+
+    console.log('✅ Invitación admin enviada exitosamente:', {
+      email: adminEmail,
+      inviteUrl: inviteUrl,
+      inviteData: inviteData,
+      timestamp: new Date().toISOString()
+    })
 
     await supabaseAdmin
       .from('audit_logs')

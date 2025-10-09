@@ -63,7 +63,11 @@ export default function AdminSetupForm() {
 
   useEffect(() => {
     const loadInitialData = async () => {
+      console.log('🚀 AdminSetupForm: Starting loadInitialData with token:', token ? 'present' : 'missing');
+      console.log('🔧 AdminSetupForm: AuthService available:', typeof authService, 'getSafeSession:', typeof authService.getSafeSession, 'getInvitationByToken:', typeof authService.getInvitationByToken);
+      
       if (!token) {
+        console.error('❌ AdminSetupForm: No token provided');
         setError("Token inválido");
         setLoading(false);
         return;
@@ -112,30 +116,47 @@ export default function AdminSetupForm() {
         console.log('⚠️ AdminSetupForm: User not authenticated as admin, falling back to token lookup');
 
         // Si no está autenticado, buscar la invitación por token (flujo original)
+        console.log('🔍 AdminSetupForm: Getting invitation by token...');
         const { success, data, error: inviteError } = await authService.getInvitationByToken(token);
+        console.log('📋 AdminSetupForm: Token invitation result:', { success, hasData: !!data, error: inviteError });
         
         if (!success || !data) {
-          setError(inviteError || "Invitación no encontrada");
+          console.log('❌ AdminSetupForm: No invitation found for token');
+          
+          // Verificar si es un error de invitación más nueva
+          if (data?.errorType === 'NEWER_INVITATION_EXISTS') {
+            setError(inviteError || "Esta invitación ha sido reemplazada por una más reciente");
+          } else {
+            setError(inviteError || "Invitación no encontrada");
+          }
+          
           setLoading(false);
           return;
         }
 
+        console.log('✅ AdminSetupForm: Token invitation data received:', data);
         setInvitation(data);
 
+        console.log('🏢 AdminSetupForm: Getting tenant limits for tenant:', data.tenant_id);
         const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(data.tenant_id);
+        console.log('📊 AdminSetupForm: Tenant limits result:', { success: limitsSuccess, hasData: !!limitsData });
         
         if (limitsSuccess && limitsData) {
+          console.log('🎯 AdminSetupForm: Setting tenant plan:', limitsData.plan);
           setTenantPlan(limitsData.plan);
           
           const available = Object.keys(AVAILABLE_MODULES).filter(moduleId => 
             AVAILABLE_MODULES[moduleId as keyof typeof AVAILABLE_MODULES].available.includes(limitsData.plan)
           );
+          console.log('📦 AdminSetupForm: Available modules:', available);
           setAvailableModules(available);
         }
 
       } catch (err: any) {
+        console.error('💥 AdminSetupForm: Error in loadInitialData:', err);
         setError(err.message || "Error al cargar datos");
       } finally {
+        console.log('🏁 AdminSetupForm: Setting loading to false');
         setLoading(false);
       }
     };
@@ -225,18 +246,20 @@ export default function AdminSetupForm() {
       // Finalizar aceptando la invitación de admin
       if (typeof window !== 'undefined') {
         const authData = sessionStorage.getItem('admin_auth_data');
-        if (authData) {
+        if (authData && adminData) {
           const data = JSON.parse(authData);
 
-
+          // Combinar datos de auth y datos del admin
+          const completeUserData = {
+            fullName: adminData.fullName || data.fullName,
+            phone: adminData.phone || data.phone,
+            documentId: adminData.documentId || adminData.document_id, // Incluir document_id
+            password: data.password // ✅ La contraseña establecida en el primer paso
+          };
 
           const { success, error: acceptError } = await authService.acceptInvitationWithSetup({
             token,
-            userData: {
-              fullName: data.fullName,
-              phone: data.phone,
-              password: data.password // ✅ La contraseña establecida en el primer paso
-            }
+            userData: completeUserData
           });
 
           if (!success) {
