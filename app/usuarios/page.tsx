@@ -5,7 +5,6 @@ import { Sidebar } from "../../components/sidebar"
 import { UserManagement } from "../../components/admin/user-management"
 import { useAuth } from "../../hooks/use-auth"
 import { FeatureProvider } from "../../lib/features-context"
-import { useEffect } from "react"
 
 export default function UsuariosRoutePage() {
   const { user, loading, handleLogout } = useAuth({
@@ -13,23 +12,6 @@ export default function UsuariosRoutePage() {
     requireRoles: ["admin"]
   });
   const router = useRouter();
-  
-  // Force a session check on mount
-  useEffect(() => {
-    // This ensures the session check is performed
-    const checkSession = async () => {
-      // This is just to trigger the session check in useAuth
-      if (typeof window !== 'undefined') {
-        const sessionData = sessionStorage.getItem('seedor_tab_session');
-        if (!sessionData && !user && !loading) {
-          // If no session found, manually refresh once
-          router.refresh();
-        }
-      }
-    };
-    
-    checkSession();
-  }, [router, user, loading]);
 
   if (loading) {
     return (
@@ -65,20 +47,6 @@ export default function UsuariosRoutePage() {
               contactos: "/contactos",
               usuarios: "/usuarios"
             };
-
-            // Update session activity timestamp before navigation
-            if (typeof sessionStorage !== 'undefined') {
-              const sessionData = sessionStorage.getItem('seedor_tab_session');
-              if (sessionData) {
-                try {
-                  const parsed = JSON.parse(sessionData);
-                  parsed.lastActivity = Date.now();
-                  sessionStorage.setItem('seedor_tab_session', JSON.stringify(parsed));
-                } catch (e) {
-                  console.error('Error updating session activity:', e);
-                }
-              }
-            }
 
             const targetRoute = pageRoutes[page] || "/home";
             router.push(targetRoute);

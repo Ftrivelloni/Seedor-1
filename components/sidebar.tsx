@@ -168,23 +168,7 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
                   : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 isCollapsed && "px-2",
               )}
-              onClick={() => {
-                // Reset any session checking flags before navigation
-                if (typeof sessionStorage !== 'undefined') {
-                  // Touch the session to keep it active
-                  const sessionData = sessionStorage.getItem('seedor_tab_session');
-                  if (sessionData) {
-                    try {
-                      const parsed = JSON.parse(sessionData);
-                      parsed.lastActivity = Date.now();
-                      sessionStorage.setItem('seedor_tab_session', JSON.stringify(parsed));
-                    } catch (e) {
-                      console.error('Error updating session activity:', e);
-                    }
-                  }
-                }
-                onNavigate(item.page);
-              }}
+              onClick={() => onNavigate(item.page)}
             >
               <Icon className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
               {!isCollapsed && <span>{item.title}</span>}
