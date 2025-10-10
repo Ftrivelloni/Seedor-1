@@ -44,15 +44,40 @@ export async function GET(
       })
     }
 
-    // Use the values directly from the tenant table
-    const currentUsers = tenant.current_users || 0
+    // CORRECCION: Contar usuarios reales activos en lugar de confiar en current_users almacenado
+    const { data: activeMemberships, error: membershipError } = await supabaseAdmin
+      .from('tenant_memberships')
+      .select('role_code')
+      .eq('tenant_id', tenantId)
+      .eq('status', 'active')
+      .in('role_code', ['admin', 'campo', 'empaque', 'finanzas'])
+
+    let realCurrentUsers = 0
+    if (!membershipError && activeMemberships) {
+      realCurrentUsers = activeMemberships.length
+    }
+
+    // Si hay discrepancia, corregir el contador en la base de datos
+    if (realCurrentUsers !== tenant.current_users) {
+      console.log(`[FIX] Corrigiendo current_users de ${tenant.current_users} a ${realCurrentUsers} para tenant ${tenantId}`)
+      
+      const { error: updateError } = await supabaseAdmin
+        .from('tenants')
+        .update({ current_users: realCurrentUsers })
+        .eq('id', tenantId)
+      
+      if (updateError) {
+        console.error('Error updating corrected current_users:', updateError)
+      }
+    }
+
     const maxUsers = tenant.max_users || 3
 
     return NextResponse.json({
-      current_users: currentUsers,
+      current_users: realCurrentUsers, // Usar el valor real calculado
       max_users: maxUsers,
       plan: tenant.plan || 'basic',
-      can_add_more: maxUsers === -1 || currentUsers < maxUsers
+      can_add_more: maxUsers === -1 || realCurrentUsers < maxUsers
     })
   } catch (error) {
     console.error('Error in tenant limits API:', error)

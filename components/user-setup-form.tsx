@@ -119,6 +119,7 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [saving, setSaving] = useState(false);
+  const [savingMessage, setSavingMessage] = useState("Guardando...");
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -281,31 +282,8 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
             setCurrentStep('complete');
         }
         } else {
-        console.log('🔄 Creating module user worker profile...');
-        
-        const response = await fetch('/api/admin/create-worker', {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-            tenantId: invitation.tenant_id,
-            email: invitation.email,
-            fullName,
-            documentId,
-            phone,
-            password: null, 
-            areaModule: invitation.role_code,
-            membershipId: null 
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error al crear worker');
-        }
-
-        const workerData = await response.json();
+        console.log('🔄 Setting up module user profile (without creating worker)...');
+        setSavingMessage("Creando tu cuenta...");
 
         const { success, error: acceptError } = await authService.acceptInvitationWithSetup({
             token,
@@ -317,6 +295,15 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
         });
 
         if (!success) {
+            if (acceptError?.includes('espera unos segundos')) {
+                setSavingMessage("Procesando, por favor espera...");
+                // Intentar de nuevo después de mostrar el mensaje
+                setTimeout(() => {
+                    setError(acceptError || "Error al aceptar invitación");
+                    setSaving(false);
+                }, 2000);
+                return;
+            }
             setError(acceptError || "Error al aceptar invitación");
             return;
         }

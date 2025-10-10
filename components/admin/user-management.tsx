@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog'
 import { Badge } from '../ui/badge'
-import { Trash2, UserPlus, Edit3, Shield, User, Package, DollarSign, Sprout, Mail, Phone, IdCard, Calendar, CheckCircle, Clock, XCircle, AlertCircle, AlertTriangle } from 'lucide-react'
+import { Trash2, UserPlus, Edit3, Shield, User, Package, DollarSign, Sprout, Mail, Phone, IdCard, Calendar, CheckCircle, Clock, XCircle, AlertCircle, AlertTriangle, X } from 'lucide-react'
 import { Alert, AlertDescription } from '../ui/alert'
 import { toast } from '../../hooks/use-toast'
 import type { AuthUser } from '../../lib/types'
@@ -243,39 +243,19 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     }
   }
 
-  const validateForm = async () => {
-    const newErrors: Partial<InviteUserRequest> = {}
+  const validateForm = () => {
+    const newErrors: any = {}
     
     // Email validation
     if (!formData.email.trim()) {
       newErrors.email = 'El email es requerido'
     } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email)) {
       newErrors.email = 'Formato de email inválido'
-    } else {
-      // Check if email already exists
-      try {
-        const session = await getSessionWithRetry()
-        
-        if (session) {
-          const response = await fetch('/api/admin/check-email', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email: formData.email })
-          })
-          
-          if (response.ok) {
-            const result = await response.json()
-            if (result.exists) {
-              newErrors.email = 'Ya existe un usuario con este email'
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error checking email:', error)
-      }
+    }
+
+    // Role validation
+    if (!formData.role) {
+      newErrors.role = 'El rol es requerido'
     }
 
     setErrors(newErrors)
@@ -285,7 +265,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!(await validateForm())) return
+    if (!validateForm()) return
     if (!canAddMoreUsers) {
       toast({
         title: "Límite alcanzado",
@@ -327,10 +307,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         setShowSuccessMessage(true)
         setIsCreateModalOpen(false)
         
-        // Auto-hide success message after 10 seconds
-        setTimeout(() => {
-          setShowSuccessMessage(false)
-        }, 10000)
         setFormData({
           email: '',
           role: 'campo'
@@ -339,11 +315,17 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         checkUserLimits()
       } else {
         const error = await response.json()
-        toast({
-          title: "Error",
-          description: error.error || "Error al invitar al usuario",
-          variant: "destructive"
-        })
+        
+        // Si el error está relacionado con email duplicado, mostrarlo en el campo
+        if (error.error && error.error.includes('email')) {
+          setErrors({ email: 'Ya existe un usuario con este email' })
+        } else {
+          toast({
+            title: "Error",
+            description: error.error || "Error al invitar al usuario",
+            variant: "destructive"
+          })
+        }
       }
     } catch (error) {
       console.error('Error creating user:', error)
@@ -499,11 +481,11 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   if (loading) {
     return (
       <div className="flex-1 flex flex-col">
-        <header className="border-b bg-gradient-to-r from-white to-gray-50">
-          <div className="flex h-20 items-center justify-between px-6">
+        <header className="border-b bg-card">
+          <div className="flex h-16 items-center justify-between px-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">Gestión de Usuarios</h1>
-              <p className="text-sm text-gray-600">Cargando información de usuarios...</p>
+              <h1 className="text-xl font-semibold">Gestión de Usuarios</h1>
+              <p className="text-sm text-muted-foreground">Cargando información de usuarios...</p>
             </div>
           </div>
         </header>
@@ -525,27 +507,18 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="border-b bg-gradient-to-r from-white to-gray-50">
-        <div className="flex h-20 items-center justify-between px-6">
+      <header className="border-b bg-card">
+        <div className="flex h-16 items-center justify-between px-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Gestión de Usuarios</h1>
-            <div className="flex items-center gap-4 text-sm">
-              <span className="flex items-center gap-2 text-gray-600">
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {userLimits.current}/{userLimits.max === -1 ? '∞' : userLimits.max} usuarios
-                </span>
-                <span className="text-gray-400">•</span>
-                <span className="font-medium">{currentUser?.tenant?.name || 'Tu Empresa'}</span>
-              </span>
-            </div>
+            <h1 className="text-xl font-semibold">Gestión de Usuarios</h1>
+            <p className="text-sm text-muted-foreground">
+              Gestiona los usuarios que tienen acceso a tu sistema - {currentUser?.tenant?.name || 'Tu Empresa'}
+            </p>
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-right">
-              <p className="text-sm font-semibold text-gray-900">{currentUser?.nombre || currentUser?.email}</p>
-              <p className="text-xs text-gray-500 flex items-center gap-1">
-                <Shield className="h-3 w-3" />
-                {currentUser?.rol || 'Usuario'}
-              </p>
+              <p className="text-sm font-medium">{currentUser?.nombre || currentUser?.email}</p>
+              <p className="text-xs text-muted-foreground">{currentUser?.rol || 'Usuario'}</p>
             </div>
           </div>
         </div>
@@ -554,18 +527,22 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         <div className="max-w-7xl mx-auto space-y-6">
           
       <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Equipo de Trabajo</h2>
-          <p className="text-sm text-gray-600">Gestiona los usuarios que tienen acceso a tu sistema</p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">Equipo de Trabajo</h2>
+            <p className="text-sm text-muted-foreground">Gestiona los usuarios que tienen acceso a tu sistema</p>
+          </div>
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            {userLimits.current}/{userLimits.max === -1 ? '∞' : userLimits.max} usuarios
+          </span>
         </div>
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
             <Button 
               disabled={!canAddMoreUsers}
-              className="gap-2 bg-primary hover:bg-primary/90 shadow-sm"
-              size="lg"
+              className="gap-2"
             >
-              <UserPlus className="h-5 w-5" />
+              <UserPlus className="h-4 w-4" />
               Agregar Usuario
             </Button>
           </DialogTrigger>
@@ -785,11 +762,24 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
       {showSuccessMessage && (
         <Alert className="border-green-200 bg-green-50">
+          {/* Icono principal */}
           <UserPlus className="h-4 w-4 text-green-600" />
+
+          {/* Botón para cerrar (X) */}
+          <Button
+            aria-label="Cerrar"
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowSuccessMessage(false)}
+            className="absolute right-2 top-2 text-green-700 hover:text-green-900 hover:bg-green-100"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+
           <AlertDescription className="text-green-800">
             <strong>¡Invitación enviada exitosamente!</strong>
             <br />
-            Se ha enviado una invitación a <strong>{invitedUserEmail}</strong>. El usuario recibirá un email con las instrucciones para completar su registro.
+            Se ha enviado una invitación por email a <strong>{invitedUserEmail}</strong> con las instrucciones para completar su registro.
             <div className="flex gap-2 mt-3">
               <Button 
                 size="sm" 
@@ -797,14 +787,6 @@ export function UserManagement({ currentUser }: UserManagementProps) {
                 className="bg-green-600 hover:bg-green-700"
               >
                 Continuar gestionando usuarios
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={() => window.location.href = '/usuarios'}
-                className="border-green-300 text-green-700 hover:bg-green-100"
-              >
-                Volver al módulo de usuarios
               </Button>
             </div>
           </AlertDescription>

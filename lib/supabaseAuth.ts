@@ -1477,21 +1477,20 @@ export const authService = {
         .single()
 
       if (workerError) {
-
+        // Continue if worker creation fails
       }
 
-      const { error: updateError } = await supabase
-        // Solo incrementar si el rol es admin/campo/empaque/finanzas
-        if (["admin", "campo", "empaque", "finanzas"].includes(invitation.role_code || 'admin')) {
-  console.log(`[DEBUG] Incrementando current_users para tenant ${invitation.tenant_id} por invitación de rol ${invitation.role_code || 'admin'} (admin setup)`)
-          const { error: updateError } = await supabase
-            .from('tenants')
-            .update({ current_users: tenant.current_users + 1 })
-            .eq('id', invitation.tenant_id)
-          if (updateError) {
-            // Continue if user count update fails
-          }
+      // Solo incrementar si el rol es admin/campo/empaque/finanzas
+      if (["admin", "campo", "empaque", "finanzas"].includes(invitation.role_code || 'admin')) {
+        console.log(`[DEBUG] Incrementando current_users para tenant ${invitation.tenant_id} por invitación de rol ${invitation.role_code || 'admin'} (admin setup)`)
+        const { error: updateError } = await supabase
+          .from('tenants')
+          .update({ current_users: tenant.current_users + 1 })
+          .eq('id', invitation.tenant_id)
+        if (updateError) {
+          // Continue if user count update fails
         }
+      }
 
       await supabase
         .from('invitations')

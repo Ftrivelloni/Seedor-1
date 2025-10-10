@@ -22,44 +22,39 @@ export async function GET(request: Request) {
       return NextResponse.json({ user: null }, { status: 401 });
     }
 
-    const { data: worker, error: workerError } = await supabase
-      .from('workers')
+    // Get user's tenant memberships instead of requiring worker record
+    const { data: memberships, error: membershipError } = await supabase
+      .from('tenant_memberships')
       .select(`
         *,
-        tenant:tenants(*)
+        tenant:tenants(*),
+        profile:profiles!tenant_memberships_user_id_fkey(*)
       `)
-      .eq('email', user.email)
+      .eq('user_id', user.id)
       .eq('status', 'active')
       .single();
 
-    if (workerError || !worker) {
+    if (membershipError || !memberships) {
       return NextResponse.json({ user: null }, { status: 401 });
     }
 
     const roleMap: { [key: string]: string } = {
-      'administracion': 'Admin',
-      'administración': 'Admin',
       'admin': 'Admin',
       'campo': 'Campo',
       'empaque': 'Empaque',
-      'finanzas': 'Finanzas',
-      'general': 'Admin',
-      'administration': 'Admin',
-      'field': 'Campo',
-      'packaging': 'Empaque',
-      'finance': 'Finanzas'
+      'finanzas': 'Finanzas'
     };
     
-    const normalizedAreaModule = worker.area_module.toLowerCase().trim();
+    const normalizedRole = memberships.role_code.toLowerCase().trim();
     const authUser = {
       id: user.id,
-      email: worker.email,
-      nombre: worker.full_name,
-      tenantId: worker.tenant_id,
-      rol: roleMap[normalizedAreaModule] || 'Campo',
-      activo: worker.status === 'active',
-      tenant: worker.tenant,
-      worker: worker,
+      email: user.email,
+      nombre: memberships.profile?.full_name || user.user_metadata?.full_name || user.email,
+      tenantId: memberships.tenant_id,
+      rol: roleMap[normalizedRole] || 'Campo',
+      activo: memberships.status === 'active',
+      tenant: memberships.tenant,
+      membership: memberships,
     };
     
     return NextResponse.json({ user: authUser });

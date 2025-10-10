@@ -124,25 +124,7 @@ export async function POST(request: NextRequest) {
         throw new Error(`Error al crear la membresía: ${membershipError?.message || 'Error desconocido'}`);
       }
 
-      // 6. Create the worker profile
-      const { data: workerResult, error: workerError } = await supabaseAdmin
-        .from('workers')
-        .insert([{
-          tenant_id: tenant.id,
-          full_name: adminFullName,
-          document_id: adminDocumentId || '',
-          email: adminEmail,
-          phone: adminPhone || null,
-          area_module: 'general', // Use 'general' instead of 'admin' to match modules table
-          membership_id: membership.id,
-          status: 'active',
-        }])
-        .select();
-
-      if (workerError || !workerResult || workerResult.length === 0) {
-        console.error('Worker error:', workerError);
-        throw new Error(`Error al crear el perfil: ${workerError?.message || 'Error desconocido'}`);
-      }
+      // Note: Workers module is now independent - no automatic worker creation
 
       // 7. Enable default modules
       const defaultModules = ['campo', 'empaque', 'finanzas', 'inventario'];
@@ -173,7 +155,6 @@ export async function POST(request: NextRequest) {
       // Cleanup on error
       if (createdTenantId) {
         await supabaseAdmin.from('tenant_modules').delete().eq('tenant_id', createdTenantId);
-        await supabaseAdmin.from('workers').delete().eq('tenant_id', createdTenantId);
         await supabaseAdmin.from('tenant_memberships').delete().eq('tenant_id', createdTenantId);
         await supabaseAdmin.from('tenants').delete().eq('id', createdTenantId);
       }
