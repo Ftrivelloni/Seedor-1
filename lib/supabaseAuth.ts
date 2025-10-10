@@ -195,7 +195,7 @@ export const authService = {
           created_by: session.user.id,
           max_users: limits.maxUsers,
           max_fields: limits.maxFields, 
-          current_users: 1,
+          current_users: 0,
           current_fields: 0
         }])
         .select()
@@ -760,13 +760,16 @@ export const authService = {
         // Continue if profile update fails
       }
 
-      const { error: updateError } = await supabase
-        .from('tenants')
-        .update({ current_users: tenant.current_users + 1 })
-        .eq('id', invitation.tenant_id)
-
-      if (updateError) {
-        // Continue if user count update fails
+      // Solo incrementar si el rol es admin/campo/empaque/finanzas, y siempre que se confirma el formulario
+      if (["admin", "campo", "empaque", "finanzas"].includes(invitation.role_code)) {
+        console.log(`[DEBUG] Incrementando current_users para tenant ${invitation.tenant_id} por confirmación de formulario de invitación, rol ${invitation.role_code}`)
+        const { error: updateError } = await supabase
+          .from('tenants')
+          .update({ current_users: tenant.current_users + 1 })
+          .eq('id', invitation.tenant_id)
+        if (updateError) {
+          // Continue if user count update fails
+        }
       }
 
       await supabase
@@ -890,13 +893,28 @@ export const authService = {
         // Continue if profile update fails
       }
 
-      const { error: updateError } = await supabase
-        .from('tenants')
-        .update({ current_users: tenant.current_users + 1 })
-        .eq('id', invitation.tenant_id)
-
-      if (updateError) {
-        // Continue if user count update fails
+      // Solo incrementar si el rol es admin/campo/empaque/finanzas Y el usuario no tiene ya membresía activa para ese rol y tenant
+      if (["admin", "campo", "empaque", "finanzas"].includes(invitation.role_code)) {
+        const { data: existingMembership } = await supabase
+          .from('tenant_memberships')
+          .select('id')
+          .eq('tenant_id', invitation.tenant_id)
+          .eq('user_id', session.user.id)
+          .eq('role_code', invitation.role_code)
+          .eq('status', 'active')
+          .maybeSingle();
+        if (!existingMembership) {
+          console.log(`[DEBUG] Incrementando current_users para tenant ${invitation.tenant_id} por invitación de rol ${invitation.role_code}`)
+          const { error: updateError } = await supabase
+            .from('tenants')
+            .update({ current_users: tenant.current_users + 1 })
+            .eq('id', invitation.tenant_id)
+          if (updateError) {
+            // Continue if user count update fails
+          }
+        } else {
+          console.log(`[DEBUG] NO se incrementa current_users porque ya existe membresía activa para ese usuario, tenant y rol`)
+        }
       }
 
       await supabase
@@ -1463,13 +1481,17 @@ export const authService = {
       }
 
       const { error: updateError } = await supabase
-        .from('tenants')
-        .update({ current_users: tenant.current_users + 1 })
-        .eq('id', invitation.tenant_id)
-
-      if (updateError) {
-
-      }
+        // Solo incrementar si el rol es admin/campo/empaque/finanzas
+        if (["admin", "campo", "empaque", "finanzas"].includes(invitation.role_code || 'admin')) {
+  console.log(`[DEBUG] Incrementando current_users para tenant ${invitation.tenant_id} por invitación de rol ${invitation.role_code || 'admin'} (admin setup)`)
+          const { error: updateError } = await supabase
+            .from('tenants')
+            .update({ current_users: tenant.current_users + 1 })
+            .eq('id', invitation.tenant_id)
+          if (updateError) {
+            // Continue if user count update fails
+          }
+        }
 
       await supabase
         .from('invitations')

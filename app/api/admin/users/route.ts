@@ -249,6 +249,29 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update user role' }, { status: 500 });
     }
 
+    // Si el usuario es nuevo y el rol es admin/campo/empaque/finanzas, incrementar current_users
+    const incrementRoles = ['admin', 'campo', 'empaque', 'finanzas'];
+    if (incrementRoles.includes(role)) {
+      // Obtener el valor actual y sumar 1
+      const { data: tenantData, error: tenantError } = await supabaseAdmin
+        .from('tenants')
+        .select('current_users')
+        .eq('id', currentMembership.tenant_id)
+        .single();
+      if (!tenantError && tenantData && typeof tenantData.current_users === 'number') {
+        const newCurrent = tenantData.current_users + 1;
+        const { error: updateTenantError } = await supabaseAdmin
+          .from('tenants')
+          .update({ current_users: newCurrent })
+          .eq('id', currentMembership.tenant_id);
+        if (updateTenantError) {
+          console.error('❌ Error incrementing current_users:', updateTenantError);
+        } else {
+          console.log('✅ Incremented current_users in tenants');
+        }
+      }
+    }
+
     // Also update the workers table if exists
     console.log('🔄 Updating area_module in workers table for membership_id:', targetMembership.id, 'to role:', role);
     
@@ -399,7 +422,11 @@ export async function DELETE(request: NextRequest) {
       console.log('ℹ️ No worker record to delete for membership_id:', targetMembership.id);
     }
 
-    // Delete from tenant_memberships
+    // Antes de eliminar, obtener el rol para saber si hay que decrementar current_users
+    const userRole = targetMembership.role_code;
+    const decrementRoles = ['admin', 'campo', 'empaque', 'finanzas'];
+
+    // Eliminar de tenant_memberships
     console.log('🗑️ Deleting from tenant_memberships for id:', targetMembership.id);
     const { error: membershipDeleteError } = await supabaseAdmin
       .from('tenant_memberships')
@@ -410,8 +437,29 @@ export async function DELETE(request: NextRequest) {
       console.error('❌ Error deleting from tenant_memberships:', membershipDeleteError);
       return NextResponse.json({ error: 'Failed to delete user membership' }, { status: 500 });
     }
-    
     console.log('✅ Successfully deleted from tenant_memberships');
+
+    // Si el rol era uno de los que cuentan, decrementar current_users
+    if (decrementRoles.includes(userRole)) {
+      // Decrementar automáticamente sin depender de la existencia previa
+      const { data: tenantData, error: tenantError } = await supabaseAdmin
+        .from('tenants')
+        .select('current_users')
+        .eq('id', currentMembership.tenant_id)
+        .single();
+      if (!tenantError && tenantData && typeof tenantData.current_users === 'number') {
+        const newCurrent = Math.max(0, tenantData.current_users - 1);
+        const { error: updateTenantError } = await supabaseAdmin
+          .from('tenants')
+          .update({ current_users: newCurrent })
+          .eq('id', currentMembership.tenant_id);
+        if (updateTenantError) {
+          console.error('❌ Error decrementing current_users:', updateTenantError);
+        } else {
+          console.log('✅ Decremented current_users in tenants');
+        }
+      }
+    }
 
     // Final verification: ensure no orphaned workers remain for this specific user
     // Only if we didn't delete a worker above
