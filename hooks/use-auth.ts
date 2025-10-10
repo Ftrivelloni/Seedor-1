@@ -26,6 +26,7 @@ export function useAuth(options: {
   
   const sessionCheckAttempted = useRef(false);
   const isSubpageUsingLayout = useRef(useLayoutSession);
+  const initialLoadComplete = useRef(false);
   
   const [authChecking, setAuthChecking] = useState(true);
   
@@ -40,9 +41,9 @@ export function useAuth(options: {
       let tabUser = sessionManager.getCurrentUser();
       
       if (tabUser) {
-
         setActiveUser(tabUser);
         setAuthChecking(false);
+        initialLoadComplete.current = true;
         return;
       }
 
@@ -52,6 +53,7 @@ export function useAuth(options: {
       if (sessionUser) {
         setActiveUser(sessionUser);
         setAuthChecking(false);
+        initialLoadComplete.current = true;
         return;
       }
       
@@ -60,25 +62,30 @@ export function useAuth(options: {
       }
       
       setAuthChecking(false);
+      initialLoadComplete.current = true;
       
       if (redirectToLogin && !isSubpageUsingLayout.current) {
         // Only redirect to login if we're sure there's no valid session
         // Add a longer delay to allow context and session to load
+        // Also check if we have required roles - if we do, be more patient before redirecting
+        const delay = requireRoles.length > 0 ? 1500 : 500;
         setTimeout(() => {
           if (!getParentUser() && !activeUser && !contextUser) {
             router.push("/login");
           }
-        }, 500);
+        }, delay);
       }
     } catch (err) {
       console.error('Error checking session:', err);
       setAuthChecking(false);
+      initialLoadComplete.current = true;
     }
   };
 
   useEffect(() => {
     if (isSubpageUsingLayout.current) {
       setAuthChecking(false);
+      initialLoadComplete.current = true;
       return;
     }
     
@@ -89,6 +96,7 @@ export function useAuth(options: {
     if (tabUser) {
       setActiveUser(tabUser);
       setAuthChecking(false);
+      initialLoadComplete.current = true;
       return;
     }
     
@@ -96,6 +104,7 @@ export function useAuth(options: {
     if (contextUser) {
       setActiveUser(contextUser);
       setAuthChecking(false);
+      initialLoadComplete.current = true;
       return;
     }
     
@@ -104,6 +113,7 @@ export function useAuth(options: {
       checkAndGetSession();
     } else {
       setAuthChecking(false);
+      initialLoadComplete.current = true;
     }
   }, [contextUser, contextLoading, router, redirectToLogin]);
 
@@ -196,6 +206,11 @@ export function useAuth(options: {
       return;
     }
     
+    // Don't validate if initial load is not complete
+    if (!initialLoadComplete.current) {
+      return;
+    }
+    
     // Don't validate if no user
     if (!currentUser) {
       return;
@@ -211,24 +226,31 @@ export function useAuth(options: {
       return;
     }
     
+    // Get current path to determine if we should allow staying on this page
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+    
     // Check if user has required role
     const userRole = currentUser.rol.toLowerCase();
     const hasValidRole = requireRoles.some(role => role.toLowerCase() === userRole);
     
-    // Only redirect if user definitely doesn't have access
-    if (!hasValidRole) {
+    // Only redirect if user definitely doesn't have access AND this is not a page refresh scenario
+    if (!hasValidRole && sessionCheckAttempted.current && initialLoadComplete.current) {
+      // If we're on /usuarios and user doesn't have admin role, redirect
+      // But add extra protection for page refreshes
       const redirectTimer = setTimeout(() => {
-        // Double-check before redirecting
+        // Final verification before redirecting
         if (currentUser && 
             currentUser.rol && 
             !authChecking && 
             !contextLoading &&
+            sessionCheckAttempted.current &&
+            initialLoadComplete.current &&
             !requireRoles.some(role => role.toLowerCase() === currentUser.rol.toLowerCase())) {
           
-          console.log('🔄 User role mismatch, redirecting to home. User role:', currentUser.rol, 'Required:', requireRoles);
+          console.log('🔄 User role mismatch, redirecting to home. User role:', currentUser.rol, 'Required:', requireRoles, 'Current path:', currentPath);
           router.replace("/home");
         }
-      }, 1000); // Longer delay to allow navigation to complete
+      }, 3000); // Even longer delay to ensure this is not a refresh scenario
       
       return () => clearTimeout(redirectTimer);
     }
