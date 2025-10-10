@@ -98,7 +98,7 @@ function EmpaqueLayoutContent({
               finanzas: "/finanzas",
               ajustes: "/ajustes",
               trabajadores: "/trabajadores",
-              usuarios: "/home",
+              usuarios: "/usuarios",
               contactos: "/contactos",
             };
 

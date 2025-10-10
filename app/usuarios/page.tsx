@@ -13,10 +13,6 @@ export default function UsuariosRoutePage() {
   });
   const router = useRouter();
 
-  // Debug logging
-  console.log('🔍 UsuariosPage: user:', user);
-  console.log('🔍 UsuariosPage: user.rol:', user?.rol);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -33,6 +29,8 @@ export default function UsuariosRoutePage() {
     )
   }
 
+
+
   return (
     <FeatureProvider user={user}>
       <div className="min-h-screen bg-background flex">
@@ -40,22 +38,20 @@ export default function UsuariosRoutePage() {
           user={user} 
           onLogout={handleLogout}
           onNavigate={(page) => {
-            // Solo navegar si no es la página actual
-            if (page !== "usuarios") {
-              const pageRoutes: Record<string, string> = {
-                dashboard: "/home",
-                campo: "/campo",
-                empaque: "/empaque",
-                inventario: "/inventario",
-                finanzas: "/finanzas",
-                ajustes: "/ajustes",
-                trabajadores: "/trabajadores",
-                contactos: "/contactos",
-              };
+            const pageRoutes: Record<string, string> = {
+              dashboard: "/home",
+              campo: "/campo",
+              empaque: "/empaque",
+              inventario: "/inventario",
+              finanzas: "/finanzas",
+              ajustes: "/ajustes",
+              trabajadores: "/trabajadores",
+              contactos: "/contactos",
+              usuarios: "/usuarios"
+            };
 
-              const targetRoute = pageRoutes[page] || "/home";
-              router.push(targetRoute);
-            }
+            const targetRoute = pageRoutes[page] || "/home";
+            router.push(targetRoute);
           }}
           currentPage="usuarios"
         />

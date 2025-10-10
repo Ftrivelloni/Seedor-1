@@ -62,11 +62,13 @@ export function useAuth(options: {
       setAuthChecking(false);
       
       if (redirectToLogin && !isSubpageUsingLayout.current) {
+        // Only redirect to login if we're sure there's no valid session
+        // Add a longer delay to allow context and session to load
         setTimeout(() => {
           if (!getParentUser() && !activeUser && !contextUser) {
             router.push("/login");
           }
-        }, 100);
+        }, 500);
       }
     } catch (err) {
       console.error('Error checking session:', err);
@@ -169,9 +171,13 @@ export function useAuth(options: {
   // Usar peek para evitar efectos secundarios durante logout
   const tabUser = activeUser ? null : sessionManager.peekCurrentUser();
   
-  // Prioridad: parentUser (empaque) > activeUser (estado local) > tabUser (sessionManager) > contextUser (global)
-  // Si activeUser es null explícitamente (logout), solo usar parentUser
-  const currentUser = parentUser || (activeUser === null ? null : (activeUser || tabUser || contextUser));
+  // Prioridad depende de useLayoutSession:
+  // - Si useLayoutSession=true: parentUser (empaque) > activeUser > tabUser > contextUser
+  // - Si useLayoutSession=false: activeUser > tabUser > contextUser (IGNORAR parentUser)
+  // Esto evita que el usuario de empaque interfiera con otras páginas
+  const currentUser = useLayoutSession 
+    ? (parentUser || (activeUser === null ? null : (activeUser || tabUser || contextUser)))
+    : (activeUser === null ? null : (activeUser || tabUser || contextUser));
   
   const hasRequiredRole = isSubpageUsingLayout.current ? true : (
     !currentUser ? false : (
@@ -185,26 +191,46 @@ export function useAuth(options: {
   useEffect(() => {
     if (isSubpageUsingLayout.current) return;
     
+    // Don't do anything while still loading
     if (authChecking || contextLoading) {
       return;
     }
     
-    // Si no hay usuario, no hacer validaciones de roles
+    // Don't validate if no user
     if (!currentUser) {
       return;
     }
     
-    // Si el usuario no tiene rol, probablemente esté en proceso de logout
-    // No hacer validaciones en este caso
+    // Don't validate if no role (user might be logging out)
     if (!currentUser.rol) {
-
       return;
     }
     
-    // Solo validar roles si hay usuario completo con rol
-    if (requireRoles.length > 0 && !hasRequiredRole) {
-      console.log('🚨 useAuth: Role validation failed. Required:', requireRoles, 'User role:', currentUser?.rol, 'Redirecting to /home');
-      router.push("/home");
+    // Don't validate if no roles required
+    if (requireRoles.length === 0) {
+      return;
+    }
+    
+    // Check if user has required role
+    const userRole = currentUser.rol.toLowerCase();
+    const hasValidRole = requireRoles.some(role => role.toLowerCase() === userRole);
+    
+    // Only redirect if user definitely doesn't have access
+    if (!hasValidRole) {
+      const redirectTimer = setTimeout(() => {
+        // Double-check before redirecting
+        if (currentUser && 
+            currentUser.rol && 
+            !authChecking && 
+            !contextLoading &&
+            !requireRoles.some(role => role.toLowerCase() === currentUser.rol.toLowerCase())) {
+          
+          console.log('🔄 User role mismatch, redirecting to home. User role:', currentUser.rol, 'Required:', requireRoles);
+          router.replace("/home");
+        }
+      }, 1000); // Longer delay to allow navigation to complete
+      
+      return () => clearTimeout(redirectTimer);
     }
   }, [currentUser, hasRequiredRole, requireRoles, router, authChecking, contextLoading]);
 

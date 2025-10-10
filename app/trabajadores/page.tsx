@@ -14,7 +14,8 @@ export default function TrabajadoresRoutePage() {
   const router = useRouter();
 
   // Debug logs
-  console.log('👷 Trabajadores Page - User:', user?.email, 'Rol:', user?.rol, 'Loading:', loading);
+  console.log('👷 Trabajadores Page - User:', user?.email, 'Rol:', user?.rol, 'TenantId:', user?.tenantId, 'Loading:', loading);
+  console.log('👷 Full user object:', user);
 
   if (loading) {
     return (
@@ -48,6 +49,7 @@ export default function TrabajadoresRoutePage() {
               ajustes: "/ajustes",
               trabajadores: "/trabajadores",
               contactos: "/contactos",
+              usuarios: "/usuarios"
             };
 
             const targetRoute = pageRoutes[page] || "/home";
