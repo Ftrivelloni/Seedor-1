@@ -28,13 +28,28 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
-    loadWorkers()
-  }, [refreshKey])
+    console.log('👷 TrabajadoresPage - User tenantId:', user?.tenantId)
+    if (user?.tenantId) {
+      loadWorkers()
+    } else {
+      console.error('❌ No tenantId available, stopping loading')
+      setLoading(false)
+    }
+  }, [refreshKey, user?.tenantId])
 
   const loadWorkers = async () => {
+    if (!user?.tenantId) {
+      console.error("❌ loadWorkers: No tenantId available")
+      setLoading(false)
+      return
+    }
+    
+    console.log('📋 Loading workers for tenant:', user.tenantId)
+    
     try {
       setLoading(true)
-      const data = await workersApi.getWorkersByTenant(user?.tenantId || "", true)
+      const data = await workersApi.getWorkersByTenant(user.tenantId, true)
+      console.log('✅ Workers loaded successfully:', data.length, 'workers')
       setWorkers(data)
       
       // Auto-select first active worker if none selected
@@ -59,8 +74,17 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
   }
 
   const handleCreateWorker = async (data: WorkerFormData) => {
+    if (!user?.tenantId) {
+      toast({
+        title: "Error",
+        description: "No se pudo obtener el ID del tenant",
+        variant: "destructive"
+      })
+      return
+    }
+    
     try {
-      await workersApi.createWorker(user?.tenantId || "", data)
+      await workersApi.createWorker(user.tenantId, data)
       toast({
         title: "Éxito",
         description: "Trabajador creado correctamente"
@@ -373,12 +397,16 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
               <Card className="p-12 text-center">
                 <p className="text-muted-foreground">No hay trabajadores activos</p>
               </Card>
-            ) : (
+            ) : user?.tenantId ? (
               <DailyAttendance
                 workers={activeWorkers}
-                tenantId={user?.tenantId || ""}
+                tenantId={user.tenantId}
                 onSuccess={handleAttendanceSuccess}
               />
+            ) : (
+              <Card className="p-12 text-center">
+                <p className="text-muted-foreground text-red-600">Error: No se encontró el ID del tenant</p>
+              </Card>
             )}
             </TabsContent>
 
@@ -411,11 +439,11 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
                   </div>
                 </Card>
 
-                {selectedWorkerData && (
+                {selectedWorkerData && user?.tenantId && (
                   <AttendanceHistory
                     key={selectedWorkerForHistory}
                     worker={selectedWorkerData}
-                    tenantId={user?.tenantId || ""}
+                    tenantId={user.tenantId}
                   />
                 )}
               </div>

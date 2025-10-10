@@ -104,29 +104,6 @@ export interface CreateWorkerRequest {
   tenant_id: string
 }
 
-// Tipos para Asistencias (Attendance)
-export interface AttendanceRecord {
-  id: string
-  tenant_id: string
-  worker_id: string
-  date: string
-  status: string
-  reason: string | null
-  created_at: string
-}
-
-export interface AttendanceStatus {
-  code: string
-  name: string
-}
-
-export interface CreateAttendanceData {
-  worker_id: string
-  date: string
-  status: string
-  reason?: string
-}
-
 // Tipos para Farms (Campos)
 export interface Farm {
   id: string
@@ -170,45 +147,6 @@ export interface CreateLotData {
   area_ha?: number
   plant_date?: string
   status: string
-}
-
-// Tipos para Tasks (Tareas de Lotes)
-export interface Task {
-  id: string
-  tenant_id: string
-  farm_id: string
-  lot_id: string | null
-  title: string
-  description: string | null
-  type_code: string
-  status_code: string
-  scheduled_date: string | null
-  responsible_membership_id: string | null
-  worker_id: string | null
-  created_by: string
-  created_at: string
-}
-
-export interface TaskStatus {
-  code: string
-  name: string
-}
-
-export interface TaskType {
-  code: string
-  name: string
-}
-
-export interface CreateTaskData {
-  farm_id: string
-  lot_id: string | null
-  title: string
-  description?: string
-  type_code?: string
-  status_code: string
-  scheduled_date?: string
-  responsible_membership_id?: string | null
-  worker_id?: string | null
 }
 
 export interface TenantModule {
