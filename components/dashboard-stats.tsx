@@ -160,7 +160,7 @@ export function DashboardStats() {
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Empaque */}
-          <Card className="border-seedor/20 bg-gradient-to-br from-white to-seedor/5 dark:from-neutral-900 dark:to-neutral-900">
+          <Card className="border-seedor/20 bg-white dark:bg-neutral-900">
             <CardHeader className="flex flex-row items-start gap-3">
               <EmpaqueIcon />
               <div>
@@ -184,7 +184,7 @@ export function DashboardStats() {
           </Card>
 
           {/* Campo */}
-          <Card className="border-emerald-200/30 bg-gradient-to-br from-white to-emerald-50 dark:from-neutral-900 dark:to-emerald-900/10">
+          <Card className="border-emerald-200/30 bg-white dark:bg-neutral-900">
             <CardHeader className="flex flex-row items-start gap-3">
               <CampoIcon />
               <div>
@@ -230,7 +230,7 @@ export function DashboardStats() {
           {/* Placeholder squares */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
             {/* Inventario */}
-            <Card className="h-full border-sky-200/40 bg-gradient-to-br from-white to-sky-50 dark:from-neutral-900 dark:to-sky-900/10">
+            <Card className="h-full border-sky-200/40 bg-white dark:bg-neutral-900">
               <CardHeader className="flex flex-row items-start gap-3">
                 <InventarioIcon />
                 <CardTitle>Inventario</CardTitle>
@@ -265,7 +265,7 @@ export function DashboardStats() {
             </Card>
 
             {/* Finanzas */}
-            <Card className="h-full border-amber-200/40 bg-gradient-to-br from-white to-amber-50 dark:from-neutral-900 dark:to-amber-900/10">
+            <Card className="h-full border-amber-200/40 bg-white dark:bg-neutral-900">
               <CardHeader className="flex flex-row items-start gap-3">
                 <FinanzasIcon />
                 <CardTitle>Finanzas</CardTitle>
@@ -300,7 +300,7 @@ export function DashboardStats() {
             </Card>
 
             {/* Trabajadores - Asistencia de hoy */}
-            <Card className="h-full border-violet-200/40 bg-gradient-to-br from-white to-violet-50 dark:from-neutral-900 dark:to-violet-900/10">
+            <Card className="h-full border-violet-200/40 bg-white dark:bg-neutral-900">
               <CardHeader className="flex flex-row items-start gap-3">
                 <TrabajadoresIcon />
                 <div>
