@@ -1,34 +1,41 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Sidebar } from "../../components/sidebar"
 import { UserManagement } from "../../components/admin/user-management"
 import { useAuth } from "../../hooks/use-auth"
 import { FeatureProvider } from "../../lib/features-context"
 
 export default function UsuariosRoutePage() {
-  const { user, loading, handleLogout, hasRequiredRole } = useAuth({
-    redirectToLogin: true,
-    requireRoles: ["admin"]
+  // Usar useAuth SIN requireRoles para evitar redirecciones automáticas
+  const { user, loading, handleLogout } = useAuth({
+    redirectToLogin: true
   });
   const router = useRouter();
-  const [shouldRender, setShouldRender] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
-  // Delay rendering until auth is fully resolved to prevent unwanted redirects
+  // Verificar autorización manualmente después de cargar
   useEffect(() => {
     if (!loading && user) {
-      // Extra delay to ensure auth state is stable
-      const timer = setTimeout(() => {
-        setShouldRender(true);
-      }, 200);
+      // Verificar si el usuario tiene rol admin
+      const hasAdminRole = user.rol?.toLowerCase() === 'admin';
+      setIsAuthorized(hasAdminRole);
       
-      return () => clearTimeout(timer);
+      // Solo redirigir si definitivamente NO tiene acceso
+      if (!hasAdminRole) {
+        console.log('👤 User does not have admin role, redirecting to home');
+        setTimeout(() => {
+          router.push('/home');
+        }, 1000);
+      }
     }
-  }, [loading, user]);
+  }, [user, loading, router]);
 
-  // Show loading while auth is resolving
-  if (loading || !shouldRender) {
+  // Debug logs
+  console.log('👤 Usuarios Page - User:', user?.email, 'Rol:', user?.rol, 'Loading:', loading, 'Authorized:', isAuthorized);
+
+  if (loading || isAuthorized === null) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -36,9 +43,7 @@ export default function UsuariosRoutePage() {
     )
   }
   
-  // If no user after loading, redirect to login
   if (!user) {
-    router.push("/login");
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -46,9 +51,8 @@ export default function UsuariosRoutePage() {
     )
   }
 
-  // Check if user has admin role - if not, redirect manually
-  if (user.rol?.toLowerCase() !== "admin") {
-    router.push("/home");
+  // Si no está autorizado, mostrar loading mientras redirige
+  if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

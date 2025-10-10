@@ -25,9 +25,7 @@ export interface WorkerFormData {
 
 const AREA_MODULES = [
   { value: "campo", label: "Campo" },
-  { value: "empaque", label: "Empaque" },
-  { value: "finanzas", label: "Finanzas" },
-  { value: "admin", label: "Administración" }
+  { value: "empaque", label: "Empaque" }
 ]
 
 export function WorkerFormModal({ isOpen, onClose, onSubmit, worker }: WorkerFormModalProps) {
@@ -42,12 +40,15 @@ export function WorkerFormModal({ isOpen, onClose, onSubmit, worker }: WorkerFor
 
   useEffect(() => {
     if (worker) {
+      // Solo permitir 'campo' o 'empaque' al editar
+      const allowedAreas = ["campo", "empaque"] as const
+      const safeArea = allowedAreas.includes(worker.area_module as any) ? worker.area_module : "campo"
       setFormData({
         full_name: worker.full_name,
         document_id: worker.document_id,
         email: worker.email,
         phone: worker.phone || "",
-        area_module: worker.area_module
+        area_module: safeArea
       })
     } else {
       setFormData({

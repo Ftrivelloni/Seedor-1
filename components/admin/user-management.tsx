@@ -525,28 +525,21 @@ export function UserManagement({ currentUser }: UserManagementProps) {
       </header>
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-6">
-          
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
-          <div>
-            <h2 className="text-lg font-semibold">Equipo de Trabajo</h2>
-            <p className="text-sm text-muted-foreground">Gestiona los usuarios que tienen acceso a tu sistema</p>
-          </div>
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            {userLimits.current}/{userLimits.max === -1 ? '∞' : userLimits.max} usuarios
-          </span>
-        </div>
-        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              disabled={!canAddMoreUsers}
-              className="gap-2"
-            >
-              <UserPlus className="h-4 w-4" />
-              Agregar Usuario
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <div className="flex justify-between items-center mb-6">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              {userLimits.current}/{userLimits.max === -1 ? '∞' : userLimits.max} usuarios
+            </span>
+            <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  disabled={!canAddMoreUsers}
+                  className="gap-2"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Agregar Usuario
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="text-xl flex items-center gap-2">
                 <UserPlus className="h-5 w-5 text-primary" />
@@ -760,38 +753,24 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         </Alert>
       )}
 
-      {showSuccessMessage && (
-        <Alert className="border-green-200 bg-green-50">
-          {/* Icono principal */}
-          <UserPlus className="h-4 w-4 text-green-600" />
-
-          {/* Botón para cerrar (X) */}
-          <Button
-            aria-label="Cerrar"
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowSuccessMessage(false)}
-            className="absolute right-2 top-2 text-green-700 hover:text-green-900 hover:bg-green-100"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-
-          <AlertDescription className="text-green-800">
-            <strong>¡Invitación enviada exitosamente!</strong>
-            <br />
-            Se ha enviado una invitación por email a <strong>{invitedUserEmail}</strong> con las instrucciones para completar su registro.
-            <div className="flex gap-2 mt-3">
-              <Button 
-                size="sm" 
-                onClick={() => setShowSuccessMessage(false)}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                Continuar gestionando usuarios
-              </Button>
+      {/* Modal de éxito para invitación enviada */}
+      <Dialog open={showSuccessMessage} onOpenChange={setShowSuccessMessage}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              </div>
+              <DialogTitle className="text-green-800">¡Invitación enviada exitosamente!</DialogTitle>
             </div>
-          </AlertDescription>
-        </Alert>
-      )}
+          </DialogHeader>
+          <DialogDescription className="text-gray-600">
+            Se ha enviado una invitación por email a{' '}
+            <span className="font-semibold text-gray-800">{invitedUserEmail}</span>{' '}
+            con las instrucciones para completar su registro.
+          </DialogDescription>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-6">
         {users.map((user) => {
