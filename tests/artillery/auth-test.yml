@@ -1,0 +1,28 @@
+config:
+  target: "https://seedor-1.vercel.app"
+  phases:
+    - duration: 30
+      arrivalRate: 1
+      name: "Test de autenticación"
+  processor: "./processor.js"
+  plugins:
+    metrics-by-endpoint: {}
+
+scenarios:
+  - name: "Solo prueba de autenticación"
+    flow:
+      # Visitar la página de login
+      - get:
+          url: "/login"
+          afterResponse: "logResponse"
+      
+      # Proceso de login con credenciales de demo
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "demo@seedor.com"
+            password: "demo123"
+            remember: true
+          expect:
+            - statusCode: 200
+          afterResponse: "logResponse"

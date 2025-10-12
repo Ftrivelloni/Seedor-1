@@ -31,30 +31,60 @@ function generateRandomData(requestParams, context, ee, next) {
 }
 
 /**
- * Extrae tokens de autenticación de las respuestas
+ * Extrae cookies de autenticación de las respuestas
  */
 function extractAuthToken(requestParams, response, context, ee, next) {
-  if (response.statusCode === 200 && response.body) {
-    try {
-      const body = JSON.parse(response.body);
-      if (body.token) {
-        context.vars.authToken = body.token;
+  console.log(`Respuesta de autenticación - Código: ${response.statusCode}`);
+  
+  // Extraer cookies de la respuesta
+  if (response.headers && response.headers['set-cookie']) {
+    const cookies = response.headers['set-cookie'];
+    console.log('Cookies recibidas:', cookies);
+    
+    // Buscar la cookie de sesión
+    const sessionCookie = cookies.find(cookie => cookie.includes('seedor_session'));
+    if (sessionCookie) {
+      const match = sessionCookie.match(/seedor_session=([^;]+)/);
+      if (match && match[1]) {
+        context.vars.sessionToken = match[1];
+        console.log('Cookie de sesión extraída correctamente');
       }
-    } catch (error) {
-      console.error('Error al procesar la respuesta de autenticación:', error);
     }
   }
+  
+  if (response.body) {
+    try {
+      const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+      console.log('Contenido de respuesta:', JSON.stringify(body).substring(0, 200));
+      
+      if (body && body.token) {
+        context.vars.authToken = body.token;
+        console.log('Token extraído correctamente del cuerpo');
+      }
+    } catch (error) {
+      console.log('La respuesta no es un JSON válido o no contiene token');
+    }
+  }
+  
   return next();
 }
 
 /**
- * Añade cabeceras de autenticación a las solicitudes
+ * Añade cabeceras de autenticación o cookies a las solicitudes
  */
 function addAuthHeaders(requestParams, context, ee, next) {
+  requestParams.headers = requestParams.headers || {};
+  
+  // Si tenemos un token de JWT, lo añadimos como header de Authorization
   if (context.vars.authToken) {
-    requestParams.headers = requestParams.headers || {};
     requestParams.headers['Authorization'] = `Bearer ${context.vars.authToken}`;
   }
+  
+  // Si tenemos una cookie de sesión, la añadimos
+  if (context.vars.sessionToken) {
+    requestParams.headers['Cookie'] = `seedor_session=${context.vars.sessionToken}`;
+  }
+  
   return next();
 }
 
@@ -62,9 +92,25 @@ function addAuthHeaders(requestParams, context, ee, next) {
  * Registra información de respuesta para depuración
  */
 function logResponse(requestParams, response, context, ee, next) {
+  // Registra todas las respuestas para mejor depuración
+  const urlPath = requestParams.url || 'desconocida';
+  
   if (response.statusCode >= 400) {
-    console.log(`Error ${response.statusCode} en ${requestParams.url}: ${response.body}`);
+    console.log(`❌ ERROR ${response.statusCode} en ${urlPath}`);
+    if (response.body) {
+      try {
+        // Intenta parsear como JSON si es posible
+        const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+        console.log(`Detalles: ${JSON.stringify(body).substring(0, 200)}`);
+      } catch (e) {
+        // Si no es JSON, muestra como texto
+        console.log(`Detalles: ${response.body.substring(0, 200)}`);
+      }
+    }
+  } else {
+    console.log(`✅ ${response.statusCode} OK en ${urlPath}`);
   }
+  
   return next();
 }
 

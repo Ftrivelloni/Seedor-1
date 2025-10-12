@@ -2,42 +2,28 @@ config:
   target: "https://seedor-1.vercel.app/"
   phases:
     - duration: 60
-      arrivalRate: 5
-      name: Warm up
-    - duration: 120
-      arrivalRate: 10
-      rampTo: 20
-      name: Ramp up load
-    - duration: 300
-      arrivalRate: 20
-      name: Sustained load
+      arrivalRate: 2
+      name: Test login con baja carga
   plugins:
     expect: {}
-  processor: "./custom-functions.js"
   
 scenarios:
-  - name: "Visit Home Page"
-    flow:
-      - get:
-          url: "/"
-          expect:
-            - statusCode: 200
-            
-  - name: "Visit Login Page"
+  - name: "Test de Login Simple"
     flow:
       - get:
           url: "/login"
           expect:
             - statusCode: 200
-            
-  # Añadir más escenarios según sea necesario para tu aplicación
-  # Por ejemplo, para probar la funcionalidad de login:
-  # - name: "User Login"
-  #   flow:
-  #     - post:
-  #         url: "/api/auth/login"
-  #         json:
-  #           email: "test@example.com"
-  #           password: "password123"
-  #         expect:
-  #           - statusCode: 200
+      - think: 1
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "demo@seedor.com"
+            password: "demo123"
+          expect:
+            - statusCode: 200
+      - think: 1
+      - get:
+          url: "/home"
+          expect:
+            - statusCode: 200

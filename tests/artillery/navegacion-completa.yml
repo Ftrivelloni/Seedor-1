@@ -1,0 +1,162 @@
+config:
+  target: "https://seedor-1.vercel.app/"
+  phases:
+    - duration: 60
+      arrivalRate: 2
+      name: Fase inicial con baja carga
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 10
+      name: Fase intermedia con carga creciente
+    - duration: 60
+      arrivalRate: 10
+      name: Fase final con carga constante
+  plugins:
+    expect: {}
+  
+scenarios:
+  - name: "Test de Navegación Completa"
+    weight: 70
+    flow:
+      # Paso 1: Visitar la página de login
+      - get:
+          url: "/login"
+          expect:
+            - statusCode: 200
+      - think: 1
+
+      # Paso 2: Realizar el login
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "demo@seedor.com"
+            password: "demo123"
+          expect:
+            - statusCode: 200
+      - think: 2
+
+      # Paso 3: Visitar la página principal (home)
+      - get:
+          url: "/home"
+          expect:
+            - statusCode: 200
+      - think: 2
+
+      # Paso 4: Visitar la sección de campo
+      - get:
+          url: "/campo"
+          expect:
+            - statusCode: 200
+      - think: 2
+
+      # Paso 5: Visitar la sección de empaque
+      - get:
+          url: "/empaque"
+          expect:
+            - statusCode: 200
+      - think: 2
+
+      # Paso 6: Visitar algunas subsecciones de empaque
+      - get:
+          url: "/empaque/ingreso-fruta"
+          expect:
+            - statusCode: 200
+      - think: 1
+      - get:
+          url: "/empaque/egreso-fruta"
+          expect:
+            - statusCode: 200
+      - think: 1
+      - get:
+          url: "/empaque/pallets"
+          expect:
+            - statusCode: 200
+      - think: 1
+
+      # Paso 7: Visitar la sección de inventario
+      - get:
+          url: "/inventario"
+          expect:
+            - statusCode: 200
+      - think: 2
+
+      # Paso 8: Visitar la sección de trabajadores
+      - get:
+          url: "/trabajadores"
+          expect:
+            - statusCode: 200
+      - think: 2
+
+      # Paso 9: Visitar la sección de finanzas
+      - get:
+          url: "/finanzas"
+          expect:
+            - statusCode: 200
+      - think: 2
+
+      # Paso 10: Visitar la sección de ajustes
+      - get:
+          url: "/ajustes"
+          expect:
+            - statusCode: 200
+      - think: 1
+      
+      # Paso 11: Regresar a home para completar el flujo
+      - get:
+          url: "/home"
+          expect:
+            - statusCode: 200
+      - think: 1
+            
+  # Escenario alternativo con enfoque en el módulo de empaque
+  - name: "Test Enfocado en Empaque"
+    weight: 30
+    flow:
+      - get:
+          url: "/login"
+          expect:
+            - statusCode: 200
+      - think: 1
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "demo@seedor.com"
+            password: "demo123"
+          expect:
+            - statusCode: 200
+      - think: 2
+      - get:
+          url: "/home"
+          expect:
+            - statusCode: 200
+      - think: 1
+      - get:
+          url: "/empaque"
+          expect:
+            - statusCode: 200
+      - think: 3
+      - get:
+          url: "/empaque/ingreso-fruta"
+          expect:
+            - statusCode: 200
+      - think: 3
+      - get:
+          url: "/empaque/preproceso"
+          expect:
+            - statusCode: 200
+      - think: 3
+      - get:
+          url: "/empaque/pallets"
+          expect:
+            - statusCode: 200
+      - think: 3
+      - get:
+          url: "/empaque/despacho"
+          expect:
+            - statusCode: 200
+      - think: 3
+      - get:
+          url: "/empaque/egreso-fruta"
+          expect:
+            - statusCode: 200
+      - think: 2

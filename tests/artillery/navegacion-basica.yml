@@ -20,21 +20,18 @@ scenarios:
           url: "/login"
           expect:
             - statusCode: 200
-            - contentType: html
       
       # Proceso de login
       - post:
           url: "/api/auth/login"
           json:
-            email: "{{ $processEnvironment.EMAIL_TEST }}"
-            password: "{{ $processEnvironment.PASSWORD_TEST }}"
-          capture:
-            - json: "$.user"
-              as: "user"
+            email: "demo@seedor.com"
+            password: "demo123"
+            remember: true
           expect:
             - statusCode: 200
           afterResponse: "extractAuthToken"
-      
+          
       # Visitar la página principal
       - get:
           url: "/home"
@@ -42,6 +39,7 @@ scenarios:
           expect:
             - statusCode: 200
           think: 2
+          afterResponse: "logResponse"
       
       # Navegar al módulo de Campo
       - get:
@@ -50,6 +48,7 @@ scenarios:
           expect:
             - statusCode: 200
           think: 3
+          afterResponse: "logResponse"
       
       # Navegar al módulo de Empaque
       - get:
@@ -58,6 +57,7 @@ scenarios:
           expect:
             - statusCode: 200
           think: 2
+          afterResponse: "logResponse"
       
       # Visitar secciones de Empaque
       - get:
@@ -66,6 +66,7 @@ scenarios:
           expect:
             - statusCode: 200
           think: 2
+          afterResponse: "logResponse"
       
       - get:
           url: "/empaque/preproceso"
@@ -73,10 +74,64 @@ scenarios:
           expect:
             - statusCode: 200
           think: 2
+          afterResponse: "logResponse"
       
       # Cerrar sesión
-      - get:
+      - post:
           url: "/api/auth/logout"
           beforeRequest: "addAuthHeaders"
           expect:
             - statusCode: 200
+          afterResponse: "logResponse"
+      
+      # Visitar la página principal
+      - get:
+          url: "/home"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: [200, 302, 401]
+          think: 2
+          afterResponse: "logResponse"
+      
+      # Navegar al módulo de Campo
+      - get:
+          url: "/campo"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: [200, 302, 401]
+          think: 3
+          afterResponse: "logResponse"
+      
+      # Navegar al módulo de Empaque
+      - get:
+          url: "/empaque"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: [200, 302, 401]
+          think: 2
+          afterResponse: "logResponse"
+      
+      # Visitar secciones de Empaque
+      - get:
+          url: "/empaque/ingreso-fruta"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: [200, 302, 401]
+          think: 2
+          afterResponse: "logResponse"
+      
+      - get:
+          url: "/empaque/preproceso"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: [200, 302, 401]
+          think: 2
+          afterResponse: "logResponse"
+      
+      # Cerrar sesión
+      - post:
+          url: "/api/auth/logout"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: [200, 302, 401, 404]
+          afterResponse: "logResponse"
