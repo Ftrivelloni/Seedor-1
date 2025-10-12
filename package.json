@@ -6,7 +6,18 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "test": "npx playwright test",
+    "test:random": "powershell .\\run-random-tests.ps1",
+    "test:empaque": "powershell .\\run-empaque-tests.ps1",
+    "test:egreso": "npx playwright test e2e/egreso-fruta-aleatorio.spec.ts --project=chromium",
+    "test:despacho": "npx playwright test e2e/despacho-aleatorio.spec.ts --project=chromium",
+    "test:preproceso": "npx playwright test e2e/preproceso-multiple.spec.ts --project=chromium",
+    "test:ingreso": "npx playwright test e2e/ingreso-fruta-aleatorio.spec.ts --project=chromium",
+    "test:preseleccion": "npx playwright test e2e/preseleccion-aleatorio.spec.ts --project=chromium",
+    "test:pallets": "npx playwright test e2e/pallets-multiple.spec.ts --project=chromium",
+    "test:pallets-debug": "npx playwright test e2e/pallets-multiple.spec.ts --project=chromium --debug",
+    "test:artillery": "npx artillery run artillery/random-load-test.json -e production"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -69,10 +80,12 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.0",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.2.3",
     "eslint": "^9.37.0",
     "eslint-config-next": "15.5.4",
     "postcss": "^8.5",

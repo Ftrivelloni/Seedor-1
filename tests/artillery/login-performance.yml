@@ -1,0 +1,29 @@
+config:
+  target: "https://seedor-1.vercel.app"
+  phases:
+    - duration: 30
+      arrivalRate: 10
+      name: "Login page performance test"
+  plugins:
+    expect: {}
+    
+scenarios:
+  - name: "Login Page Performance"
+    flow:
+      - get:
+          url: "/login"
+          expect:
+            - statusCode: 200
+      - think: 2
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ $processEnvironment.TEST_USER || 'test@example.com' }}"
+            password: "{{ $processEnvironment.TEST_PASSWORD || 'password123' }}"
+          expect:
+            - statusCode: 200
+      - think: 1
+      - get:
+          url: "/home"
+          expect:
+            - statusCode: 200

@@ -1,0 +1,21 @@
+{
+  "name": "tests",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:load": "artillery run artillery/config.yml",
+    "report": "playwright show-report",
+    "install:browsers": "playwright install",
+    "codegen": "playwright codegen https://seedor-1.vercel.app"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "artillery": "^2.0.26"
+  }
+}

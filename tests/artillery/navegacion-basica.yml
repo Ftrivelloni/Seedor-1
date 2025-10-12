@@ -1,0 +1,82 @@
+config:
+  target: "https://seedor-1.vercel.app"
+  phases:
+    - duration: 60
+      arrivalRate: 1
+      name: "Calentamiento - 1 usuario por segundo"
+    - duration: 120
+      arrivalRate: 2
+      name: "Carga baja - 2 usuarios por segundo"
+  processor: "./processor.js"
+  plugins:
+    metrics-by-endpoint: {}
+    expect: {}
+
+scenarios:
+  - name: "Flujo de navegación básica"
+    flow:
+      # Visitar la página de login
+      - get:
+          url: "/login"
+          expect:
+            - statusCode: 200
+            - contentType: html
+      
+      # Proceso de login
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ $processEnvironment.EMAIL_TEST }}"
+            password: "{{ $processEnvironment.PASSWORD_TEST }}"
+          capture:
+            - json: "$.user"
+              as: "user"
+          expect:
+            - statusCode: 200
+          afterResponse: "extractAuthToken"
+      
+      # Visitar la página principal
+      - get:
+          url: "/home"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: 200
+          think: 2
+      
+      # Navegar al módulo de Campo
+      - get:
+          url: "/campo"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: 200
+          think: 3
+      
+      # Navegar al módulo de Empaque
+      - get:
+          url: "/empaque"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: 200
+          think: 2
+      
+      # Visitar secciones de Empaque
+      - get:
+          url: "/empaque/ingreso-fruta"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: 200
+          think: 2
+      
+      - get:
+          url: "/empaque/preproceso"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: 200
+          think: 2
+      
+      # Cerrar sesión
+      - get:
+          url: "/api/auth/logout"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: 200

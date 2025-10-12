@@ -1,0 +1,71 @@
+config:
+  target: "https://seedor-1.vercel.app"
+  phases:
+    - duration: 30
+      arrivalRate: 2
+      name: "Calentamiento - 2 usuarios por segundo"
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 8
+      name: "Carga media - 5 a 8 usuarios por segundo"
+    - duration: 30
+      arrivalRate: 8
+      name: "Carga sostenida - 8 usuarios por segundo"
+  processor: "./processor.js"
+  plugins:
+    metrics-by-endpoint: {}
+    expect: {}
+
+scenarios:
+  - name: "Navegación del módulo Campo"
+    flow:
+      # Iniciar sesión
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ $processEnvironment.EMAIL_TEST }}"
+            password: "{{ $processEnvironment.PASSWORD_TEST }}"
+          capture:
+            - json: "$.user"
+              as: "user"
+          expect:
+            - statusCode: 200
+          afterResponse: "extractAuthToken"
+      
+      # Ejecutar antes de cada solicitud
+      - function: "generateRandomData"
+      
+      # Navegar al módulo de Campo
+      - get:
+          url: "/campo"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: 200
+          afterResponse: "logResponse"
+          think: 2
+      
+      # Intentar acceder a la página de creación de campo
+      - get:
+          url: "/crear-campo"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: 200
+          afterResponse: "logResponse"
+          think: 3
+      
+      # Volver al listado de campos
+      - get:
+          url: "/campo"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: 200
+          afterResponse: "logResponse"
+          think: 2
+      
+      # Cerrar sesión
+      - get:
+          url: "/api/auth/logout"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: 200
+          afterResponse: "logResponse"
