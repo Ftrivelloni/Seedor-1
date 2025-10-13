@@ -1,28 +1,25 @@
 config:
   target: "https://seedor-1.vercel.app"
   phases:
-    - duration: 60
-      arrivalRate: 1
-      name: "Calentamiento - 1 usuario por segundo"
-    - duration: 120
+    - duration: 30
       arrivalRate: 2
-      name: "Carga baja - 2 usuarios por segundo"
+      name: "Calentamiento - 2 usuarios por segundo"
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 8
+      name: "Carga media - 5 a 8 usuarios por segundo"
+    - duration: 30
+      arrivalRate: 8
+      name: "Carga sostenida - 8 usuarios por segundo"
   processor: "./processor.js"
   plugins:
     metrics-by-endpoint: {}
     expect: {}
 
 scenarios:
-  - name: "Flujo de navegación básica"
+  - name: "Navegación del módulo Campo"
     flow:
-      # Visitar la página de login
-      - get:
-          url: "/login"
-          expect:
-            - statusCode: 200
-            - contentType: html
-      
-      # Proceso de login
+      # Iniciar sesión
       - post:
           url: "/api/auth/login"
           json:
@@ -35,13 +32,8 @@ scenarios:
             - statusCode: 200
           afterResponse: "extractAuthToken"
       
-      # Visitar la página principal
-      - get:
-          url: "/home"
-          beforeRequest: "addAuthHeaders"
-          expect:
-            - statusCode: 200
-          think: 2
+      # Ejecutar antes de cada solicitud
+      - function: "generateRandomData"
       
       # Navegar al módulo de Campo
       - get:
@@ -49,29 +41,25 @@ scenarios:
           beforeRequest: "addAuthHeaders"
           expect:
             - statusCode: 200
+          afterResponse: "logResponse"
+          think: 2
+      
+      # Intentar acceder a la página de creación de campo
+      - get:
+          url: "/crear-campo"
+          beforeRequest: "addAuthHeaders"
+          expect:
+            - statusCode: 200
+          afterResponse: "logResponse"
           think: 3
       
-      # Navegar al módulo de Empaque
+      # Volver al listado de campos
       - get:
-          url: "/empaque"
+          url: "/campo"
           beforeRequest: "addAuthHeaders"
           expect:
             - statusCode: 200
-          think: 2
-      
-      # Visitar secciones de Empaque
-      - get:
-          url: "/empaque/ingreso-fruta"
-          beforeRequest: "addAuthHeaders"
-          expect:
-            - statusCode: 200
-          think: 2
-      
-      - get:
-          url: "/empaque/preproceso"
-          beforeRequest: "addAuthHeaders"
-          expect:
-            - statusCode: 200
+          afterResponse: "logResponse"
           think: 2
       
       # Cerrar sesión
@@ -80,3 +68,4 @@ scenarios:
           beforeRequest: "addAuthHeaders"
           expect:
             - statusCode: 200
+          afterResponse: "logResponse"

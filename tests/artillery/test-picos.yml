@@ -1,36 +1,29 @@
 config:
   target: "https://seedor-1.vercel.app"
   phases:
-    - duration: 60
-      arrivalRate: 1
-      name: "Calentamiento - 1 usuario por segundo"
-    - duration: 120
+    - duration: 30
       arrivalRate: 2
-      name: "Carga baja - 2 usuarios por segundo"
+      name: "Normal - 2 usuarios por segundo"
+    - duration: 20
+      arrivalRate: 30
+      name: "Pico de carga - 30 usuarios por segundo"
+    - duration: 60
+      arrivalRate: 5
+      name: "Recuperación - 5 usuarios por segundo"
   processor: "./processor.js"
   plugins:
     metrics-by-endpoint: {}
     expect: {}
 
 scenarios:
-  - name: "Flujo de navegación básica"
+  - name: "Test de picos de carga"
     flow:
-      # Visitar la página de login
-      - get:
-          url: "/login"
-          expect:
-            - statusCode: 200
-            - contentType: html
-      
-      # Proceso de login
+      # Iniciar sesión
       - post:
           url: "/api/auth/login"
           json:
             email: "{{ $processEnvironment.EMAIL_TEST }}"
             password: "{{ $processEnvironment.PASSWORD_TEST }}"
-          capture:
-            - json: "$.user"
-              as: "user"
           expect:
             - statusCode: 200
           afterResponse: "extractAuthToken"
@@ -41,7 +34,6 @@ scenarios:
           beforeRequest: "addAuthHeaders"
           expect:
             - statusCode: 200
-          think: 2
       
       # Navegar al módulo de Campo
       - get:
@@ -49,30 +41,20 @@ scenarios:
           beforeRequest: "addAuthHeaders"
           expect:
             - statusCode: 200
-          think: 3
       
-      # Navegar al módulo de Empaque
+      # Navegar al módulo de Empaque (sección crítica de negocio)
       - get:
           url: "/empaque"
           beforeRequest: "addAuthHeaders"
           expect:
             - statusCode: 200
-          think: 2
       
-      # Visitar secciones de Empaque
+      # Visitar la sección de pallets (operación crítica)
       - get:
-          url: "/empaque/ingreso-fruta"
+          url: "/empaque/pallets"
           beforeRequest: "addAuthHeaders"
           expect:
             - statusCode: 200
-          think: 2
-      
-      - get:
-          url: "/empaque/preproceso"
-          beforeRequest: "addAuthHeaders"
-          expect:
-            - statusCode: 200
-          think: 2
       
       # Cerrar sesión
       - get:
