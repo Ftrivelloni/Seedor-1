@@ -31,7 +31,6 @@ export interface AcceptInvitationParams {
   }
 }
 
-// Funciones de validación (mantener las existentes)
 export const validators = {
   email: (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -228,7 +227,6 @@ export const authService = {
       try {
         await Promise.race([metadataPromise, metadataTimeout]);
       } catch (error: any) {
-        // Continue if metadata update fails
       }
 
       const profilePromise = supabase
@@ -295,7 +293,6 @@ export const authService = {
       try {
         await Promise.race([auditPromise, auditTimeout]);
       } catch (error: any) {
-        // Continue if audit log fails
       }
 
       return { 
@@ -623,7 +620,6 @@ export const authService = {
 
   getInvitationByToken: async (token: string): Promise<{ success: boolean; error?: string; data?: any }> => {
     try {
-      // Primero buscar la invitación específica (incluso si está revocada)
       const { data: currentInvitation, error: currentError } = await supabase
         .from('invitations')
         .select(`
@@ -642,7 +638,6 @@ export const authService = {
         return { success: false, error: 'Invitación no encontrada' }
       }
 
-      // Si la invitación fue revocada, verificar si hay una más nueva
       if (currentInvitation.revoked_at) {
         const { data: newerInvitation } = await supabase
           .from('invitations')
@@ -666,12 +661,10 @@ export const authService = {
         return { success: false, error: 'Esta invitación ha sido revocada' }
       }
 
-      // Si ya fue aceptada
       if (currentInvitation.accepted_at) {
         return { success: false, error: 'Esta invitación ya fue utilizada' }
       }
 
-      // Verificar expiración
       if (new Date() > new Date(currentInvitation.expires_at)) {
         return { success: false, error: 'La invitación ha expirado' }
       }
@@ -757,10 +750,8 @@ export const authService = {
         }], { onConflict: 'user_id' })
 
       if (profileError) {
-        // Continue if profile update fails
       }
 
-      // Solo incrementar si el rol es admin/campo/empaque/finanzas, y siempre que se confirma el formulario
       if (["admin", "campo", "empaque", "finanzas"].includes(invitation.role_code)) {
         console.log(`[DEBUG] Incrementando current_users para tenant ${invitation.tenant_id} por confirmación de formulario de invitación, rol ${invitation.role_code}`)
         const { error: updateError } = await supabase
@@ -768,7 +759,6 @@ export const authService = {
           .update({ current_users: tenant.current_users + 1 })
           .eq('id', invitation.tenant_id)
         if (updateError) {
-          // Continue if user count update fails
         }
       }
 
@@ -779,26 +769,6 @@ export const authService = {
         })
         .eq('id', invitation.id)
 
-      // Si es un admin, también crear registro en workers
-      if (invitation.role_code === 'admin' && params.userData) {
-        const { error: workerError } = await supabase
-          .from('workers')
-          .insert([{
-            tenant_id: invitation.tenant_id,
-            full_name: params.userData.fullName,
-            document_id: params.userData.documentId || 'N/A', // Default si no se proporciona
-            email: session.user.email,
-            phone: params.userData.phone || null,
-            area_module: 'admin', // Los admins tienen acceso a todo
-            membership_id: membershipData.id,
-            status: 'active'
-          }])
-
-        if (workerError) {
-          console.error('Error creating worker record for admin:', workerError)
-          // No devolver error, ya que el admin fue creado exitosamente
-        }
-      }
 
       await supabase
         .from('audit_logs')
@@ -890,10 +860,8 @@ export const authService = {
         }], { onConflict: 'user_id' })
 
       if (profileError) {
-        // Continue if profile update fails
       }
 
-      // Solo incrementar si el rol es admin/campo/empaque/finanzas Y el usuario no tiene ya membresía activa para ese rol y tenant
       if (["admin", "campo", "empaque", "finanzas"].includes(invitation.role_code)) {
         const { data: existingMembership } = await supabase
           .from('tenant_memberships')
@@ -910,7 +878,6 @@ export const authService = {
             .update({ current_users: tenant.current_users + 1 })
             .eq('id', invitation.tenant_id)
           if (updateError) {
-            // Continue if user count update fails
           }
         } else {
           console.log(`[DEBUG] NO se incrementa current_users porque ya existe membresía activa para ese usuario, tenant y rol`)
@@ -1057,7 +1024,6 @@ export const authService = {
           .single()
 
         if (profileError) {
-          // Continue if profile creation fails
         }
       }
 
@@ -1086,7 +1052,6 @@ export const authService = {
         .eq('id', invitation.tenant_id)
 
       if (updateError) {
-        // Continue if tenant user count update fails
       }
 
       await supabase
@@ -1204,7 +1169,6 @@ export const authService = {
         .eq('user_id', data.user.id)
         .eq('status', 'active')
 
-      // Crear el objeto de usuario para el SessionManager
       const defaultMembership = memberships && memberships.length > 0 ? memberships[0] : null
       const authUser = {
         id: data.user.id,
@@ -1217,7 +1181,6 @@ export const authService = {
         memberships
       }
 
-      // Guardar la sesión en el SessionManager para esta pestaña
       const sessionManager = getSessionManager()
       sessionManager.setCurrentUser(authUser, data.session?.access_token)
 
@@ -1238,13 +1201,11 @@ export const authService = {
     try {
       const sessionManager = getSessionManager()
       
-      // Primero intentar obtener de la sesión de la pestaña
       let tabUser = sessionManager.getCurrentUser()
       if (tabUser) {
         return { user: tabUser }
       }
 
-      // Si no hay sesión en la pestaña, verificar Supabase
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session?.user) {
@@ -1311,7 +1272,6 @@ export const authService = {
         }
       }
 
-      // Guardar en el SessionManager para esta pestaña
       sessionManager.setCurrentUser(mappedUser, session.access_token)
 
       return {
@@ -1327,13 +1287,11 @@ export const authService = {
     try {
       const sessionManager = getSessionManager()
       
-      // Intentar obtener de la sesión de la pestaña primero
       const tabUser = sessionManager.getCurrentUser()
       if (tabUser) {
         return tabUser
       }
 
-      // Si no hay en tab, verificar Supabase y crear nueva sesión de tab
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session?.user) {
@@ -1461,26 +1419,7 @@ export const authService = {
 
       }
 
-      const { data: workerData, error: workerError } = await supabase
-        .from('workers')
-        .insert([{
-          tenant_id: invitation.tenant_id,
-          full_name: params.workerData.fullName,
-          document_id: params.workerData.documentId || '',
-          email: invitation.email,
-          phone: params.workerData.phone || null,
-          area_module: 'administracion',
-          membership_id: membershipData.id,
-          status: 'active'
-        }])
-        .select()
-        .single()
 
-      if (workerError) {
-        // Continue if worker creation fails
-      }
-
-      // Solo incrementar si el rol es admin/campo/empaque/finanzas
       if (["admin", "campo", "empaque", "finanzas"].includes(invitation.role_code || 'admin')) {
         console.log(`[DEBUG] Incrementando current_users para tenant ${invitation.tenant_id} por invitación de rol ${invitation.role_code || 'admin'} (admin setup)`)
         const { error: updateError } = await supabase
@@ -1488,7 +1427,6 @@ export const authService = {
           .update({ current_users: tenant.current_users + 1 })
           .eq('id', invitation.tenant_id)
         if (updateError) {
-          // Continue if user count update fails
         }
       }
 
@@ -1536,11 +1474,8 @@ export const authService = {
     try {
       const sessionManager = getSessionManager()
       
-      // Solo limpiar la sesión de esta pestaña
       await sessionManager.logoutCurrentTab()
       
-      // NO llamar a supabase.auth.signOut() porque afectaría todas las pestañas
-      // Las otras pestañas seguirán funcionando con sus propias sesiones
       
       return {}
     } catch (error: any) {
@@ -1548,13 +1483,11 @@ export const authService = {
     }
   },
 
-  // Método para logout global (si se necesita)
   logoutGlobal: async (): Promise<{ error?: string }> => {
     try {
       const { error } = await supabase.auth.signOut()
       
       if (typeof window !== 'undefined') {
-        // Limpiar todas las sesiones de todas las pestañas
         Object.keys(localStorage).forEach(key => {
           if (key.startsWith('sb-') || key.startsWith('supabase.') || key.includes('seedor')) {
             localStorage.removeItem(key)
@@ -1599,7 +1532,6 @@ export const authService = {
         })
       }
     } catch (error: any) {
-      // Silent fail for corrupted session cleanup
     }
   }
 }
