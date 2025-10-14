@@ -165,10 +165,9 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
     <Card
       key={task.id}
       className="p-4 space-y-3 relative group"
-      draggable={origin !== "overdue"}
+      draggable={true}
       onDragStart={(e) => {
-        // Allow drag from pending and completed (to move back), but not from overdue
-        if (origin === "overdue") return
+        // Allow drag from pending and overdue to Completed, and from completed back to Pending
         setDraggingTaskId(task.id)
         setDragOrigin(origin)
         e.dataTransfer.effectAllowed = "move"
