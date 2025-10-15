@@ -155,8 +155,8 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
 
   const roleModuleAccess: Record<string, string[]> = {
     admin: ['dashboard', 'campo', 'empaque', 'finanzas', 'inventario', 'trabajadores', 'ajustes', 'user_management'],
-    campo: ['dashboard', 'campo', 'inventario', 'ajustes'],
-    empaque: ['dashboard', 'empaque', 'inventario', 'ajustes'],
+    campo: ['dashboard', 'campo', 'inventario', 'trabajadores', 'ajustes'],
+    empaque: ['dashboard', 'empaque', 'inventario', 'trabajadores', 'ajustes'],
     finanzas: ['dashboard', 'finanzas', 'trabajadores', 'ajustes']
   }
 

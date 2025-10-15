@@ -113,3 +113,113 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function GET(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('Authorization') || request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: "No authorization token" },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (!token) {
+      return NextResponse.json(
+        { error: "Invalid authorization token" },
+        { status: 401 }
+      );
+    }
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const url = new URL(request.url);
+    const searchParams = url.searchParams;
+    const requestedTenantId = searchParams.get('tenantId')?.trim();
+    const includeInactive = searchParams.get('includeInactive') === 'true';
+    const rawQuery = (searchParams.get('name') ?? searchParams.get('q') ?? '').trim();
+
+    const { data: memberships, error: membershipError } = await supabase
+      .from('tenant_memberships')
+      .select('id, tenant_id, role_code, status')
+      .eq('user_id', user.id)
+      .eq('status', 'active');
+
+    if (membershipError) {
+      console.error('Error fetching memberships:', membershipError);
+      return NextResponse.json(
+        { error: "Error fetching memberships" },
+        { status: 500 }
+      );
+    }
+
+    if (!memberships || memberships.length === 0) {
+      return NextResponse.json(
+        { error: "No active membership found" },
+        { status: 403 }
+      );
+    }
+
+    const membership = requestedTenantId
+      ? memberships.find((m) => m.tenant_id === requestedTenantId)
+      : memberships[0];
+
+    if (!membership) {
+      return NextResponse.json(
+        { error: "Tenant access denied" },
+        { status: 403 }
+      );
+    }
+
+    const allowedRoles = ['admin', 'campo', 'empaque', 'finanzas'];
+    const normalizedRole = membership.role_code?.toLowerCase?.() ?? '';
+    if (!allowedRoles.includes(normalizedRole)) {
+      return NextResponse.json(
+        { error: "Access denied" },
+        { status: 403 }
+      );
+    }
+
+    let query = supabase
+      .from('workers')
+      .select('*')
+      .eq('tenant_id', membership.tenant_id);
+
+    if (!includeInactive) {
+      query = query.eq('status', 'active');
+    }
+
+    if (rawQuery.length > 0) {
+      const sanitized = rawQuery.replace(/\s+/g, ' ');
+      const limited = sanitized.slice(0, 120);
+      const cleaned = limited.replace(/[%_]/g, (match) => `\\${match}`);
+      const pattern = `%${cleaned}%`;
+      query = query.ilike('full_name', pattern);
+    }
+
+    const { data: workers, error: workersError } = await query.order('full_name', { ascending: true });
+
+    if (workersError) {
+      console.error('Error fetching workers:', workersError);
+      return NextResponse.json(
+        { error: "Error fetching workers" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ workers: workers || [] });
+  } catch (error) {
+    console.error('Error in GET /api/workers:', error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

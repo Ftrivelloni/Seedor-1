@@ -9,7 +9,7 @@ import { FeatureProvider } from "../../lib/features-context";
 export default function TrabajadoresRoutePage() {
   const { user, loading, handleLogout } = useAuth({
     redirectToLogin: true,
-    requireRoles: ["admin", "finanzas"]
+    requireRoles: ["admin", "finanzas", "empaque", "campo"]
   });
   const router = useRouter();
 

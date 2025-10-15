@@ -1,17 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Calendar as CalendarIcon, Check, Save } from 'lucide-react'
+import { Calendar as CalendarIcon, Check, Save, ChevronsUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Calendar } from '@/components/ui/calendar'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import { attendanceApi } from '@/lib/api'
 import { Worker, AttendanceStatus, AttendanceRecord } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -27,6 +35,8 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('')
   const [status, setStatus] = useState<string>('')
   const [reason, setReason] = useState<string>('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [workerSelectorOpen, setWorkerSelectorOpen] = useState(false)
   const [statuses, setStatuses] = useState<AttendanceStatus[]>([
     { code: 'PRE', name: 'Presente' },
     { code: 'AUS', name: 'Ausente' },
@@ -48,6 +58,29 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
       loadExistingRecord()
     }
   }, [date, selectedWorkerId, tenantId])
+
+  const normalizeText = (text: string) =>
+    text
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+
+  const filteredWorkers = useMemo(() => {
+    const trimmed = searchTerm.trim()
+    if (!trimmed) {
+      return workers
+    }
+    const normalizedQuery = normalizeText(trimmed)
+    return workers.filter((worker) =>
+      normalizeText(worker.full_name || '').includes(normalizedQuery)
+    )
+  }, [workers, searchTerm])
+
+  useEffect(() => {
+    if (!workerSelectorOpen) {
+      setSearchTerm('')
+    }
+  }, [workerSelectorOpen])
 
   const loadStatuses = async () => {
     try {
@@ -223,18 +256,55 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
           {/* Worker Selector */}
           <div className="space-y-2">
             <Label>Seleccionar Trabajador</Label>
-            <Select value={selectedWorkerId} onValueChange={handleWorkerChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar trabajador" />
-              </SelectTrigger>
-              <SelectContent>
-                {workers.map((worker) => (
-                  <SelectItem key={worker.id} value={worker.id}>
-                    {worker.full_name} - {getAreaLabel(worker.area_module)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={workerSelectorOpen} onOpenChange={setWorkerSelectorOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={workerSelectorOpen}
+                  className={cn(
+                    'w-full justify-between',
+                    !selectedWorker && 'text-muted-foreground'
+                  )}
+                >
+                  {selectedWorker
+                    ? `${selectedWorker.full_name} - ${getAreaLabel(selectedWorker.area_module)}`
+                    : 'Seleccionar trabajador'}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                className="w-[var(--radix-popover-trigger-width)] p-0"
+              >
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    value={searchTerm}
+                    onValueChange={setSearchTerm}
+                    placeholder="Buscar por nombre..."
+                    autoFocus
+                  />
+                  <CommandList>
+                    <CommandEmpty>Sin resultados</CommandEmpty>
+                    <CommandGroup>
+                      {filteredWorkers.map((worker) => (
+                        <CommandItem
+                          key={worker.id}
+                          value={worker.id}
+                          onSelect={(value) => {
+                            handleWorkerChange(value)
+                            setWorkerSelectorOpen(false)
+                          }}
+                        >
+                          {worker.full_name} - {getAreaLabel(worker.area_module)}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Worker Info Card */}
@@ -278,7 +348,7 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
           <div className="space-y-2">
             <Label>Estado de Asistencia</Label>
             <Select value={status} onValueChange={setStatus} disabled={!selectedWorkerId}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Estado de asistencia">
                 <SelectValue placeholder="Seleccionar estado" />
               </SelectTrigger>
               <SelectContent>
