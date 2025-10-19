@@ -15,7 +15,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog"
-import type { MovimientoCaja } from "../../lib/mocks"
+import type { MovimientoCaja } from "../../lib/types"
+import { useEffect } from "react"
+import { finanzasApi } from "../../lib/api"
 
 interface FinanzasFormModalProps {
   isOpen: boolean
@@ -29,17 +31,7 @@ const tiposMovimiento = [
   { value: "egreso", label: "Egreso" },
 ]
 
-const categorias = [
-  "Ventas",
-  "Insumos",
-  "Mano de obra",
-  "Combustible",
-  "Mantenimiento",
-  "Servicios",
-  "Transporte",
-  "Otros ingresos",
-  "Otros gastos",
-]
+// Las categorías vendrán desde Supabase
 
 export function FinanzasFormModal({ isOpen, onClose, onSubmit, tenantId }: FinanzasFormModalProps) {
   const [formData, setFormData] = useState({
@@ -51,6 +43,20 @@ export function FinanzasFormModal({ isOpen, onClose, onSubmit, tenantId }: Finan
     comprobante: "",
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [categorias, setCategorias] = useState<Array<{ id: string; name: string }>>([])
+
+  useEffect(() => {
+    const loadCategorias = async () => {
+      if (!tenantId) return
+      try {
+        const data = await finanzasApi.getCategorias(tenantId)
+        setCategorias(data.map((c) => ({ id: c.id, name: c.name })))
+      } catch (e) {
+        console.error('Error cargando categorías:', e)
+      }
+    }
+    if (isOpen) loadCategorias()
+  }, [tenantId, isOpen])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -145,8 +151,8 @@ export function FinanzasFormModal({ isOpen, onClose, onSubmit, tenantId }: Finan
                 </SelectTrigger>
                 <SelectContent>
                   {categorias.map((categoria) => (
-                    <SelectItem key={categoria} value={categoria}>
-                      {categoria}
+                    <SelectItem key={categoria.id} value={categoria.name}>
+                      {categoria.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

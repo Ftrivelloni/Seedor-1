@@ -8,10 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { FinanzasFormModal } from "./finanzas-form-modal"
-import { finanzasApi } from "../../lib/api"
 import { useAuth } from "../../hooks/use-auth"
-import type { MovimientoCaja } from "../../lib/mocks"
-import { Plus, Search, Download, DollarSign, TrendingUp, TrendingDown, FileText } from "lucide-react"
+import type { MovimientoCaja } from "../../lib/types"
+import { Plus, Search, Download, DollarSign, TrendingUp, TrendingDown, FileText, FolderPlus } from "lucide-react"
+import Link from "next/link"
+import { finanzasApi } from "../../lib/api"
 
 export function FinanzasPage() {
   const { user, loading: authLoading } = useAuth({ requireRoles: ['admin', 'finanzas'] })
@@ -22,17 +23,20 @@ export function FinanzasPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterTipo, setFilterTipo] = useState("all")
   const [filterCategoria, setFilterCategoria] = useState("all")
+  const [categoriasCount, setCategoriasCount] = useState<number>(0)
 
   useEffect(() => {
-    loadMovimientos()
-  }, [])
+    if (user?.tenantId) {
+      loadMovimientos()
+    }
+  }, [user?.tenantId])
 
   useEffect(() => {
     applyFilters()
   }, [movimientos, searchTerm, filterTipo, filterCategoria])
 
   const loadMovimientos = async () => {
-    if (!user) return
+    if (!user?.tenantId) return
 
     try {
       setIsLoading(true)
@@ -70,6 +74,19 @@ export function FinanzasPage() {
 
     setFilteredMovimientos(filtered)
   }
+
+  useEffect(() => {
+    const loadCategorias = async () => {
+      if (!user) return
+      try {
+        const cats = await finanzasApi.getCategorias(user.tenantId)
+        setCategoriasCount(cats.length)
+      } catch (e) {
+        setCategoriasCount(0)
+      }
+    }
+    loadCategorias()
+  }, [user])
 
   const handleCreateMovimiento = async (movimientoData: Omit<MovimientoCaja, "id">) => {
     await finanzasApi.createMovimiento(movimientoData)
@@ -183,7 +200,8 @@ export function FinanzasPage() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Link href="/finanzas/caja" className="block">
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Movimientos</CardTitle>
           </CardHeader>
@@ -192,7 +210,9 @@ export function FinanzasPage() {
             <p className="text-xs text-muted-foreground">Registros totales</p>
           </CardContent>
         </Card>
-        <Card>
+        </Link>
+        <Link href="/finanzas/caja?tipo=ingreso" className="block">
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Ingresos</CardTitle>
           </CardHeader>
@@ -203,7 +223,9 @@ export function FinanzasPage() {
             <p className="text-xs text-muted-foreground">Movimientos de entrada</p>
           </CardContent>
         </Card>
-        <Card>
+        </Link>
+        <Link href="/finanzas/caja?tipo=egreso" className="block">
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Egresos</CardTitle>
           </CardHeader>
@@ -214,15 +236,29 @@ export function FinanzasPage() {
             <p className="text-xs text-muted-foreground">Movimientos de salida</p>
           </CardContent>
         </Card>
-        <Card>
+        </Link>
+        <Link href="/finanzas/categorias" className="block">
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Categorías</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{uniqueCategories.length}</div>
-            <p className="text-xs text-muted-foreground">Tipos diferentes</p>
+            {categoriasCount > 0 ? (
+              <>
+                <div className="text-2xl font-bold">{categoriasCount}</div>
+                <p className="text-xs text-muted-foreground">Tipos diferentes</p>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Aún no tienes categorías</p>
+                <Button size="sm" onClick={(e) => { e.preventDefault(); }}>
+                  Crear categoría
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
+        </Link>
       </div>
 
       <Card>
@@ -342,6 +378,8 @@ export function FinanzasPage() {
           )}
         </CardContent>
       </Card>
+
+      
 
       <FinanzasFormModal
         isOpen={isModalOpen}
