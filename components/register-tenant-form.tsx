@@ -268,6 +268,7 @@ export default function RegisterTenantForm() {
     const [registrationData, setRegistrationData] = useState<any>(null);
     const [tenantData, setTenantData] = useState<any>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const [showExistingModal, setShowExistingModal] = useState(false);
 
     const generateSlug = (name: string): string => {
         return name
@@ -498,8 +499,10 @@ export default function RegisterTenantForm() {
                 }
 
                 if (checkJson.exists) {
-                    // For now, show a simple message instructing the user to login. Full existing-account flow will be implemented next.
-                    setError('Esta cuenta ya existe. Por favor iniciá sesión para continuar.');
+                    // Email already exists: show modal to let the user continue with existing-account flow
+                    // keep the form data in localStorage so the existing-login page can read it
+                    setShowExistingModal(true);
+                    setLoading(false);
                     return;
                 }
 
@@ -855,8 +858,46 @@ export default function RegisterTenantForm() {
         );
     }
 
+    // Existing account modal (renders on top of the form)
+    const ExistingAccountModal = () => {
+        if (!showExistingModal) return null;
+
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 bg-black/40" onClick={() => setShowExistingModal(false)} />
+                <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 z-10">
+                    <h3 className="text-lg font-bold text-slate-900">Cuenta existente detectada</h3>
+                    <p className="text-sm text-slate-600 mt-2">El email <strong className="text-[#81C101]">{contactEmail}</strong> ya tiene una cuenta. Para continuar y asociar esta nueva empresa a esa cuenta, ingresá la contraseña del usuario existente.</p>
+
+                    <div className="mt-6 flex gap-3">
+                        <Button variant="outline" onClick={() => setShowExistingModal(false)} className="flex-1">Cancelar</Button>
+                        <Button onClick={() => {
+                            // Persist the current form explicitly before redirecting in case user submitted
+                            try {
+                                const formData = {
+                                    companyName,
+                                    contactName,
+                                    contactEmail,
+                                    ownerPhone,
+                                    selectedPlan,
+                                    timestamp: new Date().toISOString()
+                                };
+                                localStorage.setItem(FORM_DATA_KEY, JSON.stringify(formData));
+                            } catch (e) {
+                                console.warn('Could not persist form data before redirect', e);
+                            }
+
+                            router.push(`/register-tenant/existing-login?email=${encodeURIComponent(contactEmail)}`);
+                        }} className="flex-1">Continuar</Button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="mx-auto w-full max-w-5xl">
+            <ExistingAccountModal />
             <Card className="rounded-3xl border-2 border-slate-200 bg-white shadow-2xl overflow-hidden">
                 <div className="px-8 py-8 border-b border-slate-200">
                     <CardTitle className="text-3xl font-bold text-slate-900">Crear tu empresa</CardTitle>

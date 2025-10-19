@@ -47,6 +47,7 @@ export default function AdminSetupForm() {
   const router = useRouter();
   const params = useSearchParams();
   const token = params.get("token") || "";
+  const tenantIdParam = params.get("tenantId") || "";
 
   const [currentStep, setCurrentStep] = useState<'worker-info' | 'modules' | 'invite-users' | 'complete'>('worker-info');
   const [loading, setLoading] = useState(true);
@@ -59,7 +60,7 @@ export default function AdminSetupForm() {
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [moduleInvitations, setModuleInvitations] = useState<Record<string, string>>({});
   const [invitingUsers, setInvitingUsers] = useState(false);
-  const [inviteResults, setInviteResults] = useState<Array<{ moduleId: string; email: string; success: boolean; error?: string }>>([]);
+  const [inviteResults, setInviteResults] = useState<Array<{ moduleId: string; email: string; success: boolean; error?: string; memberCreated?: boolean; inviteUrl?: string }>>([]);
   const [adminData, setAdminData] = useState<any>(null);
 
   useEffect(() => {
@@ -67,40 +68,32 @@ export default function AdminSetupForm() {
       console.log('🚀 AdminSetupForm: Starting loadInitialData with token:', token ? 'present' : 'missing');
       console.log('🔧 AdminSetupForm: AuthService available:', typeof authService, 'getSafeSession:', typeof authService.getSafeSession, 'getInvitationByToken:', typeof authService.getInvitationByToken);
       
-      if (!token) {
-        console.error('❌ AdminSetupForm: No token provided');
-        setError("Token inválido");
-        setLoading(false);
-        return;
-      }
-
       try {
         console.log('🔧 AdminSetupForm: Checking if user is already authenticated...');
         // Primero verificar si el usuario ya está autenticado
         const { user: currentUser } = await authService.getSafeSession();
-        
+
         console.log('🔧 AdminSetupForm: Session result:', {
           hasUser: !!currentUser,
           tenantId: currentUser?.tenantId,
           rol: currentUser?.rol
         });
-        
-        if (currentUser && currentUser.tenantId && currentUser.rol === 'admin') {
 
+        if (currentUser && currentUser.tenantId && currentUser.rol === 'admin') {
           // El usuario ya está autenticado como admin, usar datos de la sesión
           const mockInvitation = {
             tenant_id: currentUser.tenantId,
             role: currentUser.rol,
             tenants: currentUser.tenant
           };
-          
+
           setInvitation(mockInvitation);
 
           console.log('🔧 AdminSetupForm: Getting tenant limits for:', currentUser.tenantId);
           const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(currentUser.tenantId);
-          
+
           console.log('🔧 AdminSetupForm: Tenant limits result:', { limitsSuccess, limitsData });
-          
+
           if (limitsSuccess && limitsData) {
             setTenantPlan(limitsData.plan);
             const available = Object.keys(AVAILABLE_MODULES).filter(moduleId => 
@@ -109,7 +102,68 @@ export default function AdminSetupForm() {
             setAvailableModules(available);
           }
 
+          setLoading(false);
+          return;
+        }
 
+        // If not authenticated via session, try a sessionStorage fallback before requiring token flow
+        if (!token) {
+          try {
+            if (typeof window !== 'undefined') {
+              const adminAfterCreate = sessionStorage.getItem('admin_after_create');
+              if (adminAfterCreate) {
+                try {
+                  const parsed = JSON.parse(adminAfterCreate);
+                  const tenant = parsed?.tenant;
+                  const user = parsed?.user;
+                  // If tenantId param provided, ensure it matches the stored tenant (best-effort)
+                  if (tenant && (!tenantIdParam || tenant.id === tenantIdParam)) {
+                    const mockInvitation = {
+                      tenant_id: tenant.id,
+                      role: 'admin',
+                      tenants: tenant,
+                      invited_by: user?.id || null
+                    };
+
+                    console.log('🔁 AdminSetupForm: Using admin_after_create sessionStorage fallback for tenant:', tenant.id);
+                    setInvitation(mockInvitation);
+                    // clear any previous error and set the UI to invite-users so admin can invite module responsibles
+                    setError(null);
+                    if (user) {
+                      setAdminData(user);
+                    }
+
+                    const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(tenant.id);
+                    if (limitsSuccess && limitsData) {
+                      setTenantPlan(limitsData.plan);
+                      const available = Object.keys(AVAILABLE_MODULES).filter(moduleId =>
+                        AVAILABLE_MODULES[moduleId as keyof typeof AVAILABLE_MODULES].available.includes(limitsData.plan)
+                      );
+                      setAvailableModules(available);
+                      // Do NOT pre-select modules here; let the admin choose which modules to enable
+                      setSelectedModules([]);
+                    }
+
+                    // consume the flag so it doesn't interfere on subsequent navigations
+                    try { sessionStorage.removeItem('admin_after_create'); } catch (e) { /* ignore */ }
+
+                    // Move to modules selection step so admin can choose which modules to enable/invite
+                    setCurrentStep('modules');
+
+                    setLoading(false);
+                    return;
+                  }
+                } catch (err) {
+                  console.warn('⚠️ AdminSetupForm: Could not parse admin_after_create', err);
+                }
+              }
+            }
+          } catch (err) {
+            console.warn('⚠️ AdminSetupForm: Error checking sessionStorage fallback', err);
+          }
+
+          console.error('❌ AdminSetupForm: No token provided and no authenticated admin session');
+          setError("Token inválido");
           setLoading(false);
           return;
         }
@@ -226,13 +280,18 @@ export default function AdminSetupForm() {
             })
           });
 
+          const json = await response.json().catch(() => ({}));
+
           if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            results.push({ moduleId, email: email.trim(), success: false, error: errorData.error || 'Error desconocido' })
-            console.warn(`Error inviting user for ${moduleId}:`, errorData?.error)
+            results.push({ moduleId, email: email.trim(), success: false, error: json.error || 'Error desconocido' })
+            console.warn(`Error inviting user for ${moduleId}:`, json?.error)
           } else {
-            await response.json().catch(() => ({}));
-            results.push({ moduleId, email: email.trim(), success: true })
+            // If API created membership for existing user, it returns data.memberCreated = true
+            if (json?.data?.memberCreated) {
+              results.push({ moduleId, email: email.trim(), success: true, memberCreated: true })
+            } else {
+              results.push({ moduleId, email: email.trim(), success: true, inviteUrl: json?.data?.inviteUrl })
+            }
           }
         } catch (err: any) {
           results.push({ moduleId, email: email.trim(), success: false, error: err.message })
@@ -359,7 +418,7 @@ export default function AdminSetupForm() {
 
           {inviteResults.length > 0 && (
             <div className="mt-4 rounded-xl border-2 border-blue-200 bg-blue-50 p-4">
-              <p className="font-semibold text-slate-800 mb-2">Invitaciones enviadas:</p>
+              <p className="font-semibold text-slate-800 mb-2">Resumen de acciones:</p>
               <ul className="text-sm text-slate-700 space-y-2">
                 {inviteResults.map(r => (
                   <li key={`${r.moduleId}-${r.email}`} className="flex items-center justify-between">
@@ -369,7 +428,13 @@ export default function AdminSetupForm() {
                     </div>
                     <div className="text-sm">
                       {r.success ? (
-                        <span className="text-green-700">Enviado</span>
+                        r.memberCreated ? (
+                          <span className="text-yellow-700">Cuenta existente: rol asignado</span>
+                        ) : r.inviteUrl ? (
+                          <span className="text-green-700">Invitación enviada</span>
+                        ) : (
+                          <span className="text-green-700">Enviado</span>
+                        )
                       ) : (
                         <span className="text-red-700">Error: {r.error || 'Desconocido'}</span>
                       )}

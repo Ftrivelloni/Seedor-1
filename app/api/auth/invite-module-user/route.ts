@@ -47,11 +47,80 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const cleanEmail = email.toLowerCase().trim()
+
+    // If the user already exists in auth, create membership directly (no email)
+    let existingAuthUserId: string | null = null
+    try {
+      const { data: usersList, error: listErr } = await supabaseAdmin.auth.admin.listUsers()
+      if (!listErr && usersList && usersList.users) {
+        const found = usersList.users.find(u => u.email && u.email.toLowerCase() === cleanEmail)
+        if (found) existingAuthUserId = found.id
+      }
+    } catch (e) {
+      // fallback to direct table query
+      try {
+        const { data: authRow } = await supabaseAdmin.from('auth.users').select('id,email').eq('email', cleanEmail).maybeSingle()
+        if (authRow) existingAuthUserId = authRow.id
+      } catch (e2) {}
+    }
+
+    if (existingAuthUserId) {
+      // Check if membership already exists
+      const { data: existingMembership } = await supabaseAdmin
+        .from('tenant_memberships')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .eq('user_id', existingAuthUserId)
+        .maybeSingle()
+
+      if (existingMembership) {
+        return NextResponse.json({ success: false, message: 'El usuario ya tiene un rol en este tenant' })
+      }
+
+      // Check tenant limits
+      if (tenant.current_users >= tenant.max_users) {
+        return NextResponse.json({ error: 'Se alcanzó el límite máximo de usuarios para este plan' }, { status: 409 })
+      }
+
+      // Create membership directly
+      const { data: membershipData, error: membershipError } = await supabaseAdmin
+        .from('tenant_memberships')
+        .insert([{
+          tenant_id: tenantId,
+          user_id: existingAuthUserId,
+          role_code: roleCode,
+          status: 'active',
+          invited_by: inviterId,
+          accepted_at: new Date().toISOString()
+        }])
+        .select()
+        .single()
+
+      if (membershipError) {
+        console.error('Error creating membership for existing user:', membershipError)
+        return NextResponse.json({ error: `Error creando membresía: ${membershipError.message}` }, { status: 500 })
+      }
+
+      // Increment tenant current_users (best-effort)
+      const { error: updateError } = await supabaseAdmin
+        .from('tenants')
+        .update({ current_users: tenant.current_users + 1 })
+        .eq('id', tenantId)
+
+      if (updateError) {
+        console.error('Error incrementing tenant current_users:', updateError)
+      }
+
+      return NextResponse.json({ success: true, data: { membership: membershipData, memberCreated: true } })
+    }
+
+    // continue to invitation flow for non-existing users
     const { data: existingInvitation } = await supabaseAdmin
       .from('invitations')
       .select('id')
       .eq('tenant_id', tenantId)
-      .eq('email', email.toLowerCase().trim())
+      .eq('email', cleanEmail)
       .eq('role_code', roleCode)
       .is('accepted_at', null)
       .is('revoked_at', null)
