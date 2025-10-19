@@ -118,11 +118,17 @@ test('test lote', async ({ page }) => {
       // Cuarto campo - Área (si existe)
       if (inputs.length >= 4) {
         // Para campos numéricos, usar evaluateHandle
-        await page.evaluateHandle((el, val) => {
-          (el as HTMLInputElement).value = val.toString();
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-          el.dispatchEvent(new Event('change', { bubbles: true }));
-        }, inputs[3], loteData.area);
+        // Convert the element handle to a DOM element reference inside the page
+        await page.evaluate((opts: any) => {
+          const idx = opts.idx as number
+          const val = opts.val
+          const el = document.querySelectorAll('input')[idx] as HTMLInputElement | undefined;
+          if (el) {
+            el.value = val.toString();
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }, { idx: 3, val: loteData.area });
       }
       
       // Quinto campo - Fecha (si existe)

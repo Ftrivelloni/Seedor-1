@@ -3,10 +3,12 @@ import { supabaseAdmin } from '../../../../../lib/supabaseAdmin'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tenantId: string } }
+  context: any
 ) {
   try {
-    const tenantId = params.tenantId
+    // Next.js may wrap params in a Promise depending on validator output; support both shapes
+    const params = context?.params instanceof Promise ? await context.params : context?.params;
+    const tenantId = params?.tenantId
 
     // Verify authentication
     const authHeader = request.headers.get('Authorization')

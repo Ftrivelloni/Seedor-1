@@ -61,17 +61,21 @@ export function exportToExcel(config: ExcelExportConfig): void {
       
       // Auto-fit columns
       const columns = worksheet.columns;
-      if (columns) {
+        if (columns) {
         columns.forEach((column) => {
           if (column) {
             let maxLength = 0;
-            column.eachCell({ includeEmpty: true }, (cell) => {
-              const columnLength = cell.value ? cell.value.toString().length : 10;
-              if (columnLength > maxLength) {
-                maxLength = columnLength;
-              }
-            });
-            column.width = maxLength < 10 ? 10 : maxLength + 2;
+            // guard: eachCell may be undefined on some column implementations
+            const eachCellFn = (column as any).eachCell;
+            if (typeof eachCellFn === 'function') {
+              eachCellFn.call(column, { includeEmpty: true }, (cell: any) => {
+                const columnLength = cell?.value ? cell.value.toString().length : 10;
+                if (columnLength > maxLength) {
+                  maxLength = columnLength;
+                }
+              });
+            }
+            (column as any).width = maxLength < 10 ? 10 : maxLength + 2;
           }
         });
       }
@@ -180,12 +184,15 @@ export function exportMultipleSheetsToExcel(
             columns.forEach((column) => {
               if (column) {
                 let maxLength = 0;
-                column.eachCell({ includeEmpty: true }, (cell) => {
-                  const columnLength = cell.value ? cell.value.toString().length : 10;
-                  if (columnLength > maxLength) {
-                    maxLength = columnLength;
-                  }
-                });
+                const eachCellFn = (column as any).eachCell;
+                if (typeof eachCellFn === 'function') {
+                  eachCellFn.call(column, { includeEmpty: true }, (cell: any) => {
+                    const columnLength = cell?.value ? cell.value.toString().length : 10;
+                    if (columnLength > maxLength) {
+                      maxLength = columnLength;
+                    }
+                  });
+                }
                 column.width = maxLength < 10 ? 10 : maxLength + 2;
               }
             });

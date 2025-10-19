@@ -262,8 +262,8 @@ export default function AdminSetupForm() {
       }
 
       // Enviar invitaciones a usuarios de módulos (secuencialmente para recopilar resultados)
-      const entries = Object.entries(moduleInvitations).filter(([moduleId, email]) => selectedModules.includes(moduleId) && email.trim())
-      const results: Array<{ moduleId: string; email: string; success: boolean; error?: string }> = []
+  const entries = Object.entries(moduleInvitations).filter(([moduleId, email]) => selectedModules.includes(moduleId) && email.trim())
+  const results: Array<{ moduleId: string; email: string; success: boolean; error?: string; memberCreated?: boolean; inviteUrl?: string }> = []
 
       for (const [moduleId, email] of entries) {
         try {

@@ -13,6 +13,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { attendanceApi } from '@/lib/api'
 import { Worker, AttendanceStatus, CreateAttendanceData, AttendanceRecord } from '@/lib/types'
+
+type WorkerAttendanceState = {
+  workerId: string
+  status: string
+  reason: string
+}
 import { cn } from '@/lib/utils'
 
 interface DailyAttendanceProps {
@@ -26,7 +32,7 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('')
   const [status, setStatus] = useState<string>('')
   const [reason, setReason] = useState<string>('')
-  const [statuses, setStatuses] = useState<AttendanceStatus[]>([
+  const [statuses, setStatuses] = useState<Array<{ code: string; name: string }>>([
     { code: 'PRE', name: 'Presente' },
     { code: 'AUS', name: 'Ausente' },
     { code: 'TAR', name: 'Tardanza' },
@@ -34,6 +40,8 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
     { code: 'VAC', name: 'Vacaciones' }
   ])
   const [existingRecord, setExistingRecord] = useState<AttendanceRecord | null>(null)
+  const [existingRecords, setExistingRecords] = useState<AttendanceRecord[]>([])
+  const [workerStates, setWorkerStates] = useState<Record<string, { workerId: string; status: string; reason: string }>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
   const [success, setSuccess] = useState(false)
@@ -50,7 +58,9 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
     try {
       const data = await attendanceApi.getAttendanceStatuses()
       if (data && data.length > 0) {
-        setStatuses(data)
+        // Normalize backend statuses which may be strings or objects
+        const normalized = data.map((s: any) => (typeof s === 'string' ? { code: s, name: s } : s))
+        setStatuses(normalized)
       }
       // Si no hay datos en la BD, usa los valores predefinidos arriba
     } catch (err) {
@@ -68,10 +78,12 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
       // Pre-populate worker states with existing records
       const newStates: Record<string, WorkerAttendanceState> = {}
       records.forEach(record => {
-        newStates[record.worker_id] = {
-          workerId: record.worker_id,
-          status: record.status,
-          reason: record.reason || ''
+        const wid = (record as any).worker_id || record.workerId
+        if (!wid) return
+        newStates[wid] = {
+          workerId: wid,
+          status: (record as any).status,
+          reason: (record as any).reason || ''
         }
       })
       setWorkerStates(newStates)

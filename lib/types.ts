@@ -313,3 +313,86 @@ export interface EgresoFruta {
   documentoReferencia?: string
   observaciones?: string
 }
+
+// --- Task and Attendance types (needed by various components)
+// Task types are used in different parts of the UI; some components expect a string code,
+// others expect an object with { code, name }. Allow both shapes for backward compatibility.
+// TaskType used in select lists (object with code/name). Prefer object shape for UI lists.
+export type TaskType = { code: string; name: string }
+
+// Task status codes used across the app (both human-readable and legacy snake_case codes)
+export type TaskStatus = 'pendiente' | 'en-curso' | 'completada' | 'cancelada' | 'pending' | 'in_progress' | 'completed' | 'cancelled' | string
+
+export interface Task {
+  id: string
+  tenantId?: string
+  // legacy snake_case fields used across the codebase
+  farm_id?: string
+  lot_id?: string
+  worker_id?: string
+  responsible_membership_id?: string
+  // common fields
+  title?: string
+  description?: string
+  type_code?: string
+  tipo?: TaskType
+  status_code?: string
+  status?: TaskStatus
+  scheduled_date?: string
+  dueDate?: string
+  assignedTo?: string
+  assigned_to?: string
+  createdAt?: string
+  created_by?: string
+  createdBy?: string
+}
+
+// Attendance status: accept legacy codes (PRE, AUS, TAR, LIC, VAC) and friendly strings
+// AttendanceStatus can be a legacy code or an object used in select lists
+export type AttendanceStatus = 'PRE' | 'AUS' | 'TAR' | 'LIC' | 'VAC' | 'present' | 'absent' | 'late' | 'on_leave' | 'vacation' | string | { code: string; name: string }
+
+export interface AttendanceRecord {
+  id: string
+  tenantId?: string
+  workerId?: string
+  // legacy snake_case
+  worker_id?: string
+  date?: string
+  status: AttendanceStatus
+  checkIn?: string
+  check_out?: string
+  checkOut?: string
+  reason?: string
+  notes?: string
+}
+
+export interface CreateAttendanceData {
+  // accept both workerId and worker_id
+  workerId?: string
+  worker_id?: string
+  date: string
+  status: AttendanceStatus
+  checkIn?: string
+  check_in?: string
+  checkOut?: string
+  check_out?: string
+  reason?: string
+  notes?: string
+}
+
+export interface CreateTaskData {
+  title?: string
+  description?: string
+  // legacy/snake_case fields used by API and components
+  farm_id?: string
+  lot_id?: string
+  type_code?: string
+  status_code?: string
+  scheduled_date?: string
+  responsible_membership_id?: string | null
+  worker_id?: string | null
+  // newer camelCase aliases
+  tipo?: TaskType
+  assignedTo?: string
+  dueDate?: string
+}

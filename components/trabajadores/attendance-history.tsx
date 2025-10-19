@@ -79,7 +79,8 @@ export function AttendanceHistory({ worker, tenantId }: AttendanceHistoryProps) 
     }
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | { code: string; name: string }) => {
+    const s = typeof status === 'string' ? status : status.code
     const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
       PRE: { label: 'Presente', variant: 'default' },
       AUS: { label: 'Ausente', variant: 'destructive' },
@@ -87,8 +88,7 @@ export function AttendanceHistory({ worker, tenantId }: AttendanceHistoryProps) 
       LIC: { label: 'Licencia', variant: 'outline' },
       VAC: { label: 'Vacaciones', variant: 'outline' }
     }
-
-    const config = statusConfig[status] || { label: status, variant: 'outline' }
+    const config = statusConfig[s] || { label: typeof status === 'string' ? status : status.code, variant: 'outline' }
     return <Badge variant={config.variant}>{config.label}</Badge>
   }
 

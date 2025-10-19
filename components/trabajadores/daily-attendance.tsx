@@ -37,7 +37,7 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
   const [reason, setReason] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [workerSelectorOpen, setWorkerSelectorOpen] = useState(false)
-  const [statuses, setStatuses] = useState<AttendanceStatus[]>([
+  const [statuses, setStatuses] = useState<Array<{ code: string; name: string }>>([
     { code: 'PRE', name: 'Presente' },
     { code: 'AUS', name: 'Ausente' },
     { code: 'TAR', name: 'Tardanza' },
@@ -86,7 +86,8 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
     try {
       const data = await attendanceApi.getAttendanceStatuses()
       if (data && data.length > 0) {
-        setStatuses(data)
+        const normalized = data.map((s: any) => (typeof s === 'string' ? { code: s, name: s } : s))
+        setStatuses(normalized)
       }
     } catch (err) {
       console.error('Error loading statuses:', err)
@@ -101,7 +102,7 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
       
       if (record) {
         setExistingRecord(record)
-        setStatus(record.status)
+  setStatus(typeof record.status === 'string' ? record.status : (record.status as any).code)
         setReason(record.reason || '')
       } else {
         setExistingRecord(null)

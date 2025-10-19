@@ -61,11 +61,11 @@ export function TaskFormModal({ isOpen, onClose, onSubmit, farmId, lotId, tenant
         ? task.responsible_membership_id
         : (task.worker_id ? `worker-${task.worker_id}` : "")
       setFormData({
-        title: task.title,
-        type_code: task.type_code,
+        title: task.title || "",
+        type_code: task.type_code || "",
         scheduled_date: task.scheduled_date || "",
         responsible_membership_id: responsibleValue,
-        status_code: task.status_code
+        status_code: task.status_code || "pendiente"
       })
       if (task.scheduled_date) {
         setSelectedDate(new Date(task.scheduled_date))
