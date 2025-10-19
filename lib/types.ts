@@ -313,3 +313,69 @@ export interface EgresoFruta {
   documentoReferencia?: string
   observaciones?: string
 }
+
+// ==========================
+// Tipos para Tasks (Campo)
+// ==========================
+
+export interface Task {
+  id: string
+  tenant_id: string
+  farm_id?: string
+  lot_id: string
+  title: string
+  description?: string
+  type_code: string
+  status_code: string // 'pendiente' | 'en_curso' | 'completada' | ...
+  scheduled_date?: string | null
+  responsible_membership_id?: string | null
+  worker_id?: string | null
+  created_at?: string
+}
+
+export interface TaskType {
+  code: string
+  name: string
+}
+
+export interface TaskStatus {
+  code: string
+  name: string
+}
+
+export interface CreateTaskData {
+  farm_id?: string
+  lot_id: string
+  title: string
+  description?: string
+  type_code?: string
+  status_code: string
+  scheduled_date?: string | null
+  responsible_membership_id?: string | null
+  worker_id?: string | null
+}
+
+// =============================
+// Tipos para Asistencias (RRHH)
+// =============================
+
+export interface AttendanceRecord {
+  id: string
+  tenant_id: string
+  worker_id: string
+  date: string
+  status: string // 'present' | 'absent' | 'sick' | ...
+  reason?: string | null
+}
+
+export interface CreateAttendanceData {
+  worker_id: string
+  date: string
+  status: string
+  reason?: string
+}
+
+export interface AttendanceStatus {
+  code: string
+  name: string
+}
