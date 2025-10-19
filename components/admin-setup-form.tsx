@@ -59,6 +59,7 @@ export default function AdminSetupForm() {
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [moduleInvitations, setModuleInvitations] = useState<Record<string, string>>({});
   const [invitingUsers, setInvitingUsers] = useState(false);
+  const [inviteResults, setInviteResults] = useState<Array<{ moduleId: string; email: string; success: boolean; error?: string }>>([]);
   const [adminData, setAdminData] = useState<any>(null);
 
   useEffect(() => {
@@ -206,10 +207,12 @@ export default function AdminSetupForm() {
         return;
       }
 
-      // Enviar invitaciones a usuarios de módulos
-      const invitationPromises = Object.entries(moduleInvitations)
-        .filter(([moduleId, email]) => selectedModules.includes(moduleId) && email.trim())
-        .map(async ([moduleId, email]) => {
+      // Enviar invitaciones a usuarios de módulos (secuencialmente para recopilar resultados)
+      const entries = Object.entries(moduleInvitations).filter(([moduleId, email]) => selectedModules.includes(moduleId) && email.trim())
+      const results: Array<{ moduleId: string; email: string; success: boolean; error?: string }> = []
+
+      for (const [moduleId, email] of entries) {
+        try {
           const response = await fetch('/api/auth/invite-module-user', {
             method: 'POST',
             headers: {
@@ -218,18 +221,25 @@ export default function AdminSetupForm() {
             body: JSON.stringify({
               tenantId: invitation.tenant_id,
               email: email.trim(),
-              roleCode: moduleId, 
+              roleCode: moduleId,
               invitedBy: invitation.invited_by
             })
           });
 
           if (!response.ok) {
-            const errorData = await response.json();
-            console.warn(`Error inviting user for ${moduleId}:`, errorData.error);
+            const errorData = await response.json().catch(() => ({}));
+            results.push({ moduleId, email: email.trim(), success: false, error: errorData.error || 'Error desconocido' })
+            console.warn(`Error inviting user for ${moduleId}:`, errorData?.error)
+          } else {
+            await response.json().catch(() => ({}));
+            results.push({ moduleId, email: email.trim(), success: true })
           }
-        });
+        } catch (err: any) {
+          results.push({ moduleId, email: email.trim(), success: false, error: err.message })
+        }
+      }
 
-      await Promise.all(invitationPromises);
+      setInviteResults(results)
 
       // Habilitar módulos
       await fetch('/api/admin/enable-modules', {
@@ -346,6 +356,32 @@ export default function AdminSetupForm() {
               })}
             </div>
           </div>
+
+          {inviteResults.length > 0 && (
+            <div className="mt-4 rounded-xl border-2 border-blue-200 bg-blue-50 p-4">
+              <p className="font-semibold text-slate-800 mb-2">Invitaciones enviadas:</p>
+              <ul className="text-sm text-slate-700 space-y-2">
+                {inviteResults.map(r => (
+                  <li key={`${r.moduleId}-${r.email}`} className="flex items-center justify-between">
+                    <div>
+                      <strong className="text-slate-800">{AVAILABLE_MODULES[r.moduleId as keyof typeof AVAILABLE_MODULES].name}:</strong>
+                      <span className="ml-2">{r.email}</span>
+                    </div>
+                    <div className="text-sm">
+                      {r.success ? (
+                        <span className="text-green-700">Enviado</span>
+                      ) : (
+                        <span className="text-red-700">Error: {r.error || 'Desconocido'}</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 flex justify-center">
+                <Button variant="outline" onClick={() => setCurrentStep('invite-users')}>Volver y corregir</Button>
+              </div>
+            </div>
+          )}
         </CardContent>
         <CardFooter className="justify-center pt-4">
           <Button 

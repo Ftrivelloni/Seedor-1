@@ -17,12 +17,15 @@ export async function POST(request: NextRequest) {
   try {
     const { tenantId, email, roleCode, invitedBy } = await request.json()
 
-    if (!tenantId || !email || !roleCode || !invitedBy) {
+    if (!tenantId || !email || !roleCode) {
       return NextResponse.json(
         { error: 'Faltan parámetros requeridos' },
         { status: 400 }
       )
     }
+
+    // If invitedBy isn't supplied (tenant created by system), fall back to configured service user id
+    const inviterId = invitedBy || process.env.SUPABASE_SERVICE_USER_ID || null
 
     const { data: tenant } = await supabaseAdmin
       .from('tenants')
@@ -72,7 +75,7 @@ export async function POST(request: NextRequest) {
         email: email.toLowerCase().trim(),
         role_code: roleCode,
         token_hash: token,
-        invited_by: invitedBy,
+        invited_by: inviterId,
         expires_at: expiresAt.toISOString()
       }])
       .select()
@@ -97,7 +100,7 @@ export async function POST(request: NextRequest) {
           tenant_name: tenant.name,
           role: roleCode,
           invitation_token: token,
-          invited_by_id: invitedBy,
+          invited_by_id: inviterId,
           is_module_user: true
         }
       }

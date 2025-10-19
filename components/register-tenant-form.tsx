@@ -471,43 +471,60 @@ export default function RegisterTenantForm() {
             return;
         }
 
-        setLoading(true);
+            setLoading(true);
 
-        try {
-            const completeData = {
-                tenantName: companyName,
-                slug: generateSlug(companyName),
-                plan: selectedPlan,
-                contactName: contactName,
-                contactEmail: contactEmail,
-                ownerPassword: "temp-password-not-used", // Owner usa OTP, no password
-                ownerPhone: ownerPhone || undefined,
-            };
-
-            const { success, error: sendError } = await authService.sendOwnerVerificationCode(contactEmail);
-
-            if (!success || sendError) {
-                setError(sendError || "Error al enviar código de verificación");
-                return;
-            }
-
-            if (typeof window !== "undefined") {
-                const dataWithTimestamp = {
-                    ...completeData,
-                    timestamp: new Date().toISOString()
+            try {
+                const payload = {
+                    tenantName: companyName,
+                    slug: generateSlug(companyName),
+                    plan: selectedPlan,
+                    contactName: contactName,
+                    contactEmail: contactEmail,
+                    ownerPhone: ownerPhone || undefined,
                 };
-                localStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(dataWithTimestamp));
-                localStorage.removeItem(FORM_DATA_KEY);
+
+                // 1) Ask server if the email already exists
+                const checkRes = await fetch('/api/auth/check-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: contactEmail })
+                });
+
+                const checkJson = await checkRes.json();
+
+                if (!checkRes.ok) {
+                    setError(checkJson.error || 'Error verificando el email');
+                    return;
+                }
+
+                if (checkJson.exists) {
+                    // For now, show a simple message instructing the user to login. Full existing-account flow will be implemented next.
+                    setError('Esta cuenta ya existe. Por favor iniciá sesión para continuar.');
+                    return;
+                }
+
+                // 2) Email does NOT exist -> create tenant and send invite to admin
+                const createRes = await fetch('/api/tenant/create-invite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const createJson = await createRes.json();
+
+                if (!createRes.ok) {
+                    setError(createJson.error || 'Error creando la empresa');
+                    return;
+                }
+
+                // Redirect to confirmation page
+                router.push(`/register-tenant/sent?email=${encodeURIComponent(contactEmail)}`);
+
+            } catch (err: any) {
+                setError(err.message || "Error inesperado");
+            } finally {
+                setLoading(false);
             }
-
-            setRegistrationData(completeData);
-            setCurrentStep('verification');
-
-        } catch (err: any) {
-            setError(err.message || "Error inesperado");
-        } finally {
-            setLoading(false);
-        }
     }, [companyName, contactName, contactEmail, ownerPhone, selectedPlan, validateField]);
 
     const onVerifyCode = useCallback(async (e: React.FormEvent) => {
