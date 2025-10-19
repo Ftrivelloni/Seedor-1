@@ -23,6 +23,8 @@ export async function GET(request: Request) {
     }
 
     // Get user's tenant memberships instead of requiring worker record
+    console.debug('[DEBUG] /api/auth/me - fetching tenant_memberships for user', user.id)
+    const membershipStart = Date.now()
     const { data: memberships, error: membershipError } = await supabase
       .from('tenant_memberships')
       .select(`
@@ -33,10 +35,12 @@ export async function GET(request: Request) {
       .eq('user_id', user.id)
       .eq('status', 'active')
       .single();
-
+    const membershipElapsed = Date.now() - membershipStart
     if (membershipError || !memberships) {
+      console.debug('[DEBUG] /api/auth/me - tenant_memberships missing or error', { userId: user.id, error: membershipError })
       return NextResponse.json({ user: null }, { status: 401 });
     }
+    console.debug('[DEBUG] /api/auth/me - tenant_memberships fetched', { userId: user.id, elapsedMs: membershipElapsed })
 
     const roleMap: { [key: string]: string } = {
       'admin': 'Admin',

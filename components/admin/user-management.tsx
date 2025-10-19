@@ -75,7 +75,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<TenantUser | null>(null)
-  const [editingRole, setEditingRole] = useState<'campo' | 'empaque' | 'finanzas'>('campo')
+  const [editingRole, setEditingRole] = useState<'admin' | 'campo' | 'empaque' | 'finanzas'>('campo')
   const [isUpdating, setIsUpdating] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState<TenantUser | null>(null)
@@ -115,9 +115,12 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     profesional: ['campo', 'empaque', 'finanzas']
   }
 
-  const roleOptions = tenantPlan === 'profesional' 
-    ? availableRoles.profesional 
-    : availableRoles.basic
+  const roleOptionsBase = tenantPlan === 'profesional' 
+    ? [...availableRoles.profesional] 
+    : [...availableRoles.basic]
+
+  // Allow admins to create other admins
+  const roleOptions = isAdmin ? [...roleOptionsBase, 'admin'] : roleOptionsBase
 
   useEffect(() => {
     if (isAdmin) {
@@ -303,15 +306,21 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
       if (response.ok) {
         const result = await response.json()
-        setInvitedUserEmail(formData.email)
-        setShowSuccessMessage(true)
+        // If the server indicates the user already existed and membership was created
+        if (result?.message && result.message.includes('Cuenta existente')) {
+          toast({
+            title: 'Usuario agregado',
+            description: `La cuenta ${formData.email} ya existe y fue agregada al tenant.`,
+            variant: 'default'
+          })
+        } else {
+          setInvitedUserEmail(formData.email)
+          setShowSuccessMessage(true)
+        }
+
         setIsCreateModalOpen(false)
-        
-        setFormData({
-          email: '',
-          role: 'campo'
-        })
-        loadUsers() 
+        setFormData({ email: '', role: 'campo' })
+        loadUsers()
         checkUserLimits()
       } else {
         const error = await response.json()
@@ -773,7 +782,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
       </Dialog>
 
       <div className="grid gap-6">
-        {users.map((user) => {
+  {users.filter(u => u.id !== currentUser?.id).map((user) => {
           const RoleIcon = roleIcons[user.role_code]
           
           return (
@@ -847,7 +856,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
                     </div>
                   </div>
                   
-                  {user.email !== currentUser.email && (
+                  {user.email !== currentUser.email && user.id !== currentUser?.id && (
                     <div className="flex gap-2">
                       <Button
                         size="sm"

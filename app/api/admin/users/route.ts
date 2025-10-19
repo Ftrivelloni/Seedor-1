@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         profile:profiles(*)
       `)
       .eq('tenant_id', membership.tenant_id)
-      .in('role_code', ['empaque', 'finanzas', 'campo'])
+      .in('role_code', ['admin', 'empaque', 'finanzas', 'campo'])
       .eq('status', 'active')
       .not('user_id', 'eq', membership.user_id);
 

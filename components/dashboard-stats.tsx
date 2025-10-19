@@ -86,6 +86,18 @@ export function DashboardStats() {
 
   const firstTwoFarms = farms.slice(0, 2)
 
+  // Determine which boxes to show based on role
+  const roleKey = (user?.rol || '').toString().toLowerCase().trim()
+  const allowedBoxes = (() => {
+    // Normalize a few variants
+    if (roleKey.includes('admin')) return new Set(['empaque', 'campo', 'inventario', 'finanzas', 'trabajadores'])
+    if (roleKey.includes('empaque')) return new Set(['empaque', 'inventario', 'trabajadores'])
+    if (roleKey.includes('campo')) return new Set(['empaque', 'inventario', 'campo', 'trabajadores'])
+    if (roleKey.includes('finanzas')) return new Set(['finanzas', 'trabajadores'])
+    // Fallback: show a reasonable default (Empaque + Inventario + Trabajadores)
+    return new Set(['empaque', 'inventario', 'trabajadores'])
+  })()
+
   const EmpaqueIcon = ({ className = "" }: { className?: string }) => (
     <div className={`h-8 w-8 rounded-md bg-seedor/10 text-seedor flex items-center justify-center ${className}`}>
       <Package className="h-4 w-4" />
@@ -160,76 +172,81 @@ export function DashboardStats() {
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Empaque */}
-          <Card className="border-seedor/20 bg-white dark:bg-neutral-900">
-            <CardHeader className="flex flex-row items-start gap-3">
-              <EmpaqueIcon />
-              <div>
-                <CardTitle className="font-semibold">Empaque</CardTitle>
-                <CardDescription>Accesos rápidos</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in-up">
-                <div className="flex flex-col gap-3">
-                  <ActionButton icon={Package} label="Ingreso Fruta" onClick={() => go('/empaque/ingreso-fruta')} tone="seedor" />
-                  <ActionButton icon={Cog} label="Preproceso" onClick={() => go('/empaque/preproceso')} tone="orange" />
-                  <ActionButton icon={Archive} label="Pallets" onClick={() => go('/empaque/pallets')} tone="green" />
+          {allowedBoxes.has('empaque') && (
+            <Card className="border-seedor/20 bg-white dark:bg-neutral-900">
+              <CardHeader className="flex flex-row items-start gap-3">
+                <EmpaqueIcon />
+                <div>
+                  <CardTitle className="font-semibold">Empaque</CardTitle>
+                  <CardDescription>Accesos rápidos</CardDescription>
                 </div>
-                <div className="flex flex-col gap-3">
-                  <ActionButton icon={Truck} label="Despacho" onClick={() => go('/empaque/despacho')} tone="purple" />
-                  <ActionButton icon={ArrowUpRight} label="Egreso fruta" onClick={() => go('/empaque/egreso-fruta')} tone="seedor" />
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in-up">
+                  <div className="flex flex-col gap-3">
+                    <ActionButton icon={Package} label="Ingreso Fruta" onClick={() => go('/empaque/ingreso-fruta')} tone="seedor" />
+                    <ActionButton icon={Cog} label="Preproceso" onClick={() => go('/empaque/preproceso')} tone="orange" />
+                    <ActionButton icon={Archive} label="Pallets" onClick={() => go('/empaque/pallets')} tone="green" />
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <ActionButton icon={Truck} label="Despacho" onClick={() => go('/empaque/despacho')} tone="purple" />
+                    <ActionButton icon={ArrowUpRight} label="Egreso fruta" onClick={() => go('/empaque/egreso-fruta')} tone="seedor" />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Campo */}
-          <Card className="border-emerald-200/30 bg-white dark:bg-neutral-900">
-            <CardHeader className="flex flex-row items-start gap-3">
-              <CampoIcon />
-              <div>
-                <CardTitle>Campo</CardTitle>
-                <CardDescription>Acceso a tus campos</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadingFarms ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {[1,2].map((i) => (
-                    <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />
-                  ))}
+          {allowedBoxes.has('campo') && (
+            <Card className="border-emerald-200/30 bg-white dark:bg-neutral-900">
+              <CardHeader className="flex flex-row items-start gap-3">
+                <CampoIcon />
+                <div>
+                  <CardTitle>Campo</CardTitle>
+                  <CardDescription>Acceso a tus campos</CardDescription>
                 </div>
-              ) : (
-                <>
-                  <div className="flex flex-col gap-3 mb-3">
-                    {firstTwoFarms.length > 0 ? (
-                      firstTwoFarms.map((farm) => (
-                        <Button
-                          key={farm.id}
-                          variant="outline"
-                          className="justify-start gap-2 border-emerald-200/60 hover:border-emerald-300 hover:bg-emerald-100/40 dark:hover:bg-emerald-900/20 hover:text-black dark:hover:text-black"
-                          onClick={() => go(`/campo/${farm.id}`)}
-                        >
-                          <Sprout className="h-4 w-4 text-emerald-600" />
-                          <span>{farm.name}</span>
-                          <ChevronRight className="ml-auto h-4 w-4 opacity-60" />
-                        </Button>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Aún no hay campos creados</p>
-                    )}
+              </CardHeader>
+              <CardContent>
+                {loadingFarms ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {[1,2].map((i) => (
+                      <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />
+                    ))}
                   </div>
-                  <Button variant="ghost" className="px-0 text-seedor underline hover:text-seedor/80" onClick={() => go('/campo')}>
-                    Ver más
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-3 mb-3">
+                      {firstTwoFarms.length > 0 ? (
+                        firstTwoFarms.map((farm) => (
+                          <Button
+                            key={farm.id}
+                            variant="outline"
+                            className="justify-start gap-2 border-emerald-200/60 hover:border-emerald-300 hover:bg-emerald-100/40 dark:hover:bg-emerald-900/20 hover:text-black dark:hover:text-black"
+                            onClick={() => go(`/campo/${farm.id}`)}
+                          >
+                            <Sprout className="h-4 w-4 text-emerald-600" />
+                            <span>{farm.name}</span>
+                            <ChevronRight className="ml-auto h-4 w-4 opacity-60" />
+                          </Button>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Aún no hay campos creados</p>
+                      )}
+                    </div>
+                    <Button variant="ghost" className="px-0 text-seedor underline hover:text-seedor/80" onClick={() => go('/campo')}>
+                      Ver más
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Placeholder squares */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
             {/* Inventario */}
+            {allowedBoxes.has('inventario') && (
             <Card className="h-full border-sky-200/40 bg-white dark:bg-neutral-900">
               <CardHeader className="flex flex-row items-start gap-3">
                 <InventarioIcon />
@@ -263,8 +280,10 @@ export function DashboardStats() {
                 </div>
               </CardContent>
             </Card>
+            )}
 
             {/* Finanzas */}
+            {allowedBoxes.has('finanzas') && (
             <Card className="h-full border-amber-200/40 bg-white dark:bg-neutral-900">
               <CardHeader className="flex flex-row items-start gap-3">
                 <FinanzasIcon />
@@ -298,8 +317,10 @@ export function DashboardStats() {
                 </div>
               </CardContent>
             </Card>
+            )}
 
             {/* Trabajadores - Asistencia de hoy */}
+            {allowedBoxes.has('trabajadores') && (
             <Card className="h-full border-violet-200/40 bg-white dark:bg-neutral-900">
               <CardHeader className="flex flex-row items-start gap-3">
                 <TrabajadoresIcon />
@@ -363,6 +384,7 @@ export function DashboardStats() {
                 )}
               </CardContent>
             </Card>
+            )}
           </div>
         </div>
       </main>

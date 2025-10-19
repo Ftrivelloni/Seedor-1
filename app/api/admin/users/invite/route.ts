@@ -73,6 +73,69 @@ export async function POST(request: NextRequest) {
     // Generate invitation token
     const token_invitation = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
 
+    // Check if the email already exists as an auth user using admin API. If so, add membership directly.
+    try {
+      const { data: listResult, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+
+      if (listError) {
+        console.warn('Warning listing admin users:', listError)
+      }
+
+      const existingAuthUser = listResult?.users?.find((u: any) => u.email && u.email.toLowerCase() === email.toLowerCase().trim())
+
+      if (existingAuthUser && existingAuthUser.id) {
+        console.log('🔍 Existing auth user found via admin.listUsers, creating membership directly for user:', existingAuthUser.email)
+
+        // Check if membership already exists
+        const { data: existingMembership } = await supabaseAdmin
+          .from('tenant_memberships')
+          .select('*')
+          .eq('tenant_id', currentMembership.tenant_id)
+          .eq('user_id', existingAuthUser.id)
+          .eq('status', 'active')
+          .maybeSingle()
+
+        if (existingMembership) {
+          return NextResponse.json({ success: true, message: 'El usuario ya es miembro de este tenant', data: { email: existingAuthUser.email } })
+        }
+
+        const { data: membershipData, error: membershipInsertError } = await supabaseAdmin
+          .from('tenant_memberships')
+          .insert([{
+            tenant_id: currentMembership.tenant_id,
+            user_id: existingAuthUser.id,
+            role_code: role === 'admin' ? 'admin' : role,
+            status: 'active',
+            invited_by: user.id,
+            accepted_at: new Date().toISOString()
+          }])
+          .select()
+          .single()
+
+        if (membershipInsertError) {
+          console.error('Error creating membership for existing user:', membershipInsertError)
+          return NextResponse.json({ error: `Error al agregar usuario al tenant: ${membershipInsertError.message}` }, { status: 500 })
+        }
+
+        // Increment tenant current_users if role qualifies
+        try {
+          if (['admin', 'campo', 'empaque', 'finanzas'].includes(role)) {
+            await supabaseAdmin
+              .from('tenants')
+              .update({ current_users: (tenant.current_users || 0) + 1 })
+              .eq('id', currentMembership.tenant_id)
+          }
+        } catch (incErr) {
+          console.warn('Could not increment tenant current_users:', incErr)
+        }
+
+        return NextResponse.json({ success: true, message: 'Cuenta existente: el usuario fue agregado al tenant', data: { membership: membershipData, email: existingAuthUser.email } })
+      }
+    } catch (checkErr) {
+      console.warn('Error checking existing auth user via admin API:', checkErr)
+      // proceed with invite flow if check fails
+    }
+
     console.log('🔄 Creating invitation record...')
     
     // Create invitation record

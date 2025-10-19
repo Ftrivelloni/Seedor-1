@@ -45,6 +45,13 @@ class SessionManager {
     }
 
     sessionStorage.setItem(this.TAB_SESSION_KEY, JSON.stringify(sessionData))
+    // Notify same-tab listeners that the session changed
+    try {
+      const ev = new CustomEvent('seedor:session-updated', { detail: sessionData })
+      window.dispatchEvent(ev)
+    } catch (e) {
+      // ignore
+    }
   }
 
   getCurrentUser(): SessionUser | null {

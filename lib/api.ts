@@ -273,6 +273,8 @@ export const tenantApi = {
 
   // Get user's tenants
   async getUserTenants(userId: string): Promise<Tenant[]> {
+    console.debug('[DEBUG] tenantApi.getUserTenants - fetching tenant_memberships for user', userId)
+    const start = Date.now()
     const { data, error } = await supabase
       .from('tenant_memberships')
       .select(`
@@ -280,9 +282,12 @@ export const tenantApi = {
       `)
       .eq('user_id', userId)
       .eq('status', 'active')
-
-    if (error) throw error
-
+    const elapsed = Date.now() - start
+    if (error) {
+      console.debug('[DEBUG] tenantApi.getUserTenants - error', { userId, error })
+      throw error
+    }
+    console.debug('[DEBUG] tenantApi.getUserTenants - fetched', { userId, count: data?.length || 0, elapsedMs: elapsed })
     return data.map((membership: any) => membership.tenants)
   },
 

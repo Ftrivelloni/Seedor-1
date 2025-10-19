@@ -76,34 +76,72 @@ export default function AdminSetupForm() {
         console.log('🔧 AdminSetupForm: Session result:', {
           hasUser: !!currentUser,
           tenantId: currentUser?.tenantId,
-          rol: currentUser?.rol
+          rol: currentUser?.rol,
+          membershipsCount: currentUser?.memberships?.length || 0,
+          tenantIdParam
         });
 
-        if (currentUser && currentUser.tenantId && currentUser.rol === 'admin') {
-          // El usuario ya está autenticado como admin, usar datos de la sesión
-          const mockInvitation = {
-            tenant_id: currentUser.tenantId,
-            role: currentUser.rol,
-            tenants: currentUser.tenant
-          };
-
-          setInvitation(mockInvitation);
-
-          console.log('🔧 AdminSetupForm: Getting tenant limits for:', currentUser.tenantId);
-          const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(currentUser.tenantId);
-
-          console.log('🔧 AdminSetupForm: Tenant limits result:', { limitsSuccess, limitsData });
-
-          if (limitsSuccess && limitsData) {
-            setTenantPlan(limitsData.plan);
-            const available = Object.keys(AVAILABLE_MODULES).filter(moduleId => 
-              AVAILABLE_MODULES[moduleId as keyof typeof AVAILABLE_MODULES].available.includes(limitsData.plan)
-            );
-            setAvailableModules(available);
+        // If user session indicates they are admin on the tenant param or their session tenant
+        const tenantToCheck = tenantIdParam || currentUser?.tenantId
+        if (currentUser) {
+          // Prefer explicit match with tenantIdParam: look into memberships array for a membership to that tenant
+          let membershipForTenant = null
+          if (tenantToCheck && currentUser.memberships && Array.isArray(currentUser.memberships)) {
+            membershipForTenant = currentUser.memberships.find((m: any) => String(m.tenant_id) === String(tenantToCheck) && m.status === 'active')
           }
 
-          setLoading(false);
-          return;
+          if (membershipForTenant && (membershipForTenant.role_code === 'admin' || membershipForTenant.role_code === 'owner')) {
+            console.log('[AdminSetupForm] Found active admin membership for tenant in session memberships:', membershipForTenant)
+            const mockInvitation = {
+              tenant_id: membershipForTenant.tenant_id,
+              role: membershipForTenant.role_code,
+              tenants: membershipForTenant.tenants || currentUser.tenant
+            }
+
+            setInvitation(mockInvitation)
+
+            console.log('🔧 AdminSetupForm: Getting tenant limits for:', mockInvitation.tenant_id)
+            const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(mockInvitation.tenant_id)
+            console.log('🔧 AdminSetupForm: Tenant limits result:', { limitsSuccess, limitsData })
+
+            if (limitsSuccess && limitsData) {
+              setTenantPlan(limitsData.plan)
+              const available = Object.keys(AVAILABLE_MODULES).filter(moduleId => 
+                AVAILABLE_MODULES[moduleId as keyof typeof AVAILABLE_MODULES].available.includes(limitsData.plan)
+              )
+              setAvailableModules(available)
+            }
+
+            setLoading(false)
+            return
+          }
+
+          // If the session user is already an admin and their tenantId matches, accept that too
+          if (currentUser.tenantId && (currentUser.rol === 'admin' || currentUser.rol === 'owner') && (!tenantIdParam || String(currentUser.tenantId) === String(tenantIdParam))) {
+            const mockInvitation = {
+              tenant_id: currentUser.tenantId,
+              role: currentUser.rol,
+              tenants: currentUser.tenant
+            }
+
+            setInvitation(mockInvitation)
+
+            console.log('🔧 AdminSetupForm: Getting tenant limits for:', currentUser.tenantId)
+            const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(currentUser.tenantId)
+
+            console.log('🔧 AdminSetupForm: Tenant limits result:', { limitsSuccess, limitsData })
+
+            if (limitsSuccess && limitsData) {
+              setTenantPlan(limitsData.plan)
+              const available = Object.keys(AVAILABLE_MODULES).filter(moduleId => 
+                AVAILABLE_MODULES[moduleId as keyof typeof AVAILABLE_MODULES].available.includes(limitsData.plan)
+              );
+              setAvailableModules(available)
+            }
+
+            setLoading(false)
+            return
+          }
         }
 
         // If not authenticated via session, try a sessionStorage fallback before requiring token flow

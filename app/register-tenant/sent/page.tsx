@@ -1,8 +1,7 @@
 import React from 'react'
 
-export default async function SentPage({ searchParams }: { searchParams?: { email?: string } }) {
-  // Next.js App Router requires awaiting dynamic props usage
-  const params = await Promise.resolve(searchParams || {})
+export default function SentPage({ searchParams }: any) {
+  const params = searchParams || {}
   const email = params.email || ''
 
   return (

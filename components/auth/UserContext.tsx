@@ -77,10 +77,45 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     setupAuthListener()
+
+    // Listen for session updates dispatched by SessionManager (same tab) and storage events (cross-tab)
+    const handleSessionUpdate = () => {
+      try {
+        const sessionManager = getSessionManager()
+        const latest = sessionManager.peekCurrentUser()
+        setUser(latest)
+      } catch (e) {
+        console.error('Error handling session update:', e)
+      }
+    }
+
+    window.addEventListener('seedor:session-updated', handleSessionUpdate)
+    window.addEventListener('storage', handleSessionUpdate)
+
+    return () => {
+      window.removeEventListener('seedor:session-updated', handleSessionUpdate)
+      window.removeEventListener('storage', handleSessionUpdate)
+    }
   }, [])
 
+  const setSelectedTenant = (tenant: any, role?: string) => {
+    try {
+      const sessionManager = getSessionManager()
+      const updated = {
+        ...user,
+        tenant,
+        tenantId: tenant?.id || null,
+        rol: role || user?.rol || null
+      }
+      sessionManager.setCurrentUser(updated)
+      setUser(updated)
+    } catch (e) {
+      console.error('setSelectedTenant error:', e)
+    }
+  }
+
   return (
-    <UserContext.Provider value={{ user, setUser, loading }}>
+    <UserContext.Provider value={{ user, setUser, loading, setSelectedTenant }}>
       {children}
     </UserContext.Provider>
   )
@@ -94,6 +129,7 @@ export function useUserActions() {
   const context = useContext(UserContext)
   return {
     clearUser: () => context?.setUser?.(null),
-    setUser: context?.setUser
+    setUser: context?.setUser,
+    setSelectedTenant: context?.setSelectedTenant
   }
 }

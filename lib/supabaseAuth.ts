@@ -1163,26 +1163,46 @@ export const authService = {
         .eq('user_id', data.user.id)
         .maybeSingle()
 
-      const { data: memberships } = await supabase
+      console.debug('[DEBUG] authService.login - fetching tenant_memberships for user', data.user.id)
+      const membershipStart = Date.now()
+      const { data: memberships, error: membershipsError } = await supabase
         .from('tenant_memberships')
         .select('*, tenants(*)')
         .eq('user_id', data.user.id)
         .eq('status', 'active')
+      const membershipElapsed = Date.now() - membershipStart
+      if (membershipsError) {
+        console.debug('[DEBUG] authService.login - tenant_memberships error for user', data.user.id, membershipsError)
+      } else {
+        console.debug('[DEBUG] authService.login - tenant_memberships fetched', { userId: data.user.id, count: memberships?.length || 0, elapsedMs: membershipElapsed })
+      }
 
-      const defaultMembership = memberships && memberships.length > 0 ? memberships[0] : null
-      const authUser = {
+      // If the user has exactly one active membership, pre-select it for UX
+      // convenience (so Sidebar/Topbar update immediately). Otherwise keep
+      // tenant/tenantId/rol null so the UI prompts selection.
+      let sessionUser: any = {
         id: data.user.id,
         email: data.user.email!,
         nombre: profile?.full_name || data.user.email!,
-        rol: defaultMembership?.role_code || null,
-        tenantId: defaultMembership?.tenant_id || null,
-        tenant: defaultMembership?.tenants || null,
+        rol: null,
+        tenantId: null,
+        tenant: null,
         profile,
         memberships
       }
 
+      if (memberships && memberships.length === 1) {
+        const m = memberships[0]
+        sessionUser = {
+          ...sessionUser,
+          rol: m.role_code,
+          tenantId: m.tenant_id,
+          tenant: m.tenants
+        }
+      }
+
       const sessionManager = getSessionManager()
-      sessionManager.setCurrentUser(authUser, data.session?.access_token)
+      sessionManager.setCurrentUser(sessionUser, data.session?.access_token)
 
       return {
         user: {
@@ -1236,19 +1256,27 @@ export const authService = {
         const result = await Promise.race([membershipPromise, timeoutPromise]) as any;
         memberships = result.data;
         membershipError = result.error;
+        console.debug('[DEBUG] authService.getSafeSession - tenant_memberships result', { userId: session.user.id, count: memberships?.length || 0 })
       } catch (error: any) {
         if (error.message === 'Timeout') {
           memberships = null;
           membershipError = null;
+          console.debug('[DEBUG] authService.getSafeSession - tenant_memberships timed out for user', session.user.id)
         } else {
           membershipError = error;
+          console.debug('[DEBUG] authService.getSafeSession - tenant_memberships error for user', session.user.id, error)
         }
       }
 
       let mappedUser = null;
 
       if (memberships && memberships.length > 0) {
-        const defaultMembership = memberships[0]
+        // Prefer profile.default_tenant_id if present; otherwise fall back to first membership
+        let defaultMembership = memberships[0]
+        if (profile?.default_tenant_id) {
+          const match = memberships.find((m: any) => m.tenant_id === profile.default_tenant_id)
+          if (match) defaultMembership = match
+        }
         mappedUser = {
           id: session.user.id,
           email: session.user.email,
@@ -1309,11 +1337,16 @@ export const authService = {
         .select('*, tenants(*)')
         .eq('user_id', session.user.id)
         .eq('status', 'active')
-
+      console.debug('[DEBUG] authService.getCurrentUser - tenant_memberships fetched', { userId: session.user.id, count: memberships?.length || 0 })
       let mappedUser = null;
 
       if (memberships && memberships.length > 0) {
-        const defaultMembership = memberships[0]
+        // Prefer profile.default_tenant_id if present; otherwise fall back to first membership
+        let defaultMembership = memberships[0]
+        if (profile?.default_tenant_id) {
+          const match = memberships.find((m: any) => m.tenant_id === profile.default_tenant_id)
+          if (match) defaultMembership = match
+        }
         mappedUser = {
           id: session.user.id,
           email: session.user.email,

@@ -7,6 +7,7 @@ import { Button } from "./ui/button"
 import { cn } from "../lib/utils"
 import type { AuthUser } from "../lib/types"
 import { useFeatures, ModuleGate } from "../lib/features-context"
+import TenantSelector from './tenant-selector'
 import {
   LayoutDashboard,
   Sprout,
@@ -101,17 +102,24 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
   const [isCollapsed, setIsCollapsed] = useState(false)
   const { canAccessModule, planInfo } = useFeatures()
 
-  const filteredNavItems = navItems.filter((item) => {
-    if (!canAccessModule(item.module, user.rol)) {
-      return false
-    }
-    
-    if (item.adminOnly && user.rol.toLowerCase() !== 'admin') {
-      return false
-    }
-    
-    return true
-  })
+  let filteredNavItems = navItems
+
+  // If the user has not selected a tenant/role yet, only show Ajustes
+  if (!user.rol || !user.tenantId) {
+    filteredNavItems = navItems.filter((i) => i.module === 'ajustes')
+  } else {
+    filteredNavItems = navItems.filter((item) => {
+      if (!canAccessModule(item.module, user.rol)) {
+        return false
+      }
+      
+      if (item.adminOnly && user.rol.toLowerCase() !== 'admin') {
+        return false
+      }
+      
+      return true
+    })
+  }
 
   return (
     <div
@@ -129,7 +137,11 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
               className="h-8 w-auto"
             />
             <div>
-              <h2 className="font-semibold text-sidebar-foreground">{user.tenant.name}</h2>
+              {/* Tenant selector replaces static tenant name */}
+              <div className="flex items-center gap-2">
+                <TenantSelector />
+              </div>
+
               <p className="text-xs text-sidebar-foreground/70">{user.nombre}</p>
               {planInfo && (
                 <div className="flex items-center gap-1 mt-1">
