@@ -78,7 +78,7 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
       // Pre-populate worker states with existing records
       const newStates: Record<string, WorkerAttendanceState> = {}
       records.forEach(record => {
-        const wid = (record as any).worker_id || record.workerId
+        const wid = (record as any).worker_id || (record as any).workerId
         if (!wid) return
         newStates[wid] = {
           workerId: wid,

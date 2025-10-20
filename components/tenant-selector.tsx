@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useEffect, useRef, useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
+import { ROUTES } from '../lib/constants/routes'
 import { useUser, useUserActions } from './auth/UserContext'
 import { tenantApi } from '../lib/api'
 import { getSessionManager } from '../lib/sessionManager'
@@ -8,6 +10,8 @@ import { getSessionManager } from '../lib/sessionManager'
 export default function TenantSelector() {
   const { user } = useUser()
   const { setUser, setSelectedTenant } = useUserActions()
+  const router = useRouter()
+  const pathname = usePathname()
   const [tenants, setTenants] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const sessionManager = typeof window !== 'undefined' ? getSessionManager() : null
@@ -125,6 +129,19 @@ export default function TenantSelector() {
       } else {
         sessionManager?.setCurrentUser(newUser)
         setUser?.(newUser)
+      }
+
+      // If user was on the Finanzas module and the newly selected tenant's plan
+      // doesn't include Finanzas, redirect to Dashboard to avoid showing a
+      // (disabled) Finanzas view for a basic tenant.
+      const plan = ((tenantObj?.plan || '') as string).toLowerCase()
+      const hasFinanzas = ['pro', 'profesional', 'enterprise', 'empresarial'].includes(plan)
+      try {
+        if (typeof pathname === 'string' && pathname.startsWith('/finanzas') && !hasFinanzas) {
+          router.push(ROUTES.DASHBOARD)
+        }
+      } catch (e) {
+        // ignore routing errors
       }
     } catch (e) {
       console.warn('[TenantSelector] could not persist selection to sessionManager', e)

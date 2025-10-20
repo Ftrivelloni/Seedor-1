@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { AuthUser } from './types'
 
 function getPlanFeatures(planName: string): TenantFeature[] {
-  const plan = planName.toLowerCase()
+  const plan = (planName || '').toLowerCase()
   
   const baseFeatures: TenantFeature[] = [
     { feature_code: 'dashboard', feature_name: 'Dashboard', is_enabled: true },
@@ -16,17 +16,19 @@ function getPlanFeatures(planName: string): TenantFeature[] {
   if (plan === 'basic' || plan === 'basico') {
     return [
       ...baseFeatures,
-      { feature_code: 'campo', feature_name: 'Gestión de Campo', is_enabled: false },
+      // Campo is available on Basic as well
+      { feature_code: 'campo', feature_name: 'Gestión de Campo', is_enabled: true },
       { feature_code: 'finanzas', feature_name: 'Gestión de Finanzas', is_enabled: false },
       { feature_code: 'contactos', feature_name: 'Gestión de Contactos', is_enabled: false },
     ]
   }
 
-  if (plan === 'pro') {
+  if (plan === 'pro' || plan === 'profesional') {
     return [
       ...baseFeatures,
       { feature_code: 'campo', feature_name: 'Gestión de Campo', is_enabled: true },
-      { feature_code: 'finanzas', feature_name: 'Gestión de Finanzas', is_enabled: false },
+      // Profesional includes Finanzas
+      { feature_code: 'finanzas', feature_name: 'Gestión de Finanzas', is_enabled: true },
       { feature_code: 'contactos', feature_name: 'Gestión de Contactos', is_enabled: false },
     ]
   }
@@ -101,8 +103,10 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
     try {
       setIsLoading(true)
       
-      const tenantPlan = user.tenant?.plan || 'basic'
-      
+      // Normalize plan string so aliases like 'basico', 'empresarial' or 'profesional' are handled
+      const tenantPlanRaw = (user.tenant?.plan || 'basic')
+      const tenantPlan = (tenantPlanRaw || '').toLowerCase()
+
       const planFeatures = getPlanFeatures(tenantPlan)
       setFeatures(planFeatures)
 
@@ -110,6 +114,7 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
         'basic': 'Plan Básico',
         'basico': 'Plan Básico', 
         'pro': 'Plan Profesional',
+        'profesional': 'Plan Profesional',
         'enterprise': 'Plan Empresarial',
         'empresarial': 'Plan Empresarial'
       }
@@ -117,7 +122,8 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
       const planPrices = {
         'basic': 29.99,
         'basico': 29.99,
-        'pro': 79.99, 
+        'pro': 79.99,
+        'profesional': 79.99,
         'enterprise': 199.99,
         'empresarial': 199.99
       }
@@ -128,7 +134,7 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
         price_monthly: planPrices[tenantPlan as keyof typeof planPrices] || 29.99,
         price_yearly: (planPrices[tenantPlan as keyof typeof planPrices] || 29.99) * 10,
         current_users: 1,
-        max_users: tenantPlan === 'enterprise' || tenantPlan === 'empresarial' ? -1 : (tenantPlan === 'pro' ? 10 : 3),
+        max_users: (tenantPlan === 'enterprise' || tenantPlan === 'empresarial') ? -1 : ((tenantPlan === 'pro' || tenantPlan === 'profesional') ? 10 : 3),
         plan_active: true
       })
     } catch (error) {
@@ -170,20 +176,16 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
     const userRoleKey = userRole.toLowerCase()
     
     const roleAllowed = roleModuleAccess[userRoleKey]?.includes(moduleKey) || false
-    
-    // For basic modules, only check role permissions
-    const basicModules = ['dashboard', 'campo', 'empaque', 'finanzas', 'inventario', 'trabajadores', 'contactos', 'ajustes']
-    if (basicModules.includes(moduleKey)) {
-      return roleAllowed
-    }
-    
-    // For advanced modules like user_management, check both role and feature
+
+    // Require both role permission and that the feature is enabled in the tenant plan.
+    // This prevents admins from seeing modules (e.g., 'finanzas') when the selected tenant's plan doesn't include them.
     const featureEnabled = hasFeature(moduleKey)
-    
+
+    // Special-case: user_management must be admin and feature enabled
     if (moduleKey === 'user_management') {
       return userRoleKey === 'admin' && featureEnabled
     }
-    
+
     return roleAllowed && featureEnabled
   }
 
