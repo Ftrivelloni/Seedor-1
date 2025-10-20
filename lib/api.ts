@@ -1,6 +1,9 @@
 // Egreso Fruta API
 export const egresoFrutaApi = {
   async getEgresos(tenantId: string): Promise<any[]> {
+    if (isDemoModeClient()) {
+      return demoEmpaqueEgresos(tenantId)
+    }
     try {
       // First verify the tenant exists to prevent orphaned reference errors
       const { data: tenantCheck } = await supabase
@@ -42,6 +45,12 @@ export const egresoFrutaApi = {
   },
 
   async createEgreso(egreso: Omit<EgresoFruta, "id">): Promise<EgresoFruta> {
+    if (isDemoModeClient()) {
+      return demoEmpaqueCreateEgreso({
+        ...egreso,
+        tenant_id: egreso.tenantId,
+      })
+    }
     try {
       // Verify tenant exists before creating
       const { data: tenantCheck } = await supabase
@@ -80,9 +89,77 @@ import {
   type ItemInventario,
   type MovimientoCaja,
 } from "./mocks"
-import type { IngresoFruta, Preproceso, Pallet, Despacho, EgresoFruta, Tenant, TenantMembership, TenantModule, CreateTenantRequest } from './types'
+import type { IngresoFruta, Preproceso, Pallet, Despacho, EgresoFruta, Tenant, TenantMembership, TenantModule, CreateTenantRequest, Worker } from './types'
 // Use the singleton supabase client to avoid multiple instances
 import { supabase } from './supabaseClient'
+import { isDemoModeClient } from "./demo/utils"
+import {
+  demoTenantGetTenants,
+  demoTenantGetModules,
+  demoTenantMemberships,
+  demoFinanzasGetMovimientos,
+  demoFinanzasCreateMovimiento,
+  demoFinanzasGetCategorias,
+  demoFinanzasCreateCategoria,
+  demoWorkersList,
+  demoWorkersCreate,
+  demoWorkersUpdate,
+  demoWorkersSoftDelete,
+  demoWorkersHardDelete,
+  demoAttendanceGetByTenant,
+  demoAttendanceGetByDate,
+  demoAttendanceCreate,
+  demoAttendanceUpdate,
+  demoAttendanceDelete,
+  demoAttendanceStatuses,
+  demoInventoryListItems,
+  demoInventoryGetItemById,
+  demoInventoryCreateItem,
+  demoInventoryUpdateItem,
+  demoInventoryDeleteItem,
+  demoInventoryListCategories,
+  demoInventoryCreateCategory,
+  demoInventoryDeleteCategory,
+  demoInventoryListLocations,
+  demoInventoryCreateLocation,
+  demoInventoryDeleteLocation,
+  demoInventoryListMovements,
+  demoInventoryCreateMovement,
+  demoInventoryDeleteMovement,
+  demoInventoryMovementTypes,
+  demoInventorySummary,
+  demoEmpaqueIngresos,
+  demoEmpaqueCreateIngreso,
+  demoEmpaqueRegistros,
+  demoEmpaqueCreateRegistro,
+  demoEmpaqueEgresos,
+  demoEmpaqueCreateEgreso,
+  demoEmpaquePallets,
+  demoEmpaqueCreatePallet,
+  demoEmpaqueDespachos,
+  demoEmpaqueCreateDespacho,
+  demoEmpaquePreprocesos,
+  demoEmpaqueCreatePreproceso,
+  demoCampoTareas,
+  demoFarmsList,
+  demoFarmsGetById,
+  demoFarmsCreate,
+  demoFarmsUpdate,
+  demoFarmsDelete,
+  demoLotsByFarm,
+  demoLotsGetById,
+  demoLotsCreate,
+  demoLotsUpdate,
+  demoLotsDelete,
+  demoLotStatuses,
+  demoTasksByLot,
+  demoTasksGetById,
+  demoTasksCreate,
+  demoTasksUpdate,
+  demoTasksDelete,
+  demoTaskStatuses,
+  demoTaskTypes,
+} from "./demo/store"
 
 // Simulate API delay
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -273,6 +350,12 @@ export const tenantApi = {
 
   // Get user's tenants
   async getUserTenants(userId: string): Promise<Tenant[]> {
+    if (isDemoModeClient()) {
+      const memberships = demoTenantMemberships().filter((m) => m.user_id === userId)
+      const tenants = demoTenantGetTenants()
+      return tenants.filter((tenant) => memberships.some((m) => m.tenant_id === tenant.id))
+    }
+
     console.debug('[DEBUG] tenantApi.getUserTenants - fetching tenant_memberships for user', userId)
     const start = Date.now()
     const { data, error } = await supabase
@@ -293,6 +376,10 @@ export const tenantApi = {
 
   // Get tenant modules
   async getTenantModules(tenantId: string): Promise<TenantModule[]> {
+    if (isDemoModeClient()) {
+      return demoTenantGetModules().filter((module) => module.tenant_id === tenantId)
+    }
+
     const { data, error } = await supabase
       .from('tenant_modules')
       .select('*')
@@ -319,6 +406,12 @@ export const tenantApi = {
 
   // Get user membership in tenant
   async getUserMembership(userId: string, tenantId: string): Promise<TenantMembership | null> {
+    if (isDemoModeClient()) {
+      return demoTenantMemberships().find(
+        (membership) => membership.user_id === userId && membership.tenant_id === tenantId,
+      ) || null
+    }
+
     const { data, error } = await supabase
       .from('tenant_memberships')
       .select('*')
@@ -339,6 +432,10 @@ export const tenantApi = {
 // Campo API
 export const campoApi = {
   async getTareas(tenantId: string): Promise<TareaCampo[]> {
+    if (isDemoModeClient()) {
+      return demoCampoTareas(tenantId)
+    }
+
     try {
       // Try the database first, but expect it to fail since table doesn't exist properly
       const { data, error } = await supabase
@@ -461,11 +558,17 @@ export const campoApi = {
 // Empaque API
 export const empaqueApi = {
   async getRegistros(tenantId: string): Promise<RegistroEmpaque[]> {
+    if (isDemoModeClient()) {
+      return demoEmpaqueRegistros(tenantId)
+    }
     await delay(500)
     return registrosEmpaque.filter((r) => r.tenantId === tenantId)
   },
 
   async createRegistro(registro: Omit<RegistroEmpaque, "id" | "kgDescartados">): Promise<RegistroEmpaque> {
+    if (isDemoModeClient()) {
+      return demoEmpaqueCreateRegistro(registro)
+    }
     await delay(800)
     const newRegistro: RegistroEmpaque = {
       ...registro,
@@ -498,6 +601,9 @@ export const inventarioApi = {
 export const finanzasApi = {
   // Obtiene movimientos desde Supabase; mapea notes → concepto para la UI
   async getMovimientos(tenantId: string): Promise<MovimientoCaja[]> {
+    if (isDemoModeClient()) {
+      return demoFinanzasGetMovimientos(tenantId)
+    }
     try {
       const { data, error } = await supabase
         .from('cash_movements')
@@ -540,6 +646,13 @@ export const finanzasApi = {
   },
 
   async getCategorias(tenantId: string): Promise<Array<{ id: string; name: string; kind?: 'ingreso' | 'egreso' }>> {
+    if (isDemoModeClient()) {
+      return demoFinanzasGetCategorias(tenantId).map((c) => ({
+        id: c.id,
+        name: c.name,
+        kind: c.kind,
+      }))
+    }
     try {
       const { data, error } = await supabase
         .from('finance_categories')
@@ -563,6 +676,9 @@ export const finanzasApi = {
   },
 
   async createCategoria(tenantId: string, name: string, kind: 'ingreso' | 'egreso') {
+    if (isDemoModeClient()) {
+      return demoFinanzasCreateCategoria(tenantId, name, kind)
+    }
     // Use server route (service role) to avoid RLS issues on client
     const res = await fetch('/api/finanzas/categories', {
       method: 'POST',
@@ -578,6 +694,9 @@ export const finanzasApi = {
 
   // Crea movimiento via server route
   async createMovimiento(mov: Omit<MovimientoCaja, 'id'>, userId?: string): Promise<MovimientoCaja> {
+    if (isDemoModeClient()) {
+      return demoFinanzasCreateMovimiento(mov.tenantId, mov)
+    }
     // Resolver categoría a id; si no existe, crearla con kind=mov.tipo
     let categoryId: string | null = null
     if (mov.categoria) {
@@ -633,6 +752,9 @@ export const finanzasApi = {
 // Ingreso Fruta API
 export const ingresoFrutaApi = {
   async getIngresos(tenantId: string): Promise<any[]> {
+    if (isDemoModeClient()) {
+      return demoEmpaqueIngresos(tenantId)
+    }
     console.log('🍎 ingresoFrutaApi.getIngresos called with tenantId:', tenantId);
     console.log('🍎 Supabase client available:', !!supabase);
     
@@ -688,6 +810,9 @@ export const ingresoFrutaApi = {
   },
 
   async createIngreso(ingreso: Omit<IngresoFruta, "id">): Promise<IngresoFruta> {
+    if (isDemoModeClient()) {
+      return demoEmpaqueCreateIngreso(ingreso)
+    }
     // Inserta el ingreso en la tabla real de Supabase
     const { data, error } = await supabase
       .from('ingreso_fruta')
@@ -715,12 +840,18 @@ export const ingresoFrutaApi = {
 // Preproceso API
 export const preprocesoApi = {
   async getPreprocesos(tenantId: string): Promise<Preproceso[]> {
+    if (isDemoModeClient()) {
+      return demoEmpaquePreprocesos(tenantId)
+    }
     await delay(500)
     // TODO: Implement actual Supabase integration
     return []
   },
 
   async createPreproceso(preproceso: Omit<Preproceso, "id">): Promise<Preproceso> {
+    if (isDemoModeClient()) {
+      return demoEmpaqueCreatePreproceso(preproceso)
+    }
     await delay(800)
     const newPreproceso: Preproceso = {
       ...preproceso,
@@ -744,12 +875,18 @@ export const preprocesoApi = {
 // Pallets API
 export const palletsApi = {
   async getPallets(tenantId: string): Promise<Pallet[]> {
+    if (isDemoModeClient()) {
+      return demoEmpaquePallets(tenantId)
+    }
     await delay(500)
     // TODO: Implement actual Supabase integration
     return []
   },
 
   async createPallet(pallet: Omit<Pallet, "id">): Promise<Pallet> {
+    if (isDemoModeClient()) {
+      return demoEmpaqueCreatePallet(pallet)
+    }
     await delay(800)
     const newPallet: Pallet = {
       ...pallet,
@@ -773,12 +910,18 @@ export const palletsApi = {
 // Despacho API
 export const despachoApi = {
   async getDespachos(tenantId: string): Promise<Despacho[]> {
+    if (isDemoModeClient()) {
+      return demoEmpaqueDespachos(tenantId)
+    }
     await delay(500)
     // TODO: Implement actual Supabase integration
     return []
   },
 
   async createDespacho(despacho: Omit<Despacho, "id">): Promise<Despacho> {
+    if (isDemoModeClient()) {
+      return demoEmpaqueCreateDespacho(despacho)
+    }
     await delay(800)
     const newDespacho: Despacho = {
       ...despacho,
@@ -802,38 +945,29 @@ export const despachoApi = {
 // Farms API
 export const farmsApi = {
   async getFarms(tenantId: string): Promise<import('./types').Farm[]> {
-    console.log('🌾 farmsApi.getFarms called with tenantId:', tenantId);
-    console.log('🌾 Supabase client:', !!supabase);
-    
-    try {
-      const { data, error } = await supabase
-        .from('farms')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .order('created_at', { ascending: false })
-
-      console.log('🌾 Supabase response - data:', data);
-      console.log('🌾 Supabase response - error:', error);
-
-      if (error) {
-        console.error('🌾 Supabase error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        throw error;
-      }
-      
-      console.log('🌾 Returning data:', data || []);
-      return data || []
-    } catch (err) {
-      console.error('🌾 Caught exception in getFarms:', err);
-      throw err;
+    if (isDemoModeClient()) {
+      return demoFarmsList(tenantId)
     }
+
+    const { data, error } = await supabase
+      .from('farms')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('🌾 Supabase error details:', error)
+      throw error
+    }
+
+    return data || []
   },
 
   async getFarmById(farmId: string): Promise<import('./types').Farm | null> {
+    if (isDemoModeClient()) {
+      return demoFarmsGetById(farmId)
+    }
+
     const { data, error } = await supabase
       .from('farms')
       .select('*')
@@ -845,6 +979,9 @@ export const farmsApi = {
   },
 
   async createFarm(tenantId: string, userId: string, farmData: import('./types').CreateFarmData): Promise<import('./types').Farm> {
+    if (isDemoModeClient()) {
+      return demoFarmsCreate(tenantId, farmData, userId)
+    }
     const { data, error } = await supabase
       .from('farms')
       .insert({
@@ -852,7 +989,7 @@ export const farmsApi = {
         created_by: userId,
         name: farmData.name,
         location: farmData.location || null,
-        area_ha: farmData.area_ha || null,
+        area_ha: farmData.area_ha ?? null,
         default_crop: farmData.default_crop || null,
         notes: farmData.notes || null
       })
@@ -867,6 +1004,9 @@ export const farmsApi = {
   },
 
   async updateFarm(farmId: string, farmData: Partial<import('./types').CreateFarmData>): Promise<import('./types').Farm> {
+    if (isDemoModeClient()) {
+      return demoFarmsUpdate(farmId, farmData)
+    }
     const { data, error } = await supabase
       .from('farms')
       .update(farmData)
@@ -879,6 +1019,10 @@ export const farmsApi = {
   },
 
   async deleteFarm(farmId: string): Promise<void> {
+    if (isDemoModeClient()) {
+      demoFarmsDelete(farmId)
+      return
+    }
     const { error } = await supabase
       .from('farms')
       .delete()
@@ -891,6 +1035,9 @@ export const farmsApi = {
 // Lots API
 export const lotsApi = {
   async getLotsByFarm(farmId: string): Promise<import('./types').Lot[]> {
+    if (isDemoModeClient()) {
+      return demoLotsByFarm(farmId)
+    }
     const { data, error } = await supabase
       .from('lots')
       .select('*')
@@ -902,6 +1049,9 @@ export const lotsApi = {
   },
 
   async getLotById(lotId: string): Promise<import('./types').Lot | null> {
+    if (isDemoModeClient()) {
+      return demoLotsGetById(lotId)
+    }
     const { data, error } = await supabase
       .from('lots')
       .select('*')
@@ -913,6 +1063,9 @@ export const lotsApi = {
   },
 
   async createLot(tenantId: string, lotData: import('./types').CreateLotData): Promise<import('./types').Lot> {
+    if (isDemoModeClient()) {
+      return demoLotsCreate(tenantId, lotData)
+    }
     console.log('🔍 Creating lot with data:', { tenantId, lotData });
     
     const { data, error } = await supabase
@@ -941,6 +1094,9 @@ export const lotsApi = {
   },
 
   async updateLot(lotId: string, lotData: Partial<import('./types').CreateLotData>): Promise<import('./types').Lot> {
+    if (isDemoModeClient()) {
+      return demoLotsUpdate(lotId, lotData)
+    }
     const { data, error } = await supabase
       .from('lots')
       .update(lotData)
@@ -953,6 +1109,10 @@ export const lotsApi = {
   },
 
   async deleteLot(lotId: string): Promise<void> {
+    if (isDemoModeClient()) {
+      demoLotsDelete(lotId)
+      return
+    }
     const { error } = await supabase
       .from('lots')
       .delete()
@@ -962,6 +1122,9 @@ export const lotsApi = {
   },
 
   async getLotStatuses(): Promise<{ code: string; name: string }[]> {
+    if (isDemoModeClient()) {
+      return demoLotStatuses()
+    }
     const { data, error } = await supabase
       .from('lot_statuses')
       .select('*')
@@ -975,6 +1138,9 @@ export const lotsApi = {
 // Workers API
 export const workersApi = {
   async getWorkersByTenant(tenantId: string, includeInactive = false): Promise<import('./types').Worker[]> {
+    if (isDemoModeClient()) {
+      return demoWorkersList(tenantId, includeInactive)
+    }
     let query = supabase
       .from('workers')
       .select('*')
@@ -991,6 +1157,15 @@ export const workersApi = {
   },
 
   async getWorkerById(workerId: string): Promise<import('./types').Worker | null> {
+    if (isDemoModeClient()) {
+      for (const tenant of demoTenantGetTenants()) {
+        const found = demoWorkersList(tenant.id, true).find((w) => w.id === workerId)
+        if (found) {
+          return found
+        }
+      }
+      return null
+    }
     const { data, error } = await supabase
       .from('workers')
       .select('*')
@@ -1009,6 +1184,9 @@ export const workersApi = {
     area_module: string
     membership_id?: string
   }): Promise<import('./types').Worker> {
+    if (isDemoModeClient()) {
+      return demoWorkersCreate(tenantId, workerData)
+    }
     console.log('🔍 Creating worker with data:', { tenantId, workerData });
     
     const { data, error } = await supabase
@@ -1044,6 +1222,9 @@ export const workersApi = {
     membership_id: string
     status: string
   }>): Promise<import('./types').Worker> {
+    if (isDemoModeClient()) {
+      return demoWorkersUpdate(workerId, workerData as Partial<Worker>)
+    }
     const { data, error } = await supabase
       .from('workers')
       .update(workerData)
@@ -1056,6 +1237,10 @@ export const workersApi = {
   },
 
   async deleteWorker(workerId: string): Promise<void> {
+    if (isDemoModeClient()) {
+      demoWorkersSoftDelete(workerId)
+      return
+    }
     // Soft delete - cambiar status a inactive
     const { error } = await supabase
       .from('workers')
@@ -1066,6 +1251,10 @@ export const workersApi = {
   },
 
   async hardDeleteWorker(workerId: string): Promise<void> {
+    if (isDemoModeClient()) {
+      demoWorkersHardDelete(workerId)
+      return
+    }
     // Hard delete - eliminar permanentemente
     // Primero eliminar todos los registros relacionados en orden
     
@@ -1107,6 +1296,16 @@ export const workersApi = {
 // Attendance API
 export const attendanceApi = {
   async getAttendanceByTenant(tenantId: string, startDate?: string, endDate?: string): Promise<import('./types').AttendanceRecord[]> {
+    if (isDemoModeClient()) {
+      let records = demoAttendanceGetByTenant(tenantId)
+      if (startDate) {
+        records = records.filter((r) => r.date >= startDate)
+      }
+      if (endDate) {
+        records = records.filter((r) => r.date <= endDate)
+      }
+      return records
+    }
     let query = supabase
       .from('attendance_records')
       .select('*')
@@ -1126,6 +1325,21 @@ export const attendanceApi = {
   },
 
   async getAttendanceByWorker(workerId: string, startDate?: string, endDate?: string): Promise<import('./types').AttendanceRecord[]> {
+    if (isDemoModeClient()) {
+      let records: any[] = []
+      demoTenantGetTenants().forEach((tenant) => {
+        records = records.concat(
+          demoAttendanceGetByTenant(tenant.id).filter((r) => r.worker_id === workerId),
+        )
+      })
+      if (startDate) {
+        records = records.filter((r) => r.date >= startDate)
+      }
+      if (endDate) {
+        records = records.filter((r) => r.date <= endDate)
+      }
+      return records
+    }
     let query = supabase
       .from('attendance_records')
       .select('*')
@@ -1145,6 +1359,9 @@ export const attendanceApi = {
   },
 
   async getAttendanceByDate(tenantId: string, date: string): Promise<import('./types').AttendanceRecord[]> {
+    if (isDemoModeClient()) {
+      return demoAttendanceGetByDate(tenantId, date)
+    }
     const { data, error } = await supabase
       .from('attendance_records')
       .select('*')
@@ -1156,6 +1373,9 @@ export const attendanceApi = {
   },
 
   async createAttendance(tenantId: string, attendanceData: import('./types').CreateAttendanceData): Promise<import('./types').AttendanceRecord> {
+    if (isDemoModeClient()) {
+      return demoAttendanceCreate(tenantId, attendanceData)
+    }
     const { data, error } = await supabase
       .from('attendance_records')
       .insert({
@@ -1176,6 +1396,9 @@ export const attendanceApi = {
   },
 
   async updateAttendance(attendanceId: string, updates: Partial<import('./types').CreateAttendanceData>): Promise<import('./types').AttendanceRecord> {
+    if (isDemoModeClient()) {
+      return demoAttendanceUpdate(attendanceId, updates)
+    }
     const { data, error } = await supabase
       .from('attendance_records')
       .update(updates)
@@ -1188,6 +1411,10 @@ export const attendanceApi = {
   },
 
   async deleteAttendance(attendanceId: string): Promise<void> {
+    if (isDemoModeClient()) {
+      demoAttendanceDelete(attendanceId)
+      return
+    }
     const { error } = await supabase
       .from('attendance_records')
       .delete()
@@ -1197,6 +1424,9 @@ export const attendanceApi = {
   },
 
   async getAttendanceStatuses(): Promise<import('./types').AttendanceStatus[]> {
+    if (isDemoModeClient()) {
+      return demoAttendanceStatuses()
+    }
     const { data, error } = await supabase
       .from('attendance_statuses')
       .select('*')
@@ -1207,6 +1437,9 @@ export const attendanceApi = {
   },
 
   async bulkCreateAttendance(tenantId: string, attendances: import('./types').CreateAttendanceData[]): Promise<import('./types').AttendanceRecord[]> {
+    if (isDemoModeClient()) {
+      return attendances.map((att) => demoAttendanceCreate(tenantId, att))
+    }
     const recordsToInsert = attendances.map(att => ({
       tenant_id: tenantId,
       worker_id: att.worker_id,
@@ -1231,6 +1464,9 @@ export const attendanceApi = {
 // Tasks API
 export const tasksApi = {
   async getTasksByLot(lotId: string): Promise<import('./types').Task[]> {
+    if (isDemoModeClient()) {
+      return demoTasksByLot(lotId)
+    }
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
@@ -1242,6 +1478,9 @@ export const tasksApi = {
   },
 
   async getTaskById(taskId: string): Promise<import('./types').Task | null> {
+    if (isDemoModeClient()) {
+      return demoTasksGetById(taskId)
+    }
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
@@ -1253,6 +1492,9 @@ export const tasksApi = {
   },
 
   async createTask(tenantId: string, taskData: import('./types').CreateTaskData, userId?: string): Promise<import('./types').Task> {
+    if (isDemoModeClient()) {
+      return demoTasksCreate(tenantId, taskData, userId)
+    }
     console.log('🔍 Creating task with data:', { tenantId, taskData, userId });
     
     const { data, error } = await supabase
@@ -1283,6 +1525,9 @@ export const tasksApi = {
   },
 
   async updateTask(taskId: string, taskData: Partial<import('./types').CreateTaskData>): Promise<import('./types').Task> {
+    if (isDemoModeClient()) {
+      return demoTasksUpdate(taskId, taskData)
+    }
     const { data, error } = await supabase
       .from('tasks')
       .update(taskData)
@@ -1295,6 +1540,10 @@ export const tasksApi = {
   },
 
   async deleteTask(taskId: string): Promise<void> {
+    if (isDemoModeClient()) {
+      demoTasksDelete(taskId)
+      return
+    }
     const { error } = await supabase
       .from('tasks')
       .delete()
@@ -1304,6 +1553,9 @@ export const tasksApi = {
   },
 
   async getTaskStatuses(): Promise<import('./types').TaskStatus[]> {
+    if (isDemoModeClient()) {
+      return demoTaskStatuses()
+    }
     const { data, error } = await supabase
       .from('task_statuses')
       .select('*')
@@ -1314,6 +1566,9 @@ export const tasksApi = {
   },
 
   async getTaskTypes(): Promise<import('./types').TaskType[]> {
+    if (isDemoModeClient()) {
+      return demoTaskTypes()
+    }
     const { data, error } = await supabase
       .from('task_types')
       .select('*')
@@ -1328,6 +1583,16 @@ export const tasksApi = {
 export const inventoryApi = {
   // Items CRUD
   async listItems(params: import('./types').ListItemsParams): Promise<import('./types').InventoryItem[]> {
+    if (isDemoModeClient()) {
+      const items = demoInventoryListItems(params)
+      const categories = demoInventoryListCategories(params.tenantId)
+      const locations = demoInventoryListLocations(params.tenantId)
+      return items.map((item) => ({
+        ...item,
+        category_name: categories.find((c) => c.id === item.category_id)?.name,
+        location_name: locations.find((l) => l.id === item.location_id)?.name,
+      }))
+    }
     try {
       let query = supabase
         .from('inventory_items')
@@ -1376,6 +1641,19 @@ export const inventoryApi = {
   },
 
   async getItemById(id: string, tenantId: string): Promise<import('./types').InventoryItem | null> {
+    if (isDemoModeClient()) {
+      const item = demoInventoryGetItemById(id, tenantId)
+      if (!item) {
+        return null
+      }
+      const categories = demoInventoryListCategories(tenantId)
+      const locations = demoInventoryListLocations(tenantId)
+      return {
+        ...item,
+        category_name: categories.find((c) => c.id === item.category_id)?.name,
+        location_name: locations.find((l) => l.id === item.location_id)?.name,
+      } as any
+    }
     try {
       const { data, error } = await supabase
         .from('inventory_items')
@@ -1406,6 +1684,9 @@ export const inventoryApi = {
   },
 
   async createItem(payload: import('./types').CreateItemPayload, tenantId: string): Promise<import('./types').InventoryItem> {
+    if (isDemoModeClient()) {
+      return demoInventoryCreateItem(tenantId, payload)
+    }
     try {
       // Usar server route (service role) para evitar problemas de RLS en el cliente
       const res = await fetch('/api/inventario/items', {
@@ -1434,6 +1715,9 @@ export const inventoryApi = {
   },
 
   async updateItem(id: string, payload: import('./types').UpdateItemPayload, tenantId: string): Promise<import('./types').InventoryItem> {
+    if (isDemoModeClient()) {
+      return demoInventoryUpdateItem(id, tenantId, payload)
+    }
     try {
       // Usar server route (service role) para evitar problemas de RLS en el cliente
       const res = await fetch('/api/inventario/items', {
@@ -1462,6 +1746,10 @@ export const inventoryApi = {
   },
 
   async deleteItem(id: string, tenantId: string): Promise<void> {
+    if (isDemoModeClient()) {
+      demoInventoryDeleteItem(id, tenantId)
+      return
+    }
     try {
       // Usar server route (service role) para evitar problemas de RLS en el cliente
       const res = await fetch(`/api/inventario/items?itemId=${id}&tenantId=${tenantId}`, {
@@ -1480,6 +1768,9 @@ export const inventoryApi = {
 
   // Categories CRUD
   async listCategories(tenantId: string): Promise<import('./types').InventoryCategory[]> {
+    if (isDemoModeClient()) {
+      return demoInventoryListCategories(tenantId)
+    }
     try {
       const { data, error } = await supabase
         .from('inventory_categories')
@@ -1498,6 +1789,9 @@ export const inventoryApi = {
   },
 
   async createCategory(name: string, tenantId: string): Promise<import('./types').InventoryCategory> {
+    if (isDemoModeClient()) {
+      return demoInventoryCreateCategory(tenantId, name.trim())
+    }
     try {
       // Usar server route (service role) para evitar problemas de RLS en el cliente
       const res = await fetch('/api/inventario/categories', {
@@ -1521,6 +1815,10 @@ export const inventoryApi = {
   },
 
   async deleteCategory(id: string, tenantId: string): Promise<void> {
+    if (isDemoModeClient()) {
+      demoInventoryDeleteCategory(id, tenantId)
+      return
+    }
     try {
       // Usar server route (service role) para evitar problemas de RLS en el cliente
       const res = await fetch(`/api/inventario/categories?categoryId=${id}&tenantId=${tenantId}`, {
@@ -1539,6 +1837,9 @@ export const inventoryApi = {
 
   // Locations CRUD
   async listLocations(tenantId: string): Promise<import('./types').InventoryLocation[]> {
+    if (isDemoModeClient()) {
+      return demoInventoryListLocations(tenantId)
+    }
     try {
       const { data, error } = await supabase
         .from('inventory_locations')
@@ -1557,6 +1858,9 @@ export const inventoryApi = {
   },
 
   async createLocation(name: string, tenantId: string): Promise<import('./types').InventoryLocation> {
+    if (isDemoModeClient()) {
+      return demoInventoryCreateLocation(tenantId, name.trim())
+    }
     try {
       // Usar server route (service role) para evitar problemas de RLS en el cliente
       const res = await fetch('/api/inventario/locations', {
@@ -1580,6 +1884,10 @@ export const inventoryApi = {
   },
 
   async deleteLocation(id: string, tenantId: string): Promise<void> {
+    if (isDemoModeClient()) {
+      demoInventoryDeleteLocation(id, tenantId)
+      return
+    }
     try {
       // Usar server route (service role) para evitar problemas de RLS en el cliente
       const res = await fetch(`/api/inventario/locations?locationId=${id}&tenantId=${tenantId}`, {
@@ -1598,6 +1906,9 @@ export const inventoryApi = {
 
   // Movement Types
   async listMovementTypes(): Promise<import('./types').InventoryMovementType[]> {
+    if (isDemoModeClient()) {
+      return demoInventoryMovementTypes()
+    }
     try {
       const { data, error } = await supabase
         .from('inventory_movement_types')
@@ -1616,6 +1927,14 @@ export const inventoryApi = {
 
   // Movements
   async listMovements(params: import('./types').ListMovementsParams): Promise<import('./types').InventoryMovement[]> {
+    if (isDemoModeClient()) {
+      const movements = demoInventoryListMovements(params)
+      const items = demoInventoryListItems({ tenantId: params.tenantId } as import('./types').ListItemsParams)
+      return movements.map((movement) => ({
+        ...movement,
+        item_name: items.find((item) => item.id === movement.item_id)?.name,
+      }))
+    }
     try {
       let query = supabase
         .from('inventory_movements')
@@ -1653,6 +1972,17 @@ export const inventoryApi = {
   },
 
   async createMovement(payload: import('./types').CreateMovementPayload, tenantId: string): Promise<import('./types').InventoryMovement> {
+    if (isDemoModeClient()) {
+      return demoInventoryCreateMovement(tenantId, {
+        item_id: payload.item_id,
+        type: payload.type,
+        quantity: payload.quantity,
+        unit_cost: payload.unit_cost,
+        reason: payload.reason,
+        date: payload.date,
+        created_by: payload.created_by,
+      })
+    }
     console.log('🚀 createMovement llamado con payload:', payload, 'tenantId:', tenantId)
     
     try {
@@ -1695,6 +2025,10 @@ export const inventoryApi = {
   },
 
   async deleteMovement(movementId: string, tenantId: string): Promise<void> {
+    if (isDemoModeClient()) {
+      demoInventoryDeleteMovement(movementId, tenantId)
+      return
+    }
     console.log('🗑️ deleteMovement llamado con movementId:', movementId, 'tenantId:', tenantId)
     
     try {
@@ -1719,6 +2053,9 @@ export const inventoryApi = {
 
   // Summary and analytics
   async getInventorySummary(tenantId: string): Promise<import('./types').InventorySummary> {
+    if (isDemoModeClient()) {
+      return demoInventorySummary(tenantId)
+    }
     try {
       // Total de items
       const { data: itemsData, error: itemsError } = await supabase
@@ -1757,4 +2094,3 @@ export const inventoryApi = {
     }
   }
 }
-

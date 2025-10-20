@@ -8,10 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Input } from "../ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { supabase } from "../../lib/supabaseClient"
 import { useAuth } from "../../hooks/use-auth"
 import { Plus, Download, ArrowLeft, Cog, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
+import { isDemoModeClient } from "../../lib/demo/utils"
+import { demoEmpaquePreprocesos } from "../../lib/demo/store"
+import { supabase } from "../../lib/supabaseClient"
 
 export function PreprocesoPage() {
     const [registros, setRegistros] = useState<any[]>([])
@@ -26,6 +28,7 @@ export function PreprocesoPage() {
     const router = useRouter()
     
     const { user } = useAuth({});
+    const isDemo = isDemoModeClient();
     
     // Estabilizar tenantId
     const tenantId = useMemo(() => user?.tenantId, [user?.tenantId])
@@ -39,6 +42,12 @@ export function PreprocesoPage() {
         
         try {
             setIsLoading(true)
+            if (isDemo) {
+                const data = demoEmpaquePreprocesos(tenantId);
+                setRegistros(data || []);
+                setIsLoading(false);
+                return;
+            }
             const { data, error } = await supabase
                 .from("preseleccion")
                 .select("*")
@@ -56,7 +65,7 @@ export function PreprocesoPage() {
         } finally {
             setIsLoading(false)
         }
-    }, [tenantId])
+    }, [tenantId, isDemo])
 
     useEffect(() => {
         if (tenantId) {

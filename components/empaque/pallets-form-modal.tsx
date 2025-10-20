@@ -7,6 +7,8 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Plus, X } from "lucide-react";
+import { isDemoModeClient } from "../../lib/demo/utils";
+import { demoEmpaqueCreatePallet } from "../../lib/demo/store";
 
 interface Props {
     open: boolean;
@@ -47,6 +49,7 @@ export default function PalletsFormModal({ open, onClose, onCreated, tenantId }:
     const [form, setForm] = useState<FormState>(initialState);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const isDemo = isDemoModeClient();
 
     const inputStrong =
         "h-11 w-full bg-white border border-gray-300/90 rounded-lg shadow-sm placeholder:text-gray-400 " +
@@ -120,6 +123,15 @@ export default function PalletsFormModal({ open, onClose, onCreated, tenantId }:
             cant_cajas: toInt(form.cant_cajas),
             peso: toFloat(form.peso),
         };
+
+        if (isDemo) {
+            demoEmpaqueCreatePallet({ ...payload, tenantId });
+            setLoading(false);
+            onCreated();
+            onClose();
+            setForm(initialState);
+            return;
+        }
 
         const { error } = await supabase.from("pallets").insert([payload]);
         setLoading(false);

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Plus, X } from "lucide-react";
+import { isDemoModeClient } from "../../lib/demo/utils";
+import { demoEmpaqueCreatePreproceso } from "../../lib/demo/store";
+import { supabase } from "../../lib/supabaseClient";
 
 interface Props {
     open: boolean;
@@ -47,6 +49,7 @@ export default function PreprocesoFormModal({ open, onClose, onCreated, tenantId
     const [form, setForm] = useState<FormState>(initialState);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const isDemo = isDemoModeClient();
 
     const inputStrong =
         "h-11 w-full bg-white border border-gray-300/90 rounded-lg shadow-sm placeholder:text-gray-400 " +
@@ -119,6 +122,20 @@ export default function PreprocesoFormModal({ open, onClose, onCreated, tenantId
             cant_personal: toInt(form.cant_personal),
             tenant_id: tenantId,
         };
+
+        if (isDemo) {
+            demoEmpaqueCreatePreproceso({ ...payload, tenantId });
+            setLoading(false);
+            onCreated();
+            onClose();
+            setForm(initialState);
+            try {
+                window.dispatchEvent(new Event('preproceso:created'));
+            } catch {
+                // ignore
+            }
+            return;
+        }
 
         const { error } = await supabase.from("preseleccion").insert([payload]);
         setLoading(false);

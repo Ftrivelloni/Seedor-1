@@ -1,7 +1,6 @@
 // components/empaque/empaque-page.tsx
 "use client"
 
-import { supabase } from "../../lib/supabaseClient";
 import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Input } from "../ui/input"
@@ -13,6 +12,15 @@ import { empaqueApi, ingresoFrutaApi, palletsApi, despachoApi } from "../../lib/
 import type { RegistroEmpaque } from "../../lib/mocks"
 import { Search, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
 import { useEmpaqueAuth } from "./EmpaqueAuthContext"
+import { isDemoModeClient } from "../../lib/demo/utils"
+import {
+    demoEmpaqueIngresos,
+    demoEmpaquePallets,
+    demoEmpaqueDespachos,
+    demoEmpaqueEgresos,
+    demoEmpaquePreprocesos,
+} from "../../lib/demo/store"
+import { supabase } from "../../lib/supabaseClient";
 
 export function EmpaquePage() {
     const { empaqueUser: user } = useEmpaqueAuth();
@@ -34,6 +42,8 @@ export function EmpaquePage() {
     const [preprocesos, setPreprocesos] = useState<any[]>([]);
     const [isLoadingPreprocesos, setIsLoadingPreprocesos] = useState(true);
 
+    const isDemo = isDemoModeClient();
+
     const router = useRouter()
 
     useEffect(() => {
@@ -51,7 +61,7 @@ export function EmpaquePage() {
         return () => {
             window.removeEventListener('preproceso:created', handler);
         };
-    }, [user])
+    }, [user, isDemo])
     const loadPreprocesos = async () => {
         if (!user?.tenantId) {
             console.error('No se encontró la sesión del usuario o el tenant ID');
@@ -60,6 +70,12 @@ export function EmpaquePage() {
 
         try {
             setIsLoadingPreprocesos(true);
+            if (isDemo) {
+                const data = demoEmpaquePreprocesos(user.tenantId);
+                setPreprocesos(data);
+                setIsLoadingPreprocesos(false);
+                return;
+            }
             const { data, error } = await supabase
                 .from("preseleccion")
                 .select("*")
@@ -82,6 +98,12 @@ export function EmpaquePage() {
         if (!user?.tenantId) return;
         try {
             setIsLoadingIngresos(true);
+            if (isDemo) {
+                const data = demoEmpaqueIngresos(user.tenantId);
+                setIngresosFruta(data);
+                setIsLoadingIngresos(false);
+                return;
+            }
             const data = await ingresoFrutaApi.getIngresos(user.tenantId);
             setIngresosFruta(data);
         } catch (e) {
@@ -95,6 +117,12 @@ export function EmpaquePage() {
         if (!user?.tenantId) return;
         try {
             setIsLoadingPallets(true);
+            if (isDemo) {
+                const data = demoEmpaquePallets(user.tenantId);
+                setPallets(data);
+                setIsLoadingPallets(false);
+                return;
+            }
             const { data, error } = await supabase
                 .from("pallets")
                 .select("*")
@@ -117,6 +145,12 @@ export function EmpaquePage() {
         if (!user?.tenantId) return;
         try {
             setIsLoadingDespachos(true);
+            if (isDemo) {
+                const data = demoEmpaqueDespachos(user.tenantId);
+                setDespachos(data);
+                setIsLoadingDespachos(false);
+                return;
+            }
             const { data, error } = await supabase
                 .from("despacho")
                 .select("*")
@@ -139,6 +173,12 @@ export function EmpaquePage() {
         if (!user?.tenantId) return;
         try {
             setIsLoadingEgresosFruta(true);
+            if (isDemo) {
+                const data = demoEmpaqueEgresos(user.tenantId);
+                setEgresosFruta(data);
+                setIsLoadingEgresosFruta(false);
+                return;
+            }
             const { data, error } = await supabase
                 .from("egreso_fruta")
                 .select("*")

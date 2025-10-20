@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "../../lib/supabaseClient"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 import { useAuth } from "../../hooks/use-auth"
 
@@ -15,6 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 
 import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, Search } from "lucide-react"
 import EgresoFrutaFormModal from "./egreso-fruta-form-modal"
+import { isDemoModeClient } from "../../lib/demo/utils"
+import { demoEmpaqueEgresos } from "../../lib/demo/store"
+import { supabase } from "../../lib/supabaseClient"
 
 export function EgresoFrutaPage() {
     const { user } = useAuth({});
@@ -29,12 +31,13 @@ export function EgresoFrutaPage() {
 
     const [modalOpen, setModalOpen] = useState(false)
     const router = useRouter()
+    const isDemo = isDemoModeClient()
 
     useEffect(() => {
         if (user?.tenantId) {
             loadEgresos();
         }
-    }, [user?.tenantId])
+    }, [user?.tenantId, isDemo])
 
     const loadEgresos = async () => {
         if (!user?.tenantId) {
@@ -43,6 +46,12 @@ export function EgresoFrutaPage() {
         }
         
         setIsLoading(true)
+        if (isDemo) {
+            const data = demoEmpaqueEgresos(user.tenantId)
+            setEgresos(data)
+            setIsLoading(false)
+            return
+        }
         const { data, error } = await supabase
             .from("egreso_fruta")
             .select("*")

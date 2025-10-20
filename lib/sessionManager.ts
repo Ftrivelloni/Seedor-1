@@ -7,6 +7,7 @@ interface SessionUser {
   tenant?: any
   profile?: any
   memberships?: any[]
+  isDemo?: boolean
 }
 
 class SessionManager {

@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import { getSessionManager } from './sessionManager'
 import { buildUrl, buildInvitationUrl } from './utils/url'
 import crypto from 'crypto'
+import { DEMO_USER } from './demo/shared'
 
 export interface CreateTenantParams {
   tenantName: string
@@ -1218,10 +1219,57 @@ export const authService = {
   },
 
   getSafeSession: async () => {
+    const sessionManager = getSessionManager()
+
+    const tryLoadDemoUser = async () => {
+      if (typeof fetch === 'undefined') {
+        return null
+      }
+      try {
+        const res = await fetch('/api/auth/demo/session', {
+          method: 'GET',
+          credentials: 'include'
+        })
+
+        if (!res.ok) {
+          return null
+        }
+
+        const data = await res.json().catch(() => null)
+        const apiUser = (data as any)?.user
+        if (!apiUser) {
+          return null
+        }
+
+        const demoUser = {
+          ...DEMO_USER,
+          ...apiUser,
+          isDemo: true
+        }
+
+        try {
+          sessionManager.setCurrentUser(demoUser)
+        } catch (err) {
+          console.error('Error setting demo user in session manager:', err)
+        }
+
+        if (typeof window !== 'undefined') {
+          try {
+            ;(window as any).__SEEDOR_DEMO_ACTIVE = true
+          } catch {
+            // ignore
+          }
+        }
+
+        return demoUser
+      } catch (err) {
+        console.debug('Demo session lookup failed', err)
+        return null
+      }
+    }
+
     try {
-      const sessionManager = getSessionManager()
-      
-      let tabUser = sessionManager.getCurrentUser()
+      const tabUser = sessionManager.getCurrentUser()
       if (tabUser) {
         return { user: tabUser }
       }
@@ -1229,6 +1277,10 @@ export const authService = {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session?.user) {
+        const demoUser = await tryLoadDemoUser()
+        if (demoUser) {
+          return { user: demoUser }
+        }
         return { user: null }
       }
 
@@ -1238,40 +1290,35 @@ export const authService = {
         .eq('user_id', session.user.id)
         .maybeSingle();
 
-      // Agregar timeout para evitar cuelgues durante el registro
       const membershipPromise = supabase
         .from('tenant_memberships')
         .select('*, tenants(*)')
         .eq('user_id', session.user.id)
         .eq('status', 'active');
 
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Timeout')), 3000)
       );
 
       let memberships = null;
-      let membershipError = null;
 
       try {
         const result = await Promise.race([membershipPromise, timeoutPromise]) as any;
         memberships = result.data;
-        membershipError = result.error;
         console.debug('[DEBUG] authService.getSafeSession - tenant_memberships result', { userId: session.user.id, count: memberships?.length || 0 })
       } catch (error: any) {
         if (error.message === 'Timeout') {
           memberships = null;
-          membershipError = null;
           console.debug('[DEBUG] authService.getSafeSession - tenant_memberships timed out for user', session.user.id)
         } else {
-          membershipError = error;
           console.debug('[DEBUG] authService.getSafeSession - tenant_memberships error for user', session.user.id, error)
+          throw error
         }
       }
 
       let mappedUser = null;
 
       if (memberships && memberships.length > 0) {
-        // Prefer profile.default_tenant_id if present; otherwise fall back to first membership
         let defaultMembership = memberships[0]
         if (profile?.default_tenant_id) {
           const match = memberships.find((m: any) => m.tenant_id === profile.default_tenant_id)
@@ -1307,6 +1354,10 @@ export const authService = {
       }
 
     } catch (error: any) {
+      const demoUser = await tryLoadDemoUser()
+      if (demoUser) {
+        return { user: demoUser }
+      }
       return { user: null, error: error.message }
     }
   },
@@ -1506,7 +1557,26 @@ export const authService = {
   logout: async (): Promise<{ error?: string }> => {
     try {
       const sessionManager = getSessionManager()
-      
+
+      let isDemo = false
+      try {
+        const currentUser = sessionManager.peekCurrentUser()
+        isDemo = Boolean((currentUser as any)?.isDemo)
+      } catch {
+        isDemo = false
+      }
+
+      if (isDemo && typeof fetch !== 'undefined') {
+        try {
+          await fetch('/api/auth/demo/logout', {
+            method: 'POST',
+            credentials: 'include'
+          })
+        } catch (err) {
+          console.warn('Error clearing demo session cookies:', err)
+        }
+      }
+
       await sessionManager.logoutCurrentTab()
       
       
@@ -1518,6 +1588,27 @@ export const authService = {
 
   logoutGlobal: async (): Promise<{ error?: string }> => {
     try {
+      const sessionManager = getSessionManager()
+      let isDemo = false
+
+      try {
+        const currentUser = sessionManager.peekCurrentUser()
+        isDemo = Boolean((currentUser as any)?.isDemo)
+      } catch {
+        isDemo = false
+      }
+
+      if (isDemo && typeof fetch !== 'undefined') {
+        try {
+          await fetch('/api/auth/demo/logout', {
+            method: 'POST',
+            credentials: 'include'
+          })
+        } catch (err) {
+          console.warn('Error clearing demo session cookies:', err)
+        }
+      }
+
       const { error } = await supabase.auth.signOut()
       
       if (typeof window !== 'undefined') {
@@ -1533,7 +1624,6 @@ export const authService = {
           }
         })
         
-        const sessionManager = getSessionManager()
         sessionManager.clearCurrentTabSession()
       }
       

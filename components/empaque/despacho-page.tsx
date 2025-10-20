@@ -3,10 +3,12 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "../../lib/supabaseClient"
 import DespachoFormModal from "./despacho-form-modal"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 import { useAuth } from "../../hooks/use-auth"
+import { isDemoModeClient } from "../../lib/demo/utils"
+import { demoEmpaqueDespachos } from "../../lib/demo/store"
+import { supabase } from "../../lib/supabaseClient"
 
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -39,12 +41,13 @@ export function DespachoPage() {
     const router = useRouter()
     
     const { user } = useAuth({});
+    const isDemo = isDemoModeClient();
 
     useEffect(() => {
         if (user?.tenantId) {
             loadDespachos();
         }
-    }, [user?.tenantId]);
+    }, [user?.tenantId, isDemo]);
 
     const loadDespachos = async () => {
         if (!user?.tenantId) {
@@ -53,6 +56,12 @@ export function DespachoPage() {
         }
         
         setIsLoading(true)
+        if (isDemo) {
+            const data = demoEmpaqueDespachos(user.tenantId)
+            setDespachos(data)
+            setIsLoading(false)
+            return
+        }
         const { data, error } = await supabase
             .from("despacho")
             .select("*")

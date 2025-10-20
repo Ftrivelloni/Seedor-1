@@ -2,12 +2,14 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Plus, X } from "lucide-react";
+import { isDemoModeClient } from "../../lib/demo/utils";
+import { demoEmpaqueCreateEgreso } from "../../lib/demo/store";
+import { supabase } from "../../lib/supabaseClient";
 
 interface Props {
     open: boolean;
@@ -55,6 +57,7 @@ export default function EgresoFrutaFormModal({
     const [form, setForm] = useState<FormState>(initialState);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const isDemo = isDemoModeClient();
 
     const inputStrong =
         "h-11 w-full bg-white border border-gray-300/90 rounded-lg shadow-sm placeholder:text-gray-400 " +
@@ -129,6 +132,15 @@ export default function EgresoFrutaFormModal({
             acoplado: form.acoplado || null,
             chofer: form.chofer || null,
         };
+
+        if (isDemo) {
+            demoEmpaqueCreateEgreso({ ...payload, tenantId });
+            setLoading(false);
+            onCreated();
+            onClose();
+            setForm(initialState);
+            return;
+        }
 
         const { error } = await supabase.from("egreso_fruta").insert([payload]);
         setLoading(false);

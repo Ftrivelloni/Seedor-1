@@ -5,7 +5,7 @@ import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Textarea } from "../ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog"
 import type { Farm } from "../../lib/types"
 
 interface FarmFormModalProps {
@@ -76,6 +76,9 @@ export function FarmFormModal({ isOpen, onClose, onSubmit, farm }: FarmFormModal
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{farm ? "Editar Campo" : "Crear Nuevo Campo"}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Completá los datos del campo para guardarlos temporalmente en la demo.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">

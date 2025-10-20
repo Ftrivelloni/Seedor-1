@@ -3,10 +3,12 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "../../lib/supabaseClient"
 import PalletsFormModal from "./pallets-form-modal"
 import { useAuth } from "../../hooks/use-auth"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
+import { isDemoModeClient } from "../../lib/demo/utils"
+import { demoEmpaquePallets } from "../../lib/demo/store"
+import { supabase } from "../../lib/supabaseClient"
 type Pallet = {
     id: string
     codigo: string
@@ -84,6 +86,7 @@ export function PalletsPage() {
     const router = useRouter()
     
     const { user: currentUser } = useAuth({});
+    const isDemo = isDemoModeClient();
 
     const fetchPallets = async (tenantId: string) => {
         if (!tenantId) {
@@ -91,6 +94,13 @@ export function PalletsPage() {
             return;
         }
         setIsLoading(true)
+        if (isDemo) {
+            const data = demoEmpaquePallets(tenantId)
+            setRaw(data)
+            setPallets(data.map(normalizeRow))
+            setIsLoading(false)
+            return
+        }
         const { data, error } = await supabase
             .from("pallets")
             .select("*")
@@ -110,7 +120,7 @@ export function PalletsPage() {
         if (currentUser?.tenantId) {
             fetchPallets(currentUser.tenantId);
         }
-    }, [currentUser?.tenantId])
+    }, [currentUser?.tenantId, isDemo])
 
     useEffect(() => {
         let list = [...pallets]
