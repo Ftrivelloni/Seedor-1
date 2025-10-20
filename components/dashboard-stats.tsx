@@ -7,7 +7,7 @@ import { useAuth } from "../hooks/use-auth"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { farmsApi, workersApi, attendanceApi } from "../lib/api"
-import { Package, Cog, Archive, Truck, ArrowUpRight, Sprout, ChevronRight, Boxes, Banknote, Users, Wrench, Clock, TrendingDown } from "lucide-react"
+import { Package, Cog, Archive, Truck, ArrowUpRight, Sprout, ChevronRight, Boxes, Banknote, Users, Wrench, Clock, TrendingDown, AlertTriangle } from "lucide-react"
 
 type Farm = {
   id: string
@@ -25,6 +25,8 @@ export function DashboardStats() {
   const [loadingAttendance, setLoadingAttendance] = useState(false)
   const [finanzasStats, setFinanzasStats] = useState({ ingresos: 0, egresos: 0, balance: 0 })
   const [loadingFinanzas, setLoadingFinanzas] = useState(false)
+  const [inventarioStats, setInventarioStats] = useState({ totalItems: 0, lowStockItems: 0, lastMovementDate: null as string | null })
+  const [loadingInventario, setLoadingInventario] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -111,6 +113,28 @@ export function DashboardStats() {
       }
     }
     loadFinanzas()
+  }, [user?.tenantId])
+
+  useEffect(() => {
+    const loadInventario = async () => {
+      if (!user?.tenantId) return
+      try {
+        setLoadingInventario(true)
+        const { inventoryApi } = await import("../lib/api")
+        const stats = await inventoryApi.getInventorySummary(user.tenantId)
+        setInventarioStats({
+          totalItems: stats.totalItems,
+          lowStockItems: stats.lowStockItems,
+          lastMovementDate: stats.lastMovementDate || null,
+        })
+      } catch (e) {
+        console.error("Error loading inventario stats:", e)
+        setInventarioStats({ totalItems: 0, lowStockItems: 0, lastMovementDate: null })
+      } finally {
+        setLoadingInventario(false)
+      }
+    }
+    loadInventario()
   }, [user?.tenantId])
 
   if (!user) return null
@@ -279,38 +303,52 @@ export function DashboardStats() {
           {/* Placeholder squares */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
             {/* Inventario */}
-            {allowedBoxes.has('inventario') && (
-            <Card className="h-full border-sky-200/40 bg-white dark:bg-neutral-900">
-              <CardHeader className="flex flex-row items-start gap-3">
+            <Card className="h-full border-sky-200/40 bg-white dark:bg-neutral-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => go('/inventario')}>
+              <CardHeader className="flex flex-row items-start gap-3 pb-4">
                 <InventarioIcon />
-                <CardTitle>Inventario</CardTitle>
+                <div>
+                  <CardTitle>Inventario</CardTitle>
+                  <CardDescription>
+                    {loadingInventario
+                      ? 'Cargando datos...'
+                      : `${inventarioStats.totalItems} ítems en stock`}
+                  </CardDescription>
+                </div>
               </CardHeader>
-              <CardContent className="h-full flex items-center justify-center">
-                <div className="text-center space-y-3">
-                  <div className="flex items-center justify-center mb-1">
-                    <div className="relative">
-                      <Wrench className="h-10 w-10 text-orange-500" />
-                      <Clock className="h-5 w-5 text-orange-600 absolute -bottom-1 -right-1" />
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between py-2 border-b border-muted">
+                    <span className="text-sm font-medium text-muted-foreground">Total de ítems</span>
+                    <span className="text-2xl font-bold text-sky-600">{inventarioStats.totalItems}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b border-muted">
+                    <span className="text-sm font-medium text-muted-foreground">Bajo stock</span>
+                    <div className="flex items-center gap-2">
+                      {inventarioStats.lowStockItems > 0 && (
+                        <AlertTriangle className="h-5 w-5 text-destructive" />
+                      )}
+                      <span className={`text-2xl font-bold ${inventarioStats.lowStockItems > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                        {inventarioStats.lowStockItems}
+                      </span>
                     </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-orange-700">Módulo en Proceso</h3>
-                    <p className="text-sm text-muted-foreground">Inventario</p>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm font-medium text-muted-foreground">Último movimiento</span>
+                    <span className="text-sm font-semibold">
+                      {inventarioStats.lastMovementDate
+                        ? new Date(inventarioStats.lastMovementDate).toLocaleDateString('es-ES', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          })
+                        : 'Sin movimientos'}
+                    </span>
                   </div>
-                  <div>
-                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 px-3 py-1 inline-flex items-center">
-                      <Clock className="h-3.5 w-3.5 mr-1" />
-                      En Desarrollo
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                    Módulo de gestión de inventario y stock
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    ¿Tienes alguna sugerencia?{' '}
-                    <a href="/contactenos" className="text-orange-600 hover:text-orange-700 underline">Contáctanos</a>
-                  </p>
                 </div>
+                <Button variant="ghost" className="w-full justify-between group hover:bg-sky-50 dark:hover:bg-sky-950" onClick={() => go('/inventario')}>
+                  Ver detalles
+                  <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </Button>
               </CardContent>
             </Card>
             )}

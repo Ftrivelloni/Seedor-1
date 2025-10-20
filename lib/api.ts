@@ -1324,3 +1324,437 @@ export const tasksApi = {
   }
 }
 
+// Inventory API
+export const inventoryApi = {
+  // Items CRUD
+  async listItems(params: import('./types').ListItemsParams): Promise<import('./types').InventoryItem[]> {
+    try {
+      let query = supabase
+        .from('inventory_items')
+        .select(`
+          *,
+          category_name:inventory_categories(name),
+          location_name:inventory_locations(name)
+        `)
+        .eq('tenant_id', params.tenantId)
+
+      if (params.search) {
+        query = query.ilike('name', `%${params.search}%`)
+      }
+
+      if (params.categoryId) {
+        query = query.eq('category_id', params.categoryId)
+      }
+
+      if (params.locationId) {
+        query = query.eq('location_id', params.locationId)
+      }
+
+      if (params.limit) {
+        query = query.limit(params.limit)
+      }
+
+      if (params.offset) {
+        query = query.range(params.offset, params.offset + (params.limit || 50) - 1)
+      }
+
+      const { data, error } = await query.order('name')
+
+      if (error) {
+        throw new Error(`Error al obtener items: ${error.message}`)
+      }
+
+      // Flatten nested objects
+      return (data || []).map((item: any) => ({
+        ...item,
+        category_name: item.category_name?.name,
+        location_name: item.location_name?.name
+      }))
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al cargar items del inventario')
+    }
+  },
+
+  async getItemById(id: string, tenantId: string): Promise<import('./types').InventoryItem | null> {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select(`
+          *,
+          category_name:inventory_categories(name),
+          location_name:inventory_locations(name)
+        `)
+        .eq('id', id)
+        .eq('tenant_id', tenantId)
+        .single()
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return null
+        }
+        throw new Error(`Error al obtener item: ${error.message}`)
+      }
+
+      return {
+        ...data,
+        category_name: data.category_name?.name,
+        location_name: data.location_name?.name
+      }
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al obtener item del inventario')
+    }
+  },
+
+  async createItem(payload: import('./types').CreateItemPayload, tenantId: string): Promise<import('./types').InventoryItem> {
+    try {
+      // Usar server route (service role) para evitar problemas de RLS en el cliente
+      const res = await fetch('/api/inventario/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          name: payload.name,
+          category_id: payload.category_id,
+          location_id: payload.location_id,
+          unit: payload.unit,
+          min_stock: payload.min_stock,
+          current_stock: payload.current_stock
+        })
+      })
+
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json?.error || 'Error creando item')
+      }
+
+      return json.data
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al crear item del inventario')
+    }
+  },
+
+  async updateItem(id: string, payload: import('./types').UpdateItemPayload, tenantId: string): Promise<import('./types').InventoryItem> {
+    try {
+      // Usar server route (service role) para evitar problemas de RLS en el cliente
+      const res = await fetch('/api/inventario/items', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          itemId: id,
+          name: payload.name,
+          category_id: payload.category_id,
+          location_id: payload.location_id,
+          unit: payload.unit,
+          min_stock: payload.min_stock
+        })
+      })
+
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json?.error || 'Error actualizando item')
+      }
+
+      return json.data
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al actualizar item del inventario')
+    }
+  },
+
+  async deleteItem(id: string, tenantId: string): Promise<void> {
+    try {
+      // Usar server route (service role) para evitar problemas de RLS en el cliente
+      const res = await fetch(`/api/inventario/items?itemId=${id}&tenantId=${tenantId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json?.error || 'Error eliminando item')
+      }
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al eliminar item del inventario')
+    }
+  },
+
+  // Categories CRUD
+  async listCategories(tenantId: string): Promise<import('./types').InventoryCategory[]> {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_categories')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('name')
+
+      if (error) {
+        throw new Error(`Error al obtener categorías: ${error.message}`)
+      }
+
+      return data || []
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al cargar categorías')
+    }
+  },
+
+  async createCategory(name: string, tenantId: string): Promise<import('./types').InventoryCategory> {
+    try {
+      // Usar server route (service role) para evitar problemas de RLS en el cliente
+      const res = await fetch('/api/inventario/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          name: name.trim()
+        })
+      })
+
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json?.error || 'Error creando categoría')
+      }
+
+      return json.data
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al crear categoría')
+    }
+  },
+
+  async deleteCategory(id: string, tenantId: string): Promise<void> {
+    try {
+      // Usar server route (service role) para evitar problemas de RLS en el cliente
+      const res = await fetch(`/api/inventario/categories?categoryId=${id}&tenantId=${tenantId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json?.error || 'Error eliminando categoría')
+      }
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al eliminar categoría')
+    }
+  },
+
+  // Locations CRUD
+  async listLocations(tenantId: string): Promise<import('./types').InventoryLocation[]> {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_locations')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('name')
+
+      if (error) {
+        throw new Error(`Error al obtener ubicaciones: ${error.message}`)
+      }
+
+      return data || []
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al cargar ubicaciones')
+    }
+  },
+
+  async createLocation(name: string, tenantId: string): Promise<import('./types').InventoryLocation> {
+    try {
+      // Usar server route (service role) para evitar problemas de RLS en el cliente
+      const res = await fetch('/api/inventario/locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          name: name.trim()
+        })
+      })
+
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json?.error || 'Error creando ubicación')
+      }
+
+      return json.data
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al crear ubicación')
+    }
+  },
+
+  async deleteLocation(id: string, tenantId: string): Promise<void> {
+    try {
+      // Usar server route (service role) para evitar problemas de RLS en el cliente
+      const res = await fetch(`/api/inventario/locations?locationId=${id}&tenantId=${tenantId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json?.error || 'Error eliminando ubicación')
+      }
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al eliminar ubicación')
+    }
+  },
+
+  // Movement Types
+  async listMovementTypes(): Promise<import('./types').InventoryMovementType[]> {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_movement_types')
+        .select('*')
+        .order('code')
+
+      if (error) {
+        throw new Error(`Error al obtener tipos de movimiento: ${error.message}`)
+      }
+
+      return data || []
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al cargar tipos de movimiento')
+    }
+  },
+
+  // Movements
+  async listMovements(params: import('./types').ListMovementsParams): Promise<import('./types').InventoryMovement[]> {
+    try {
+      let query = supabase
+        .from('inventory_movements')
+        .select(`
+          *,
+          item_name:inventory_items(name)
+        `)
+        .eq('tenant_id', params.tenantId)
+
+      if (params.itemId) {
+        query = query.eq('item_id', params.itemId)
+      }
+
+      if (params.limit) {
+        query = query.limit(params.limit)
+      }
+
+      if (params.offset) {
+        query = query.range(params.offset, params.offset + (params.limit || 50) - 1)
+      }
+
+      const { data, error } = await query.order('date', { ascending: false })
+
+      if (error) {
+        throw new Error(`Error al obtener movimientos: ${error.message}`)
+      }
+
+      return (data || []).map((movement: any) => ({
+        ...movement,
+        item_name: movement.item_name?.name
+      }))
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al cargar movimientos')
+    }
+  },
+
+  async createMovement(payload: import('./types').CreateMovementPayload, tenantId: string): Promise<import('./types').InventoryMovement> {
+    console.log('🚀 createMovement llamado con payload:', payload, 'tenantId:', tenantId)
+    
+    try {
+      const requestBody = {
+        tenantId,
+        item_id: payload.item_id,
+        type: payload.type,
+        quantity: payload.quantity,
+        unit_cost: payload.unit_cost,
+        reason: payload.reason,
+        date: payload.date,
+        created_by: payload.created_by
+      }
+      
+      console.log('📡 Enviando petición a /api/inventario/movements con body:', requestBody)
+      
+      // Usar server route (service role) para evitar problemas de RLS en el cliente
+      const res = await fetch('/api/inventario/movements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('📨 Respuesta recibida - status:', res.status, 'ok:', res.ok)
+
+      const json = await res.json()
+      console.log('📄 JSON de respuesta:', json)
+      
+      if (!res.ok) {
+        console.log('❌ Error en respuesta:', json?.error)
+        throw new Error(json?.error || 'Error creando movimiento')
+      }
+
+      console.log('✅ Movimiento creado exitosamente:', json.data)
+      return json.data
+    } catch (error: any) {
+      console.log('❌ Error capturado en createMovement:', error)
+      throw new Error(error.message || 'Error al crear movimiento')
+    }
+  },
+
+  async deleteMovement(movementId: string, tenantId: string): Promise<void> {
+    console.log('🗑️ deleteMovement llamado con movementId:', movementId, 'tenantId:', tenantId)
+    
+    try {
+      const res = await fetch(`/api/inventario/movements?movementId=${movementId}&tenantId=${tenantId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      const json = await res.json()
+      
+      if (!res.ok) {
+        console.log('❌ Error en respuesta:', json?.error)
+        throw new Error(json?.error || 'Error eliminando movimiento')
+      }
+
+      console.log('✅ Movimiento eliminado exitosamente')
+    } catch (error: any) {
+      console.log('❌ Error capturado en deleteMovement:', error)
+      throw new Error(error.message || 'Error al eliminar movimiento')
+    }
+  },
+
+  // Summary and analytics
+  async getInventorySummary(tenantId: string): Promise<import('./types').InventorySummary> {
+    try {
+      // Total de items
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('inventory_items')
+        .select('id, current_stock, min_stock')
+        .eq('tenant_id', tenantId)
+
+      if (itemsError) {
+        throw new Error(`Error al obtener resumen: ${itemsError.message}`)
+      }
+
+      const totalItems = itemsData?.length || 0
+      const lowStockItems = itemsData?.filter((item: any) => 
+        item.current_stock <= item.min_stock
+      ).length || 0
+
+      // Último movimiento
+      const { data: lastMovement, error: movementError } = await supabase
+        .from('inventory_movements')
+        .select('date')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      // No consideramos error si no hay movimientos
+      const lastMovementDate = lastMovement?.date
+
+      return {
+        totalItems,
+        lowStockItems,
+        lastMovementDate
+      }
+    } catch (error: any) {
+      throw new Error(error.message || 'Error al obtener resumen del inventario')
+    }
+  }
+}
+
