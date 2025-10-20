@@ -379,3 +379,107 @@ export interface AttendanceStatus {
   code: string
   name: string
 }
+
+// =============================
+// Tipos para Inventario
+// =============================
+
+export interface InventoryItem {
+  id: string
+  tenant_id: string
+  name: string
+  category_id: string
+  location_id: string
+  unit: string
+  min_stock: number
+  current_stock: number
+  created_at: string
+  category_name?: string
+  location_name?: string
+}
+
+export interface InventoryCategory {
+  id: string
+  tenant_id: string
+  name: string
+}
+
+export interface InventoryLocation {
+  id: string
+  tenant_id: string
+  name: string
+}
+
+export type MovementTypeCode = 'IN' | 'OUT'
+
+export interface InventoryMovementType {
+  code: MovementTypeCode
+  name: string
+}
+
+export interface InventoryMovement {
+  id: string
+  tenant_id: string
+  item_id: string
+  date: string
+  type: MovementTypeCode
+  quantity: number
+  unit_cost?: number | null
+  reason: string
+  ref_module?: string | null
+  ref_id?: string | null
+  created_by?: string | null
+  created_at: string
+  item_name?: string
+}
+
+export interface InventorySummary {
+  totalItems: number
+  lowStockItems: number
+  lastMovementDate?: string
+}
+
+export interface CreateItemPayload {
+  name: string
+  category_id: string
+  location_id: string
+  unit: string
+  min_stock: number
+  current_stock?: number
+}
+
+export interface UpdateItemPayload {
+  name?: string
+  category_id?: string
+  location_id?: string
+  unit?: string
+  min_stock?: number
+}
+
+export interface CreateMovementPayload {
+  item_id: string
+  date: string
+  type: MovementTypeCode
+  quantity: number
+  unit_cost?: number
+  reason: string
+  ref_module?: string
+  ref_id?: string
+  created_by?: string
+}
+
+export interface ListItemsParams {
+  tenantId: string
+  search?: string
+  categoryId?: string
+  locationId?: string
+  limit?: number
+  offset?: number
+}
+
+export interface ListMovementsParams {
+  tenantId: string
+  itemId?: string
+  limit?: number
+  offset?: number
+}
