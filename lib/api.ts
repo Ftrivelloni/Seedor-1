@@ -496,19 +496,137 @@ export const inventarioApi = {
 
 // Finanzas API
 export const finanzasApi = {
+  // Obtiene movimientos desde Supabase; mapea notes → concepto para la UI
   async getMovimientos(tenantId: string): Promise<MovimientoCaja[]> {
-    await delay(500)
-    return movimientosCaja.filter((m) => m.tenantId === tenantId)
+    try {
+      const { data, error } = await supabase
+        .from('cash_movements')
+        .select(`
+          id,
+          tenant_id,
+          date,
+          amount,
+          kind,
+          notes,
+          category_id,
+          finance_categories ( id, name )
+        `)
+        .eq('tenant_id', tenantId)
+        .order('date', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching movements from Supabase:', error)
+        throw error
+      }
+
+      console.log('Movements loaded from Supabase:', data?.length || 0)
+
+      const movements: MovimientoCaja[] = (data || []).map((row: any) => ({
+        id: row.id,
+        tenantId: row.tenant_id,
+        fecha: row.date,
+        tipo: row.kind as 'ingreso' | 'egreso',
+        monto: Number(row.amount),
+        concepto: row.notes || '',
+        comprobante: undefined, // schema doesn't have receipt; could add if needed
+        categoria: row.finance_categories?.name || 'Sin categoría',
+      }))
+
+      return movements
+    } catch (err) {
+      console.error('Error in getMovimientos, using empty array:', err)
+      return []
+    }
   },
 
-  async createMovimiento(movimiento: Omit<MovimientoCaja, "id">): Promise<MovimientoCaja> {
-    await delay(800)
-    const newMovimiento: MovimientoCaja = {
-      ...movimiento,
-      id: `mc${Date.now()}`,
+  async getCategorias(tenantId: string): Promise<Array<{ id: string; name: string; kind?: 'ingreso' | 'egreso' }>> {
+    try {
+      const { data, error } = await supabase
+        .from('finance_categories')
+        .select('id, name, kind')
+        .eq('tenant_id', tenantId)
+        .order('name', { ascending: true })
+
+      if (error) throw error
+      return (data || []).map((c: any) => ({ id: c.id, name: c.name, kind: c.kind }))
+    } catch (err) {
+      console.warn('Falling back to categories derived from mock movimientosCaja:', err)
+      const names = Array.from(
+        new Set(
+          movimientosCaja
+            .filter((m) => m.tenantId === tenantId)
+            .map((m) => m.categoria)
+        )
+      )
+      return names.map((name, idx) => ({ id: `mock-cat-${idx}`, name }))
     }
-    movimientosCaja.push(newMovimiento)
-    return newMovimiento
+  },
+
+  async createCategoria(tenantId: string, name: string, kind: 'ingreso' | 'egreso') {
+    // Use server route (service role) to avoid RLS issues on client
+    const res = await fetch('/api/finanzas/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId, name, kind })
+    })
+    const json = await res.json()
+    if (!res.ok) {
+      throw new Error(json?.error || 'Error creando categoría')
+    }
+    return json.data
+  },
+
+  // Crea movimiento via server route
+  async createMovimiento(mov: Omit<MovimientoCaja, 'id'>, userId?: string): Promise<MovimientoCaja> {
+    // Resolver categoría a id; si no existe, crearla con kind=mov.tipo
+    let categoryId: string | null = null
+    if (mov.categoria) {
+      const cats = await finanzasApi.getCategorias(mov.tenantId)
+      const existing = cats.find((c) => c.name.toLowerCase() === mov.categoria.toLowerCase())
+      if (existing) {
+        categoryId = existing.id
+      } else {
+        // Auto-create category with kind=mov.tipo
+        const created = await finanzasApi.createCategoria(mov.tenantId, mov.categoria, mov.tipo)
+        categoryId = created.id
+      }
+    }
+
+    if (!categoryId) {
+      throw new Error('Debe seleccionar o crear una categoría')
+    }
+
+    const res = await fetch('/api/finanzas/movements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenantId: mov.tenantId,
+        userId,
+        date: mov.fecha,
+        kind: mov.tipo,
+        amount: mov.monto,
+        notes: mov.concepto,
+        categoryId,
+      }),
+    })
+
+    const json = await res.json()
+    if (!res.ok) {
+      throw new Error(json?.error || 'Error creando movimiento')
+    }
+
+    // Mapear de vuelta a UI shape
+    const created: MovimientoCaja = {
+      id: json.data.id,
+      tenantId: json.data.tenant_id,
+      fecha: json.data.date,
+      tipo: json.data.kind,
+      monto: Number(json.data.amount),
+      concepto: json.data.notes || '',
+      comprobante: undefined,
+      categoria: mov.categoria,
+    }
+    return created
   },
 }
 

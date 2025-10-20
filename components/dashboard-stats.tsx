@@ -7,7 +7,7 @@ import { useAuth } from "../hooks/use-auth"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { farmsApi, workersApi, attendanceApi } from "../lib/api"
-import { Package, Cog, Archive, Truck, ArrowUpRight, Sprout, ChevronRight, Boxes, Banknote, Users, Wrench, Clock } from "lucide-react"
+import { Package, Cog, Archive, Truck, ArrowUpRight, Sprout, ChevronRight, Boxes, Banknote, Users, Wrench, Clock, TrendingDown } from "lucide-react"
 
 type Farm = {
   id: string
@@ -23,6 +23,8 @@ export function DashboardStats() {
   const [loadingWorkers, setLoadingWorkers] = useState(false)
   const [attendance, setAttendance] = useState<import("../lib/types").AttendanceRecord[]>([])
   const [loadingAttendance, setLoadingAttendance] = useState(false)
+  const [finanzasStats, setFinanzasStats] = useState({ ingresos: 0, egresos: 0, balance: 0 })
+  const [loadingFinanzas, setLoadingFinanzas] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -78,6 +80,37 @@ export function DashboardStats() {
       }
     }
     loadAttendance()
+  }, [user?.tenantId])
+
+  useEffect(() => {
+    const loadFinanzas = async () => {
+      if (!user?.tenantId) return
+      try {
+        setLoadingFinanzas(true)
+        const { finanzasApi } = await import("../lib/api")
+        const movimientos = await finanzasApi.getMovimientos(user.tenantId)
+        
+        const ingresos = movimientos
+          .filter((m) => m.tipo === "ingreso")
+          .reduce((sum, m) => sum + m.monto, 0)
+        
+        const egresos = movimientos
+          .filter((m) => m.tipo === "egreso")
+          .reduce((sum, m) => sum + m.monto, 0)
+        
+        setFinanzasStats({
+          ingresos,
+          egresos,
+          balance: ingresos - egresos,
+        })
+      } catch (e) {
+        console.error("Error loading finanzas stats:", e)
+        setFinanzasStats({ ingresos: 0, egresos: 0, balance: 0 })
+      } finally {
+        setLoadingFinanzas(false)
+      }
+    }
+    loadFinanzas()
   }, [user?.tenantId])
 
   if (!user) return null
@@ -283,41 +316,72 @@ export function DashboardStats() {
             )}
 
             {/* Finanzas */}
-            {allowedBoxes.has('finanzas') && (
-            <Card className="h-full border-amber-200/40 bg-white dark:bg-neutral-900">
+            <Card className="h-full border-amber-200/40 bg-white dark:bg-neutral-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => go('/finanzas')}>
               <CardHeader className="flex flex-row items-start gap-3">
                 <FinanzasIcon />
-                <CardTitle>Finanzas</CardTitle>
-              </CardHeader>
-              <CardContent className="h-full flex items-center justify-center">
-                <div className="text-center space-y-3">
-                  <div className="flex items-center justify-center mb-1">
-                    <div className="relative">
-                      <Wrench className="h-10 w-10 text-orange-500" />
-                      <Clock className="h-5 w-5 text-orange-600 absolute -bottom-1 -right-1" />
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-orange-700">Módulo en Proceso</h3>
-                    <p className="text-sm text-muted-foreground">Finanzas</p>
-                  </div>
-                  <div>
-                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 px-3 py-1 inline-flex items-center">
-                      <Clock className="h-3.5 w-3.5 mr-1" />
-                      En Desarrollo
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                    Módulo de gestión financiera y contabilidad
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    ¿Tienes alguna sugerencia?{' '}
-                    <a href="/contactenos" className="text-orange-600 hover:text-orange-700 underline">Contáctanos</a>
-                  </p>
+                <div>
+                  <CardTitle>Finanzas</CardTitle>
+                  <CardDescription>
+                    {loadingFinanzas
+                      ? 'Cargando balance...'
+                      : `Balance: $${finanzasStats.balance.toLocaleString()}`}
+                  </CardDescription>
                 </div>
+              </CardHeader>
+              <CardContent>
+                {loadingFinanzas ? (
+                  <div className="grid grid-cols-1 gap-3">
+                    {[1,2,3].map((i) => (
+                      <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    {/* Balance principal */}
+                    <div className="mb-4 p-3 rounded-lg bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-900/10 border border-amber-200/50">
+                      <p className="text-xs text-muted-foreground mb-1">Balance Total</p>
+                      <p className={`text-2xl font-bold ${finanzasStats.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        ${finanzasStats.balance.toLocaleString()}
+                      </p>
+                    </div>
+
+                    {/* Stats de Ingresos y Egresos */}
+                    <div className="grid grid-cols-1 gap-2">
+                      <div className="flex items-center justify-between p-2 rounded-md bg-emerald-50 dark:bg-emerald-900/20">
+                        <div className="flex items-center gap-2">
+                          <ArrowUpRight className="h-4 w-4 text-emerald-600" />
+                          <span className="text-sm font-medium">Ingresos</span>
+                        </div>
+                        <span className="text-sm font-bold text-emerald-600">
+                          ${finanzasStats.ingresos.toLocaleString()}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between p-2 rounded-md bg-red-50 dark:bg-red-900/20">
+                        <div className="flex items-center gap-2">
+                          <TrendingDown className="h-4 w-4 text-red-600" />
+                          <span className="text-sm font-medium">Egresos</span>
+                        </div>
+                        <span className="text-sm font-bold text-red-600">
+                          ${finanzasStats.egresos.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    <Button 
+                      variant="ghost" 
+                      className="mt-4 px-0 text-amber-600 underline hover:text-amber-500 dark:text-amber-300 dark:hover:text-amber-200" 
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        go('/finanzas')
+                      }}
+                    >
+                      Ver detalles financieros
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
-            )}
 
             {/* Trabajadores - Asistencia de hoy */}
             {allowedBoxes.has('trabajadores') && (
