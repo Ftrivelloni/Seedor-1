@@ -303,6 +303,7 @@ export function DashboardStats() {
           {/* Placeholder squares */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
             {/* Inventario */}
+            {allowedBoxes.has('inventario') && (
             <Card className="h-full border-sky-200/40 bg-white dark:bg-neutral-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => go('/inventario')}>
               <CardHeader className="flex flex-row items-start gap-3 pb-4">
                 <InventarioIcon />
