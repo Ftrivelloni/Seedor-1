@@ -12,6 +12,25 @@ export function GET(request: NextRequest) {
 
   const response = NextResponse.redirect(redirectUrl, { status: 302 });
 
+  // Borrar las cookies de autenticación de Supabase para evitar conflictos
+  const supabaseCookies = [
+    'sb-access-token',
+    'sb-refresh-token',
+    'supabase-auth-token',
+    'sb-localhost-auth-token',
+    'sb-localhost-auth-token-code-verifier'
+  ];
+
+  supabaseCookies.forEach(cookieName => {
+    response.cookies.set(cookieName, '', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 0,
+    });
+  });
+
   response.cookies.set(DEMO_SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",

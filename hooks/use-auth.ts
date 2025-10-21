@@ -9,6 +9,7 @@ import { getSessionManager } from "../lib/sessionManager";
 declare global {
   interface Window {
     empaqueLayoutUser?: any;
+    __SEEDOR_DEMO_ACTIVE?: boolean;
   }
 }
 
@@ -36,6 +37,17 @@ export function useAuth(options: {
     
     try {
       const sessionManager = getSessionManager();
+      
+      // Verificar si hay cookies de demo activas
+      const hasDemoCookies = document.cookie.includes('seedor_demo=1');
+      
+      // Si hay cookies demo, limpiar cualquier sesión previa
+      if (hasDemoCookies) {
+        sessionManager.clearCurrentTabSession();
+        if (typeof window !== 'undefined') {
+          window.__SEEDOR_DEMO_ACTIVE = true;
+        }
+      }
       
       // Primero intentar obtener de la sesión de la pestaña
       let tabUser = sessionManager.getCurrentUser();

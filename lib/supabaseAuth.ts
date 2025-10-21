@@ -1274,13 +1274,15 @@ export const authService = {
         return { user: tabUser }
       }
 
+      // Primero intentar cargar usuario demo (prioridad sobre sesión real)
+      const demoUser = await tryLoadDemoUser()
+      if (demoUser) {
+        return { user: demoUser }
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session?.user) {
-        const demoUser = await tryLoadDemoUser()
-        if (demoUser) {
-          return { user: demoUser }
-        }
         return { user: null }
       }
 
@@ -1577,8 +1579,36 @@ export const authService = {
         }
       }
 
+      // Siempre hacer signOut de Supabase para limpiar cookies
+      const { error } = await supabase.auth.signOut()
+      
+      if (typeof window !== 'undefined') {
+        // Limpiar bandera de demo
+        delete (window as any).__SEEDOR_DEMO_ACTIVE
+        
+        // Limpiar store de demo
+        delete (window as any).__SEEDOR_DEMO_STORE__
+        
+        // Limpiar localStorage
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-') || key.startsWith('supabase.') || key.includes('seedor')) {
+            localStorage.removeItem(key)
+          }
+        })
+        
+        // Limpiar sessionStorage
+        Object.keys(sessionStorage).forEach(key => {
+          if (key.startsWith('sb-') || key.startsWith('supabase.') || key.includes('seedor')) {
+            sessionStorage.removeItem(key)
+          }
+        })
+      }
+
       await sessionManager.logoutCurrentTab()
       
+      if (error) {
+        console.warn('Error during Supabase signOut:', error)
+      }
       
       return {}
     } catch (error: any) {
@@ -1612,6 +1642,10 @@ export const authService = {
       const { error } = await supabase.auth.signOut()
       
       if (typeof window !== 'undefined') {
+        // Limpiar banderas de demo
+        delete (window as any).__SEEDOR_DEMO_ACTIVE
+        delete (window as any).__SEEDOR_DEMO_STORE__
+        
         Object.keys(localStorage).forEach(key => {
           if (key.startsWith('sb-') || key.startsWith('supabase.') || key.includes('seedor')) {
             localStorage.removeItem(key)
