@@ -6,7 +6,7 @@ import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
-import type { Worker } from "../../lib/types"
+import type { Worker } from "../../lib/workers"
 
 interface WorkerFormModalProps {
   isOpen: boolean

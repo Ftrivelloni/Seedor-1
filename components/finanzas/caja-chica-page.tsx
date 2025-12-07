@@ -47,7 +47,7 @@ export function CajaChicaPage() {
     if (!user) return
     try {
       setIsLoading(true)
-      const data = await finanzasApi.getMovimientos(user.tenantId)
+      const data = await finanzasApi.getMovimientos(user.tenantId || '')
       setMovimientos(data)
     } catch (err) {
       console.error("Error al cargar movimientos:", err)
@@ -242,7 +242,7 @@ export function CajaChicaPage() {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSubmit={handleCreateMovimiento}
-          tenantId={user.tenantId}
+          tenantId={user.tenantId || ''}
         />
       </div>
     </div>

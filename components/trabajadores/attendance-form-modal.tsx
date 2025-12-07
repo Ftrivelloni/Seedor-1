@@ -11,8 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { attendanceApi } from '@/lib/api'
-import { Worker, AttendanceStatus, CreateAttendanceData } from '@/lib/types'
+import { workersService, Worker } from '@/lib/workers'
 import { cn } from '@/lib/utils'
 
 interface AttendanceFormModalProps {
@@ -57,7 +56,7 @@ export function AttendanceFormModal({
 
   const loadStatuses = async () => {
     try {
-      const data = await attendanceApi.getAttendanceStatuses()
+      const data = await workersService.getAttendanceStatuses()
       if (data && data.length > 0) {
         const normalized = data.map((s: any) => (typeof s === 'string' ? { code: s, name: s } : s))
         setStatuses(normalized)
@@ -81,14 +80,12 @@ export function AttendanceFormModal({
     setError('')
 
     try {
-      const attendanceData: CreateAttendanceData = {
-        worker_id: worker.id,
+      await workersService.createAttendance(tenantId, {
+        workerId: worker.id,
         date: format(date, 'yyyy-MM-dd'),
-        status: status,
+        status: status as any,
         reason: reason.trim() || undefined
-      }
-
-      await attendanceApi.createAttendance(tenantId, attendanceData)
+      })
       onSuccess()
       onClose()
     } catch (err: any) {

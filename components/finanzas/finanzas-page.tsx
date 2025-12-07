@@ -79,7 +79,7 @@ export function FinanzasPage() {
     const loadCategorias = async () => {
       if (!user) return
       try {
-        const cats = await finanzasApi.getCategorias(user.tenantId)
+        const cats = await finanzasApi.getCategorias(user.tenantId || '')
         setCategoriasCount(cats.length)
       } catch (e) {
         setCategoriasCount(0)
@@ -385,7 +385,7 @@ export function FinanzasPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleCreateMovimiento}
-        tenantId={user.tenantId}
+        tenantId={user.tenantId || ''}
       />
         </div>
       </main>

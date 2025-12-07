@@ -7,15 +7,14 @@ import { Card } from "../ui/card"
 import { Badge } from "../ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
 import { Plus, Pencil, Trash2, Users, UserCheck, UserX, Search, Loader2 } from "lucide-react"
-import { workersApi } from "../../lib/api"
-import type { Worker, AuthUser } from "../../lib/types"
+import { workersService, Worker } from "../../lib/workers"
+import type { AuthUser } from "../../lib/types"
 import { WorkerFormModal, type WorkerFormData } from "./worker-form-modal"
 import { DailyAttendance } from "./daily-attendance"
 import { AttendanceHistory } from "./attendance-history"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Label } from "../ui/label"
 import { toast } from "../../hooks/use-toast"
-import { supabase } from "../../lib/supabaseClient"
 
 const normalizeText = (text: string) =>
   text
@@ -66,80 +65,19 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
     loadAllWorkers()
   }, [refreshKey, user?.tenantId])
 
-  const getSessionAccessToken = async (retry = 0): Promise<string | null> => {
-    try {
-      const { data, error } = await supabase.auth.getSession()
-      if (error) {
-        console.error("Error obtaining session:", error)
-      }
-      const token = data?.session?.access_token
-      if (token) {
-        return token
-      }
-      if (retry < 2) {
-        await new Promise((resolve) => setTimeout(resolve, 300))
-        const { data: refreshData } = await supabase.auth.refreshSession()
-        const refreshedToken = refreshData?.session?.access_token
-        if (refreshedToken) {
-          return refreshedToken
-        }
-        return getSessionAccessToken(retry + 1)
-      }
-    } catch (err) {
-      console.error("Unexpected error retrieving session token:", err)
-    }
-    return null
-  }
-
   const fetchWorkers = async (searchValue?: string): Promise<Worker[]> => {
     if (!user?.tenantId) return []
 
-    const token = await getSessionAccessToken()
-    let lastError: any = null
-
-    if (token) {
-      try {
-        const params = new URLSearchParams({
-          tenantId: user.tenantId,
-          includeInactive: "true",
-        })
-        if (searchValue) {
-          params.append("name", searchValue)
-        }
-
-        const response = await fetch(`/api/workers?${params.toString()}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          cache: "no-store",
-        })
-
-        if (!response.ok) {
-          const errorBody = await response.json().catch(() => ({}))
-          throw new Error(errorBody?.error || "Error fetching workers")
-        }
-
-        const result = await response.json()
-        const remoteWorkers = Array.isArray(result.workers) ? result.workers : []
-        return remoteWorkers
-      } catch (error) {
-        console.error("Error fetching workers via API:", error)
-        lastError = error
-      }
-    }
-
     try {
-      const fallbackWorkers = await workersApi.getWorkersByTenant(user.tenantId, true)
+      const workers = await workersService.getWorkersByTenant(user.tenantId, true)
       if (searchValue) {
-        return filterWorkersByTerm(fallbackWorkers, searchValue)
+        return filterWorkersByTerm(workers, searchValue)
       }
-      return fallbackWorkers
-    } catch (fallbackError) {
-      console.error("Error fetching workers via Supabase client:", fallbackError)
-      lastError = fallbackError
+      return workers
+    } catch (error) {
+      console.error("Error fetching workers:", error)
+      throw error
     }
-
-    throw lastError || new Error("No se pudieron obtener los trabajadores")
   }
 
   const loadAllWorkers = async () => {
@@ -252,9 +190,15 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
       })
       return
     }
-    
+
     try {
-      await workersApi.createWorker(user.tenantId, data)
+      await workersService.createWorker(user.tenantId, {
+        fullName: data.full_name,
+        documentId: data.document_id,
+        email: data.email,
+        phone: data.phone || undefined,
+        areaModule: data.area_module as any,
+      })
       toast({
         title: "Éxito",
         description: "Trabajador creado correctamente"
@@ -274,7 +218,13 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
     if (!selectedWorker) return
 
     try {
-      await workersApi.updateWorker(selectedWorker.id, data)
+      await workersService.updateWorker(selectedWorker.id, {
+        fullName: data.full_name,
+        documentId: data.document_id,
+        email: data.email,
+        phone: data.phone || undefined,
+        areaModule: data.area_module as any,
+      })
       toast({
         title: "Éxito",
         description: "Trabajador actualizado correctamente"
@@ -294,7 +244,7 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
     if (!confirm("¿Estás seguro de que quieres desactivar este trabajador?")) return
 
     try {
-      await workersApi.deleteWorker(workerId)
+      await workersService.deleteWorker(workerId)
       toast({
         title: "Éxito",
         description: "Trabajador desactivado correctamente"
@@ -314,7 +264,7 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
     if (!confirm(`⚠️ ATENCIÓN: ¿Estás seguro de que quieres eliminar permanentemente a ${workerName}?\n\nEsta acción NO se puede deshacer y se eliminarán todos los registros asociados.`)) return
 
     try {
-      await workersApi.hardDeleteWorker(workerId)
+      await workersService.hardDeleteWorker(workerId)
       toast({
         title: "Éxito",
         description: "Trabajador eliminado permanentemente"

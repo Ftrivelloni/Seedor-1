@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
-import { authService } from "../lib/supabaseAuth";
+import { authService } from "../lib/auth";
 import UserSetupForm from "./user-setup-form";
 
 const inputStrong = "h-12 bg-white border-2 border-slate-200 shadow-sm placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#81C101]/30 focus-visible:border-[#81C101] transition-all duration-200";
@@ -71,7 +71,7 @@ export default function AdminSetupForm() {
       try {
         console.log('🔧 AdminSetupForm: Checking if user is already authenticated...');
         // Primero verificar si el usuario ya está autenticado
-        const { user: currentUser } = await authService.getSafeSession();
+        const { user: currentUser } = await authService.getSafeSessionLegacy();
 
         console.log('🔧 AdminSetupForm: Session result:', {
           hasUser: !!currentUser,
@@ -101,7 +101,7 @@ export default function AdminSetupForm() {
             setInvitation(mockInvitation)
 
             console.log('🔧 AdminSetupForm: Getting tenant limits for:', mockInvitation.tenant_id)
-            const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(mockInvitation.tenant_id)
+            const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimitsLegacy(mockInvitation.tenant_id)
             console.log('🔧 AdminSetupForm: Tenant limits result:', { limitsSuccess, limitsData })
 
             if (limitsSuccess && limitsData) {
@@ -127,7 +127,7 @@ export default function AdminSetupForm() {
             setInvitation(mockInvitation)
 
             console.log('🔧 AdminSetupForm: Getting tenant limits for:', currentUser.tenantId)
-            const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(currentUser.tenantId)
+            const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimitsLegacy(currentUser.tenantId)
 
             console.log('🔧 AdminSetupForm: Tenant limits result:', { limitsSuccess, limitsData })
 
@@ -171,7 +171,7 @@ export default function AdminSetupForm() {
                       setAdminData(user);
                     }
 
-                    const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(tenant.id);
+                    const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimitsLegacy(tenant.id);
                     if (limitsSuccess && limitsData) {
                       setTenantPlan(limitsData.plan);
                       const available = Object.keys(AVAILABLE_MODULES).filter(moduleId =>
@@ -210,14 +210,14 @@ export default function AdminSetupForm() {
 
         // Si no está autenticado, buscar la invitación por token (flujo original)
         console.log('🔍 AdminSetupForm: Getting invitation by token...');
-        const { success, data, error: inviteError } = await authService.getInvitationByToken(token);
+        const { success, data, error: inviteError } = await authService.getInvitationByTokenLegacy(token);
         console.log('📋 AdminSetupForm: Token invitation result:', { success, hasData: !!data, error: inviteError });
         
         if (!success || !data) {
           console.log('❌ AdminSetupForm: No invitation found for token');
           
           // Verificar si es un error de invitación más nueva
-          if (data?.errorType === 'NEWER_INVITATION_EXISTS') {
+          if ((data as any)?.errorType === 'NEWER_INVITATION_EXISTS') {
             setError(inviteError || "Esta invitación ha sido reemplazada por una más reciente");
           } else {
             setError(inviteError || "Invitación no encontrada");
@@ -231,7 +231,7 @@ export default function AdminSetupForm() {
         setInvitation(data);
 
         console.log('🏢 AdminSetupForm: Getting tenant limits for tenant:', data.tenant_id);
-        const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(data.tenant_id);
+        const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimitsLegacy(data.tenant_id);
         console.log('📊 AdminSetupForm: Tenant limits result:', { success: limitsSuccess, hasData: !!limitsData });
         
         if (limitsSuccess && limitsData) {

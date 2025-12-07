@@ -1,89 +1,107 @@
 // hooks/use-auth.ts
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { useUser, useUserActions } from "../components/auth/UserContext";
-import { useEmpaqueAuth } from "../components/empaque/EmpaqueAuthContext";
-import { authService } from "../lib/supabaseAuth";
-import { getSessionManager } from "../lib/sessionManager";
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { authService, sessionManager, tokenStorage, CurrentUser, SessionUser, RoleCode } from '../lib/auth';
 
 declare global {
   interface Window {
-    empaqueLayoutUser?: any;
+    empaqueLayoutUser?: SessionUser;
     __SEEDOR_DEMO_ACTIVE?: boolean;
   }
 }
 
+interface UseAuthOptions {
+  redirectToLogin?: boolean;
+  requireRoles?: string[];
+  useLayoutSession?: boolean;
+}
 
-export function useAuth(options: {
-  redirectToLogin?: boolean; 
-  requireRoles?: string[];   
-  useLayoutSession?: boolean; 
-} = {}) {
-  const { redirectToLogin = true, requireRoles = [], useLayoutSession = false } = options;
-  const { user: contextUser, loading: contextLoading } = useUser();
-  const { clearUser } = useUserActions();
-  const [activeUser, setActiveUser] = useState<any>(null);
+interface UseAuthReturn {
+  user: CurrentUser | null;
+  loading: boolean;
+  loggedIn: boolean;
+  hasRequiredRole: boolean;
+  handleLogout: () => Promise<void>;
+}
+
+export function useAuth(options: UseAuthOptions = {}): UseAuthReturn {
+  const {
+    redirectToLogin = true,
+    requireRoles = [],
+    useLayoutSession = false,
+  } = options;
+
   const router = useRouter();
-  
+  const [activeUser, setActiveUser] = useState<SessionUser | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
+
   const sessionCheckAttempted = useRef(false);
   const isSubpageUsingLayout = useRef(useLayoutSession);
   const initialLoadComplete = useRef(false);
-  
-  const [authChecking, setAuthChecking] = useState(true);
-  
-  const checkAndGetSession = async () => {
+
+  // Get user from empaque layout context if available
+  const getParentUser = useCallback((): SessionUser | null => {
+    if (typeof window !== 'undefined' && window.empaqueLayoutUser) {
+      return window.empaqueLayoutUser;
+    }
+    return null;
+  }, []);
+
+  // Check session and set user
+  const checkAndGetSession = useCallback(async () => {
     if (sessionCheckAttempted.current) return;
     sessionCheckAttempted.current = true;
-    
+
     try {
-      const sessionManager = getSessionManager();
-      
-      // Verificar si hay cookies de demo activas
-      const hasDemoCookies = document.cookie.includes('seedor_demo=1');
-      
-      // Si hay cookies demo, limpiar cualquier sesión previa
-      if (hasDemoCookies) {
-        sessionManager.clearCurrentTabSession();
-        if (typeof window !== 'undefined') {
-          window.__SEEDOR_DEMO_ACTIVE = true;
-        }
-      }
-      
-      // Primero intentar obtener de la sesión de la pestaña
-      let tabUser = sessionManager.getCurrentUser();
-      
-      if (tabUser) {
+      // First check session storage
+      const tabUser = sessionManager.getCurrentUser();
+
+      if (tabUser && tokenStorage.hasValidToken()) {
         setActiveUser(tabUser);
         setAuthChecking(false);
         initialLoadComplete.current = true;
         return;
       }
 
-      // Si no hay sesión de pestaña, verificar con getSafeSession
-      const { user: sessionUser, error } = await authService.getSafeSession();
-      
-      if (sessionUser) {
-        setActiveUser(sessionUser);
-        setAuthChecking(false);
-        initialLoadComplete.current = true;
-        return;
+      // Check if we have a valid token but no session
+      if (tokenStorage.hasValidToken()) {
+        try {
+          const user = await authService.getMe();
+          const sessionUser: SessionUser = {
+            id: user.id,
+            email: user.email,
+            tenantId: user.tenantId,
+            rol: user.rol,
+            nombre: user.nombre,
+            tenant: user.tenant,
+            profile: user.profile,
+            memberships: user.memberships,
+            isDemo: false,
+          };
+          sessionManager.setCurrentUser(sessionUser);
+          setActiveUser(sessionUser);
+          setAuthChecking(false);
+          initialLoadComplete.current = true;
+          return;
+        } catch {
+          // Token is invalid, clear it
+          tokenStorage.clearTokens();
+          sessionManager.clearCurrentTabSession();
+        }
       }
-      
-      if (error) {
-        console.error('Session check error:', error);
-      }
-      
+
       setAuthChecking(false);
       initialLoadComplete.current = true;
-      
+
+      // Redirect to login if needed
       if (redirectToLogin && !isSubpageUsingLayout.current) {
-        // Only redirect to login if we're sure there's no valid session
-        // Add a longer delay to allow context and session to load
-        // Also check if we have required roles - if we do, be more patient before redirecting
         const delay = requireRoles.length > 0 ? 1500 : 500;
         setTimeout(() => {
-          if (!getParentUser() && !activeUser && !contextUser) {
-            router.push("/login");
+          const parentUser = getParentUser();
+          const currentTabUser = sessionManager.getCurrentUser();
+          if (!parentUser && !currentTabUser) {
+            const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+            router.push(`/login?next=${encodeURIComponent(currentPath)}`);
           }
         }, delay);
       }
@@ -92,237 +110,186 @@ export function useAuth(options: {
       setAuthChecking(false);
       initialLoadComplete.current = true;
     }
-  };
+  }, [redirectToLogin, requireRoles.length, router, getParentUser]);
 
+  // Initial load effect
   useEffect(() => {
     if (isSubpageUsingLayout.current) {
       setAuthChecking(false);
       initialLoadComplete.current = true;
       return;
     }
-    
-    const sessionManager = getSessionManager();
-    
-    // Primero intentar la sesión de la pestaña
+
+    // First check session storage
     const tabUser = sessionManager.getCurrentUser();
-    if (tabUser) {
+    if (tabUser && tokenStorage.hasValidToken()) {
       setActiveUser(tabUser);
       setAuthChecking(false);
       initialLoadComplete.current = true;
       return;
     }
-    
-    // Luego el contexto
-    if (contextUser) {
-      setActiveUser(contextUser);
+
+    // Then check for valid token
+    checkAndGetSession();
+  }, [checkAndGetSession]);
+
+  // Listen for session updates
+  useEffect(() => {
+    const handleSessionUpdate = () => {
+      const latestUser = sessionManager.getCurrentUser();
+      setActiveUser(latestUser);
+    };
+
+    window.addEventListener('seedor:session-updated', handleSessionUpdate);
+
+    const unsubscribe = sessionManager.subscribe(handleSessionUpdate);
+
+    return () => {
+      window.removeEventListener('seedor:session-updated', handleSessionUpdate);
+      unsubscribe();
+    };
+  }, []);
+
+  // Handle layout session for empaque module
+  useEffect(() => {
+    if (!useLayoutSession) return;
+
+    const parentUser = getParentUser();
+    if (parentUser) {
+      setActiveUser(parentUser);
       setAuthChecking(false);
-      initialLoadComplete.current = true;
       return;
     }
-    
-    // Finalmente verificar sesión
-    if (contextLoading || (!contextUser && !tabUser)) {
-      checkAndGetSession();
-    } else {
-      setAuthChecking(false);
-      initialLoadComplete.current = true;
-    }
-  }, [contextUser, contextLoading, router, redirectToLogin]);
 
-  let empaqueUser = null;
-  try {
-    const empaqueAuth = useEmpaqueAuth();
-    empaqueUser = empaqueAuth?.empaqueUser;
-  } catch (err) {
-    console.warn('Error accessing EmpaqueAuthContext:', err);
-  }
-  
-  const getParentUser = () => {
-    if (empaqueUser) {
-      return empaqueUser;
-    }
-    
-    if (typeof window !== 'undefined' && window.empaqueLayoutUser) {
-      return window.empaqueLayoutUser;
-    }
-    
-    return null;
-  };
-  
-  useEffect(() => {
-    if (useLayoutSession && !empaqueUser && !getParentUser() && typeof window !== 'undefined') {
-      let attempts = 0;
-      const maxAttempts = 15; // Increase max attempts
-      const checkInterval = setInterval(() => {
-        attempts++;
-        
-        let latestEmpaqueUser = null;
-        try {
-          if (typeof window !== 'undefined' && window.empaqueLayoutUser) {
-            latestEmpaqueUser = window.empaqueLayoutUser;
-          }
-        } catch (err) {
-          console.error("Error checking for user:", err);
-        }
-        
-        const windowUser = typeof window !== 'undefined' ? window.empaqueLayoutUser : null;
-        
-        const foundUser = latestEmpaqueUser || windowUser;
-        
-        if (foundUser) {
-          setActiveUser(foundUser);
-          setAuthChecking(false);
-          clearInterval(checkInterval);
-        } else if (attempts >= maxAttempts) {
-          if (contextUser) {
-            setActiveUser(contextUser);
-          } else {
-            checkAndGetSession();
-          }
-          clearInterval(checkInterval);
-        }
-      }, 200); 
-      
-      return () => clearInterval(checkInterval);
-    }
-  }, [useLayoutSession, contextUser]);
-  
-  const parentUser = useLayoutSession ? (empaqueUser || getParentUser()) : null;
-  const sessionManager = getSessionManager();
-  
-  // Usar peek para evitar efectos secundarios durante logout
-  const tabUser = activeUser ? null : sessionManager.peekCurrentUser();
-  
-  // Prioridad depende de useLayoutSession:
-  // - Si useLayoutSession=true: parentUser (empaque) > activeUser > tabUser > contextUser
-  // - Si useLayoutSession=false: activeUser > tabUser > contextUser (IGNORAR parentUser)
-  // Esto evita que el usuario de empaque interfiera con otras páginas
-  const currentUser = useLayoutSession 
-    ? (parentUser || (activeUser === null ? null : (activeUser || tabUser || contextUser)))
-    : (activeUser === null ? null : (activeUser || tabUser || contextUser));
-  
-  const hasRequiredRole = isSubpageUsingLayout.current ? true : (
-    !currentUser ? false : (
-      requireRoles.length === 0 || 
-      requireRoles.some(role => role.toLowerCase() === currentUser.rol?.toLowerCase())
-    )
-  );
-  
+    // Poll for parent user if not available immediately
+    let attempts = 0;
+    const maxAttempts = 15;
+    const checkInterval = setInterval(() => {
+      attempts++;
+      const foundUser = getParentUser();
 
-  
+      if (foundUser) {
+        setActiveUser(foundUser);
+        setAuthChecking(false);
+        clearInterval(checkInterval);
+      } else if (attempts >= maxAttempts) {
+        // Fallback to session check
+        checkAndGetSession();
+        clearInterval(checkInterval);
+      }
+    }, 200);
+
+    return () => clearInterval(checkInterval);
+  }, [useLayoutSession, getParentUser, checkAndGetSession]);
+
+  // Determine current user with priority
+  const parentUser = useLayoutSession ? getParentUser() : null;
+  const tabUser = sessionManager.getCurrentUser();
+
+  // Priority: parentUser (if useLayoutSession) > activeUser > tabUser
+  const currentUser: CurrentUser | null = useLayoutSession
+    ? parentUser || activeUser || tabUser
+    : activeUser || tabUser;
+
+  // Check if user has required role
+  const hasRequiredRole = isSubpageUsingLayout.current
+    ? true
+    : !currentUser
+    ? false
+    : requireRoles.length === 0 ||
+      requireRoles.some(
+        (role) => role.toLowerCase() === currentUser.rol?.toLowerCase()
+      );
+
+  // Role validation effect
   useEffect(() => {
     if (isSubpageUsingLayout.current) return;
-    
-    // Don't do anything while still loading
-    if (authChecking || contextLoading) {
-      return;
-    }
-    
-    // Don't validate if initial load is not complete
-    if (!initialLoadComplete.current) {
-      return;
-    }
-    
-    // Don't validate if no user
-    if (!currentUser) {
-      return;
-    }
-    
-    // Don't validate if no role (user might be logging out)
-    if (!currentUser.rol) {
-      return;
-    }
-    
-    // Don't validate if no roles required
-    if (requireRoles.length === 0) {
-      return;
-    }
-    
-    // Get current path to determine if we should allow staying on this page
-    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-    
-    // Check if user has required role
+    if (authChecking) return;
+    if (!initialLoadComplete.current) return;
+    if (!currentUser || !currentUser.rol) return;
+    if (requireRoles.length === 0) return;
+
     const userRole = currentUser.rol.toLowerCase();
-    const hasValidRole = requireRoles.some(role => role.toLowerCase() === userRole);
-    
-    // Only redirect if user definitely doesn't have access AND this is not a page refresh scenario
+    const hasValidRole = requireRoles.some(
+      (role) => role.toLowerCase() === userRole
+    );
+
     if (!hasValidRole && sessionCheckAttempted.current && initialLoadComplete.current) {
-      // If we're on /usuarios and user doesn't have admin role, redirect
-      // But add extra protection for page refreshes
       const redirectTimer = setTimeout(() => {
         // Final verification before redirecting
-        if (currentUser && 
-            currentUser.rol && 
-            !authChecking && 
-            !contextLoading &&
-            sessionCheckAttempted.current &&
-            initialLoadComplete.current &&
-            !requireRoles.some(role => role.toLowerCase() === currentUser.rol.toLowerCase())) {
-          
-          console.log('🔄 User role mismatch, redirecting to home. User role:', currentUser.rol, 'Required:', requireRoles, 'Current path:', currentPath);
-          router.replace("/home");
+        const finalUser = sessionManager.getCurrentUser();
+        if (
+          finalUser &&
+          finalUser.rol &&
+          !requireRoles.some(
+            (role) => role.toLowerCase() === finalUser.rol?.toLowerCase()
+          )
+        ) {
+          router.replace('/home');
         }
-      }, 3000); // Even longer delay to ensure this is not a refresh scenario
-      
+      }, 3000);
+
       return () => clearTimeout(redirectTimer);
     }
-  }, [currentUser, hasRequiredRole, requireRoles, router, authChecking, contextLoading]);
+  }, [currentUser, requireRoles, router, authChecking]);
 
-  if (currentUser && !currentUser.tenant) {
-    currentUser.tenant = {
-      name: 'Tu Empresa',
-      id: currentUser.tenantId || '',
-      plan: 'enterprise',
-      status: 'active',
-      created_at: new Date().toISOString(),
-      slug: 'empresa'
-    };
-  }
+  // Add default tenant and worker if missing
+  const enrichedUser: CurrentUser | null = currentUser
+    ? {
+        ...currentUser,
+        tenant: currentUser.tenant || {
+          id: currentUser.tenantId || '',
+          name: 'Tu Empresa',
+          slug: 'empresa',
+          plan: 'enterprise',
+          contact_name: '',
+          contact_email: '',
+          created_by: '',
+          max_users: 10,
+          max_fields: 10,
+          current_users: 0,
+          current_fields: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        worker: currentUser.worker || {
+          id: currentUser.id || 'temp-id',
+          fullName: currentUser.nombre || 'Usuario',
+          email: currentUser.email,
+          role: currentUser.rol as RoleCode | null,
+          tenantId: currentUser.tenantId || null,
+        },
+      }
+    : null;
 
-  if (currentUser && !currentUser.worker) {
-    currentUser.worker = {
-      id: currentUser.id || 'temp-id',
-      full_name: currentUser.nombre || 'Usuario',
-      email: currentUser.email,
-      tenant_id: currentUser.tenantId || '',
-      area_module: currentUser.rol?.toLowerCase() || 'general',
-      status: 'active'
-    };
-  }
-
-  const handleLogout = async () => {
-
-    
+  // Logout handler
+  const handleLogout = useCallback(async () => {
     try {
-      // Primero limpiar todos los estados locales inmediatamente
+      // Clear local state immediately
       setActiveUser(null);
-      clearUser(); // Limpiar también el UserContext
-      
-      // Limpiar el contexto de ventana
+
+      // Clear window context
       if (typeof window !== 'undefined') {
         window.empaqueLayoutUser = undefined;
       }
-      
-      // Luego hacer el logout del servicio
+
+      // Perform logout
       await authService.logout();
-      
 
-      
-      // Redirigir inmediatamente
-      router.push("/login");
-      
+      // Redirect to login
+      router.push('/login');
     } catch (error) {
-
-      // Aún así redirigir a login si hay error
-      router.push("/login");
+      console.error('Logout error:', error);
+      // Still redirect to login on error
+      router.push('/login');
     }
-  };
+  }, [router]);
 
   return {
-    user: currentUser,
-    loading: authChecking || contextLoading,
-    loggedIn: !!currentUser,
+    user: enrichedUser,
+    loading: authChecking,
+    loggedIn: !!currentUser && tokenStorage.hasValidToken(),
     hasRequiredRole,
-    handleLogout
+    handleLogout,
   };
 }

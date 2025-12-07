@@ -1,4 +1,3 @@
-
 import type React from "react"
 import type { Metadata } from "next"
 import { GeistSans } from "geist/font/sans"
@@ -6,9 +5,8 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
-import { UserProvider } from "../components/auth/UserContext"
+import { AuthProvider } from "../lib/auth"
 import { AuthErrorHandler } from "../components/auth/AuthErrorHandler"
-import { SessionCleanup } from "../components/auth/SessionCleanup"
 
 export const metadata: Metadata = {
   title: "Seedor - Gestión Agropecuaria",
@@ -24,11 +22,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <SessionCleanup />
         <AuthErrorHandler>
-          <UserProvider>
+          <AuthProvider>
             <Suspense fallback={null}>{children}</Suspense>
-          </UserProvider>
+          </AuthProvider>
         </AuthErrorHandler>
         <Analytics />
       </body>

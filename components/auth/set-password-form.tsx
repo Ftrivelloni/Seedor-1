@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '../../lib/supabaseClient'
-import { authService, validators } from '../../lib/supabaseAuth'
+import { authService, validators, tokenStorage } from '../../lib/auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Input } from '../ui/input'
 import { Button } from '../ui/button'
@@ -28,29 +27,25 @@ export default function SetPasswordForm() {
     const checkSession = async () => {
       try {
         console.log('🔍 Checking session for set-password...')
-        
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (error) {
 
-          setError('Error al verificar sesión. Por favor, usa el link de invitación nuevamente.')
-          setLoading(false)
-          return
-        }
-
-        if (!session?.user) {
-
+        // Check if we have a valid token
+        if (!tokenStorage.hasValidToken()) {
           setError('No hay una sesión válida. Por favor, usa el link de invitación enviado a tu email.')
           setLoading(false)
           return
         }
 
-
-        setSessionUser(session.user)
-        setLoading(false)
+        // Try to get current user from API
+        try {
+          const user = await authService.getMe()
+          setSessionUser(user)
+          setLoading(false)
+        } catch {
+          setError('Error al verificar sesión. Por favor, usa el link de invitación nuevamente.')
+          setLoading(false)
+        }
 
       } catch (err: any) {
-
         setError('Error inesperado al verificar sesión.')
         setLoading(false)
       }
@@ -76,19 +71,8 @@ export default function SetPasswordForm() {
     setSetting(true)
 
     try {
-
-
-      // Actualizar contraseña usando la sesión activa
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: password
-      })
-
-      if (updateError) {
-
-        setError('Error al establecer contraseña: ' + updateError.message)
-        return
-      }
-
+      // Actualizar contraseña usando el API
+      await authService.setPassword(password)
 
       setSuccess(true)
 
@@ -97,19 +81,11 @@ export default function SetPasswordForm() {
         if (token) {
           router.push(`/accept-invitacion?token=${token}&from=set-password`)
         } else {
-          // Si no hay token, probablemente el usuario vino del email de Supabase
-          // Buscar token en localStorage o sessionStorage (guardado por Supabase)
-          const supabaseData = sessionStorage.getItem('sb-') || localStorage.getItem('sb-')
-          if (supabaseData) {
-            router.push('/login?message=password-set')
-          } else {
-            router.push('/login')
-          }
+          router.push('/login?message=password-set')
         }
       }, 2000)
 
     } catch (err: any) {
-
       setError(err.message || 'Error inesperado')
     } finally {
       setSetting(false)

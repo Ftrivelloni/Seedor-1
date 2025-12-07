@@ -10,7 +10,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { authService, validators } from "../lib/supabaseAuth";
+import { authService, validators } from "../lib/auth";
 
 const inputStrong = "h-12 bg-white border-2 border-slate-200 shadow-sm placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#81C101]/30 focus-visible:border-[#81C101] transition-all duration-200";
 
@@ -130,7 +130,7 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
       }
 
       try {
-        const { success, data, error: inviteError } = await authService.getInvitationByToken(token);
+        const { success, data, error: inviteError } = await authService.getInvitationByTokenLegacy(token);
         
         if (!success || !data) {
           setError(inviteError || "Invitación no encontrada");

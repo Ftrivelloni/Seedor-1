@@ -12,8 +12,9 @@ import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "../../lib/utils"
-import { tasksApi, workersApi } from "../../lib/api"
-import type { Task, TaskType, Worker } from "../../lib/types"
+import { tasksApi } from "../../lib/api"
+import { workersService, Worker } from "../../lib/workers"
+import type { Task, TaskType } from "../../lib/types"
 
 interface TaskFormModalProps {
   isOpen: boolean
@@ -114,7 +115,7 @@ export function TaskFormModal({ isOpen, onClose, onSubmit, farmId, lotId, tenant
   const loadWorkers = async () => {
     try {
       setLoadingWorkers(true)
-      const data = await workersApi.getWorkersByTenant(tenantId)
+      const data = await workersService.getWorkersByTenant(tenantId)
       setWorkers(data)
     } catch (error) {
       console.error("Error loading workers:", error)

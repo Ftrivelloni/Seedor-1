@@ -6,8 +6,9 @@ import { Button } from "../ui/button"
 import { Card } from "../ui/card"
 import { Badge } from "../ui/badge"
 import { Plus, ArrowLeft, Pencil, Trash2 } from "lucide-react"
-import { lotsApi, tasksApi, workersApi } from "../../lib/api"
-import type { Lot, Task, Worker, AuthUser } from "../../lib/types"
+import { lotsApi, tasksApi } from "../../lib/api"
+import { workersService, Worker } from "../../lib/workers"
+import type { Lot, Task, AuthUser } from "../../lib/types"
 import { TaskFormModal, type TaskFormData } from "./task-form-modal"
 import { toast } from "../../hooks/use-toast"
 
@@ -40,7 +41,7 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
       const [lotData, tasksData, workersData] = await Promise.all([
         lotsApi.getLotById(lotId),
         tasksApi.getTasksByLot(lotId),
-        workersApi.getWorkersByTenant(user?.tenantId || "")
+        workersService.getWorkersByTenant(user?.tenantId || "")
       ])
       setLot(lotData)
       setTasks(tasksData)

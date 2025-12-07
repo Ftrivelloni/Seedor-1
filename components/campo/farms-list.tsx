@@ -75,7 +75,7 @@ export function FarmsList({ user }: FarmsListProps) {
     }
     
     try {
-      const result = await farmsApi.createFarm(user.tenantId, user.id, farmData)
+      const result = await farmsApi.createFarm(user.tenantId || '', user.id, farmData)
       toast({
         title: "Campo creado",
         description: "El campo se ha creado exitosamente"

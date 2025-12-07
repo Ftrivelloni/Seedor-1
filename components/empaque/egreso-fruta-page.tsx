@@ -162,7 +162,7 @@ export function EgresoFrutaPage() {
                         open={modalOpen}
                         onClose={() => setModalOpen(false)}
                         onCreated={loadEgresos}
-                        tenantId={user.tenantId}
+                        tenantId={user.tenantId || ''}
                     />
                 </div>
             </div>

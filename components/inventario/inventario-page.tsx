@@ -65,12 +65,13 @@ export function InventarioPage() {
     if (user?.tenantId) {
       loadData()
     }
-  }, [user])
+  }, [user?.tenantId])
 
   // Escuchar eventos disparados por los modales para recargar listas al crear categorías/ubicaciones
   useEffect(() => {
-    const onCategoriesChanged = () => { if (user?.tenantId) loadCategories() }
-    const onLocationsChanged = () => { if (user?.tenantId) loadLocations() }
+    const tenantId = user?.tenantId
+    const onCategoriesChanged = () => { if (tenantId) loadCategories() }
+    const onLocationsChanged = () => { if (tenantId) loadLocations() }
 
     window.addEventListener('inventory:categoriesChanged', onCategoriesChanged)
     window.addEventListener('inventory:locationsChanged', onLocationsChanged)
@@ -79,7 +80,7 @@ export function InventarioPage() {
       window.removeEventListener('inventory:categoriesChanged', onCategoriesChanged)
       window.removeEventListener('inventory:locationsChanged', onLocationsChanged)
     }
-  }, [user])
+  }, [user?.tenantId])
 
   const loadData = async () => {
     if (!user?.tenantId) return
@@ -194,7 +195,7 @@ export function InventarioPage() {
     if (user?.tenantId) {
       loadItems()
     }
-  }, [searchTerm, selectedCategory, selectedLocation])
+  }, [searchTerm, selectedCategory, selectedLocation, user?.tenantId])
 
   // Handlers
   const handleEditItem = (item: InventoryItem) => {
@@ -605,7 +606,7 @@ export function InventarioPage() {
           item={selectedItem}
           categories={categories}
           locations={locations}
-          tenantId={user.tenantId}
+          tenantId={user.tenantId || ''}
         />
 
         <MovementFormModal
@@ -613,7 +614,7 @@ export function InventarioPage() {
           onClose={() => setShowMovementModal(false)}
           onSave={handleMovementSaved}
           items={items}
-          tenantId={user.tenantId}
+          tenantId={user.tenantId || ''}
         />
 
         <MovementHistoryModal
@@ -623,7 +624,7 @@ export function InventarioPage() {
             setSelectedItem(null)
           }}
           item={selectedItem}
-          tenantId={user.tenantId}
+          tenantId={user.tenantId || ''}
           onDelete={loadData}
         />
       </div>

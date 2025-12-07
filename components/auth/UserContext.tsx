@@ -1,7 +1,11 @@
 "use client"
 import { createContext, useContext, useEffect, useState, ReactNode } from "react"
-import { authService } from "../../lib/supabaseAuth"
-import { getSessionManager } from "../../lib/sessionManager"
+import { authService, sessionManager } from "../../lib/auth"
+
+/**
+ * @deprecated Use AuthContext from lib/auth instead
+ * This file is kept for backwards compatibility only
+ */
 
 export const UserContext = createContext<any>(null)
 
@@ -15,14 +19,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
       try {
 
         
-        const sessionManager = getSessionManager()
-        
         // Primero intentar obtener de la sesión de la pestaña (sin actualizar actividad)
         let sessionUser = sessionManager.peekCurrentUser()
         
         if (!sessionUser) {
           // Si no hay sesión de pestaña, verificar con getSafeSession
-          const { user } = await authService.getSafeSession()
+          const { user } = await authService.getSafeSessionLegacy()
           sessionUser = user
         }
         
@@ -52,7 +54,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
                 setUser(null)
                 // Limpiar también el SessionManager
-                const sessionManager = getSessionManager()
                 sessionManager.clearCurrentTabSession()
               } else if (event === 'SIGNED_IN' && session?.user) {
 
@@ -81,7 +82,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     // Listen for session updates dispatched by SessionManager (same tab) and storage events (cross-tab)
     const handleSessionUpdate = () => {
       try {
-        const sessionManager = getSessionManager()
         const latest = sessionManager.peekCurrentUser()
         setUser(latest)
       } catch (e) {
@@ -100,7 +100,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const setSelectedTenant = (tenant: any, role?: string) => {
     try {
-      const sessionManager = getSessionManager()
       const updated = {
         ...user,
         tenant,
