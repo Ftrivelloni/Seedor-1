@@ -1,5 +1,67 @@
 import { useEffect, useState } from 'react'
-import type { AuthUser } from './types'
+import type { AuthUser, Tenant } from './types'
+
+/**
+ * Check if a tenant's subscription is active
+ * Considers grace period for past_due status and legacy status
+ */
+function isSubscriptionActive(tenant: Tenant | undefined | null): boolean {
+  if (!tenant) return false;
+
+  const subscriptionStatus = tenant.payment_status;
+
+  // Legacy tenants (grandfathered in) always have access
+  if (subscriptionStatus === 'legacy') {
+    return true;
+  }
+
+  // Active subscriptions have access
+  if (subscriptionStatus === 'active') {
+    return true;
+  }
+
+  // Past due: check grace period (7 days)
+  if (subscriptionStatus === 'past_due' && tenant.payment_failed_at) {
+    const failedDate = new Date(tenant.payment_failed_at);
+    const gracePeriodEnd = new Date(failedDate);
+    gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 7);
+    const now = new Date();
+
+    if (now < gracePeriodEnd) {
+      return true; // Still within grace period
+    }
+  }
+
+  // Check if subscription has ended
+  if (tenant.subscription_ends_at) {
+    const endsAt = new Date(tenant.subscription_ends_at);
+    const now = new Date();
+    if (now < endsAt) {
+      return true; // Still have access until end date
+    }
+  }
+
+  // All other statuses (cancelled, expired, pending) don't have access
+  return false;
+}
+
+/**
+ * Get limited features for expired/suspended subscriptions
+ * Users can still access billing settings to reactivate
+ */
+function getExpiredFeatures(): TenantFeature[] {
+  return [
+    { feature_code: 'ajustes', feature_name: 'Configuración', is_enabled: true },
+    { feature_code: 'dashboard', feature_name: 'Dashboard', is_enabled: false },
+    { feature_code: 'campo', feature_name: 'Gestión de Campo', is_enabled: false },
+    { feature_code: 'empaque', feature_name: 'Gestión de Empaque', is_enabled: false },
+    { feature_code: 'finanzas', feature_name: 'Gestión de Finanzas', is_enabled: false },
+    { feature_code: 'inventario', feature_name: 'Gestión de Inventario', is_enabled: false },
+    { feature_code: 'trabajadores', feature_name: 'Gestión de Trabajadores', is_enabled: false },
+    { feature_code: 'contactos', feature_name: 'Gestión de Contactos', is_enabled: false },
+    { feature_code: 'user_management', feature_name: 'Gestión de Usuarios', is_enabled: false },
+  ];
+}
 
 function getPlanFeatures(planName: string): TenantFeature[] {
   const plan = (planName || '').toLowerCase()
@@ -102,7 +164,28 @@ export function FeatureProvider({ children, user }: FeatureProviderProps) {
   const loadFeatures = async () => {
     try {
       setIsLoading(true)
-      
+
+      // Check subscription status first
+      const tenant = user.tenant;
+      if (!isSubscriptionActive(tenant)) {
+        console.warn('[features] Subscription is not active:', tenant?.payment_status);
+
+        // Set expired/limited features
+        setFeatures(getExpiredFeatures());
+
+        setPlanInfo({
+          plan_name: tenant?.plan || 'basic',
+          plan_display_name: 'Suscripción Inactiva',
+          price_monthly: 0,
+          price_yearly: 0,
+          current_users: 0,
+          max_users: 0,
+          plan_active: false,
+        });
+
+        return; // Don't load full features
+      }
+
       // Normalize plan string so aliases like 'basico', 'empresarial' or 'profesional' are handled
       const tenantPlanRaw = (user.tenant?.plan || 'basic')
       const tenantPlan = (tenantPlanRaw || '').toLowerCase()

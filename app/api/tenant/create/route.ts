@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       // 1. Check if email already exists in auth
       const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
       const existingAuthUser = authUsers.users.find(user => user.email === adminEmail);
-      
+
       if (existingAuthUser) {
         return NextResponse.json({
           success: false,
@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
           plan: plan,
           primary_crop: primaryCrop || 'general',
           contact_email: contactEmail,
+          contact_name: adminFullName,
           created_by: authData.user.id,
         }])
         .select()
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest) {
         await supabaseAdmin.from('tenant_memberships').delete().eq('tenant_id', createdTenantId);
         await supabaseAdmin.from('tenants').delete().eq('id', createdTenantId);
       }
-      
+
       if (createdUserId) {
         try {
           await supabaseAdmin.auth.admin.deleteUser(createdUserId);

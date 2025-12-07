@@ -13,7 +13,7 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
-import { authService, validators, sanitizeInput } from "../lib/supabaseAuth"; 
+import { authService, validators, sanitizeInput } from "../lib/supabaseAuth";
 import { useRouter } from "next/navigation";
 
 const FORM_DATA_KEY = "seedor.tenant.registration";
@@ -23,70 +23,70 @@ const TENANT_CREATED_KEY = "seedor.tenant.created";
 const inputStrong = "h-12 bg-white border-2 border-slate-200 shadow-sm placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#81C101]/30 focus-visible:border-[#81C101] transition-all duration-200";
 
 const PLANS = [
-  { 
-    value: 'basico', 
-    label: 'Plan Básico', 
-    price: '$49',
-    originalPrice: '$59',
-    period: '/mes',
-    description: 'Perfecto para campos pequeños',
-    maxUsers: 10,
-    maxFields: 5,
-    modules: ['Campo', 'Empaque'],
-    features: [
-      'Hasta 10 usuarios',
-      'Hasta 5 campos/fincas',
-      'Gestión de campo',
-      'Gestión de empaque',
-      'Soporte por email',
-      'Reportes básicos'
-    ],
-    popular: false,
-    color: 'from-[#81C101]/10 to-[#81C101]/5',  
-    borderColor: 'border-[#81C101]/30',
-    textColor: 'text-[#81C101]', 
-    badgeColor: 'bg-[#81C101]/10 text-[#81C101]'
-  },
-  { 
-    value: 'profesional', 
-    label: 'Plan Profesional', 
-    price: '$99',
-    originalPrice: '$129',
-    period: '/mes',
-    description: 'Para operaciones más grandes',
-    maxUsers: 30,
-    maxFields: 20,
-    modules: ['Campo', 'Empaque', 'Finanzas'],
-    features: [
-      'Hasta 30 usuarios',
-      'Hasta 20 campos/fincas',
-      'Gestión de campo',
-      'Gestión de empaque',
-      'Módulo de finanzas',
-      'Reportes avanzados',
-      'Soporte prioritario',
-      'Analytics detallados'
-    ],
-    popular: true,
-    color: 'from-[#81C101]/10 to-[#81C101]/5',  
-    borderColor: 'border-[#81C101]',
-    textColor: 'text-[#81C101]', 
-    badgeColor: 'bg-amber-400 text-amber-900'
-  }
+    {
+        value: 'basico',
+        label: 'Plan Básico',
+        price: '$49',
+        originalPrice: '$59',
+        period: '/mes',
+        description: 'Perfecto para campos pequeños',
+        maxUsers: 10,
+        maxFields: 5,
+        modules: ['Campo', 'Empaque'],
+        features: [
+            'Hasta 10 usuarios',
+            'Hasta 5 campos/fincas',
+            'Gestión de campo',
+            'Gestión de empaque',
+            'Soporte por email',
+            'Reportes básicos'
+        ],
+        popular: false,
+        color: 'from-[#81C101]/10 to-[#81C101]/5',
+        borderColor: 'border-[#81C101]/30',
+        textColor: 'text-[#81C101]',
+        badgeColor: 'bg-[#81C101]/10 text-[#81C101]'
+    },
+    {
+        value: 'profesional',
+        label: 'Plan Profesional',
+        price: '$99',
+        originalPrice: '$129',
+        period: '/mes',
+        description: 'Para operaciones más grandes',
+        maxUsers: 30,
+        maxFields: 20,
+        modules: ['Campo', 'Empaque', 'Finanzas'],
+        features: [
+            'Hasta 30 usuarios',
+            'Hasta 20 campos/fincas',
+            'Gestión de campo',
+            'Gestión de empaque',
+            'Módulo de finanzas',
+            'Reportes avanzados',
+            'Soporte prioritario',
+            'Analytics detallados'
+        ],
+        popular: true,
+        color: 'from-[#81C101]/10 to-[#81C101]/5',
+        borderColor: 'border-[#81C101]',
+        textColor: 'text-[#81C101]',
+        badgeColor: 'bg-amber-400 text-amber-900'
+    }
 ];
 
-const ValidatedInput = ({ 
-    id, 
-    label, 
-    value, 
-    onChange, 
-    fieldName, 
-    required = false, 
+const ValidatedInput = ({
+    id,
+    label,
+    value,
+    onChange,
+    fieldName,
+    required = false,
     type = "text",
     placeholder,
     fieldErrors,
     icon: Icon,
-    ...props 
+    ...props
 }: any) => (
     <div className="grid gap-3">
         <Label htmlFor={id} className="text-sm font-semibold text-slate-700">
@@ -121,12 +121,11 @@ const ValidatedInput = ({
 );
 
 const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, onSelect: () => void }) => (
-    <div 
-        className={`relative cursor-pointer rounded-2xl border-3 p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl ${
-            selected 
-                ? `${plan.borderColor} bg-gradient-to-br ${plan.color} shadow-lg transform scale-[1.02]` 
-                : 'border-slate-200 bg-white hover:border-[#81C101]/40 shadow-md hover:shadow-lg'
-        }`}
+    <div
+        className={`relative cursor-pointer rounded-2xl border-3 p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl ${selected
+            ? `${plan.borderColor} bg-gradient-to-br ${plan.color} shadow-lg transform scale-[1.02]`
+            : 'border-slate-200 bg-white hover:border-[#81C101]/40 shadow-md hover:shadow-lg'
+            }`}
         onClick={onSelect}
     >
         {plan.popular && (
@@ -137,7 +136,7 @@ const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, 
                 </div>
             </div>
         )}
-        
+
         {selected && (
             <div className="absolute -top-2 -right-2">
                 <div className="bg-[#81C101] text-white rounded-full p-2 shadow-lg">
@@ -145,7 +144,7 @@ const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, 
                 </div>
             </div>
         )}
-        
+
         <div className="space-y-5">
             <div className="text-center pt-2">
                 <h3 className={`text-xl font-bold ${selected ? plan.textColor : 'text-slate-900'}`}>
@@ -234,11 +233,10 @@ const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, 
             </div>
 
             <div className="flex items-center justify-center pt-4 min-h-[3rem]"> {/* Agregado min-h y pt-4 */}
-                <div className={`w-6 h-6 rounded-full border-3 flex items-center justify-center transition-all duration-200 ${
-                    selected 
-                        ? 'border-[#81C101] bg-[#81C101]' // Cambiado para que sea visible
-                        : 'border-slate-300 hover:border-[#81C101]'
-                }`}>
+                <div className={`w-6 h-6 rounded-full border-3 flex items-center justify-center transition-all duration-200 ${selected
+                    ? 'border-[#81C101] bg-[#81C101]' // Cambiado para que sea visible
+                    : 'border-slate-300 hover:border-[#81C101]'
+                    }`}>
                     {selected && <Check className="size-4 text-white" />} {/* Cambiado a texto blanco */}
                 </div>
             </div>
@@ -278,13 +276,13 @@ export default function RegisterTenantForm() {
             .substring(0, 50);
     };
 
-   
+
     useEffect(() => {
         if (typeof window === "undefined") return;
 
         const urlParams = new URLSearchParams(window.location.search);
         const isNewRegistration = urlParams.get('new') === 'true' || !document.referrer;
-        
+
         if (isNewRegistration) {
             localStorage.removeItem(FORM_DATA_KEY);
             localStorage.removeItem(PENDING_VERIFICATION_KEY);
@@ -297,17 +295,17 @@ export default function RegisterTenantForm() {
         if (tenantCreated) {
             try {
                 const data = JSON.parse(tenantCreated);
-                
+
                 const createdAt = new Date(data.timestamp || 0);
                 const now = new Date();
                 const hoursDiff = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-                
+
                 if (hoursDiff > 1) {
                     console.log('🕐 Tenant creation data is too old, clearing...');
                     localStorage.removeItem(TENANT_CREATED_KEY);
                     return;
                 }
-                
+
                 console.log('📂 Restoring tenant creation step...');
                 setTenantData(data);
                 setCurrentStep('admin-invite');
@@ -322,17 +320,17 @@ export default function RegisterTenantForm() {
         if (pendingData) {
             try {
                 const data = JSON.parse(pendingData);
-                
+
                 const createdAt = new Date(data.timestamp || 0);
                 const now = new Date();
                 const minutesDiff = (now.getTime() - createdAt.getTime()) / (1000 * 60);
-                
+
                 if (minutesDiff > 30) {
                     console.log('🕐 Verification data is too old, clearing...');
                     localStorage.removeItem(PENDING_VERIFICATION_KEY);
                     return;
                 }
-                
+
                 console.log('📂 Restoring verification step...');
                 setRegistrationData(data);
                 setCurrentStep('verification');
@@ -347,17 +345,17 @@ export default function RegisterTenantForm() {
         if (savedFormData) {
             try {
                 const data = JSON.parse(savedFormData);
-                
+
                 const savedAt = new Date(data.timestamp || 0);
                 const now = new Date();
                 const hoursDiff = (now.getTime() - savedAt.getTime()) / (1000 * 60 * 60);
-                
+
                 if (hoursDiff > 2) {
                     console.log('🕐 Form data is too old, clearing...');
                     localStorage.removeItem(FORM_DATA_KEY);
                     return;
                 }
-                
+
                 console.log('📂 Restoring form data...');
                 setCompanyName(data.companyName || "");
                 setContactName(data.contactName || "");
@@ -385,7 +383,7 @@ export default function RegisterTenantForm() {
 
         localStorage.setItem(FORM_DATA_KEY, JSON.stringify(formData));
     }, [companyName, contactName, contactEmail, ownerPhone, selectedPlan, currentStep]);
-    
+
     const validateField = useCallback((fieldName: string, value: string): string => {
         switch (fieldName) {
             case 'companyName':
@@ -472,62 +470,107 @@ export default function RegisterTenantForm() {
             return;
         }
 
-            setLoading(true);
+        setLoading(true);
 
-            try {
-                const payload = {
-                    tenantName: companyName,
-                    slug: generateSlug(companyName),
-                    plan: selectedPlan,
-                    contactName: contactName,
-                    contactEmail: contactEmail,
-                    ownerPhone: ownerPhone || undefined,
-                };
+        try {
+            // 1. Check if email exists
+            const checkRes = await fetch('/api/auth/check-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: contactEmail })
+            });
 
-                // 1) Ask server if the email already exists
-                const checkRes = await fetch('/api/auth/check-email', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: contactEmail })
-                });
+            const checkJson = await checkRes.json();
 
-                const checkJson = await checkRes.json();
-
-                if (!checkRes.ok) {
-                    setError(checkJson.error || 'Error verificando el email');
-                    return;
-                }
-
-                if (checkJson.exists) {
-                    // Email already exists: show modal to let the user continue with existing-account flow
-                    // keep the form data in localStorage so the existing-login page can read it
-                    setShowExistingModal(true);
-                    setLoading(false);
-                    return;
-                }
-
-                // 2) Email does NOT exist -> create tenant and send invite to admin
-                const createRes = await fetch('/api/tenant/create-invite', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const createJson = await createRes.json();
-
-                if (!createRes.ok) {
-                    setError(createJson.error || 'Error creando la empresa');
-                    return;
-                }
-
-                // Redirect to confirmation page
-                router.push(`/register-tenant/sent?email=${encodeURIComponent(contactEmail)}`);
-
-            } catch (err: any) {
-                setError(err.message || "Error inesperado");
-            } finally {
+            if (!checkRes.ok) {
+                setError(checkJson.error || 'Error verificando el email');
                 setLoading(false);
+                return;
             }
+
+            if (checkJson.exists) {
+                setShowExistingModal(true);
+                setLoading(false);
+                return;
+            }
+
+            // 2. Create Tenant (Free or Paid - we create it first)
+            // Note: For paid plans, we'll redirect to checkout after creation
+            // The webhook will then update the subscription status
+
+            // We need a temporary password for the admin user since they haven't set one yet
+            // In a real flow, we might want to send an invite email instead
+            const tempPassword = Math.random().toString(36).slice(-8) + "Aa1!";
+
+            const createPayload = {
+                tenantName: companyName,
+                slug: generateSlug(companyName),
+                plan: selectedPlan === 'basico' ? 'basic' : (selectedPlan === 'profesional' ? 'pro' : selectedPlan), // Map to new plan IDs
+                contactEmail,
+                adminFullName: contactName,
+                adminEmail: contactEmail,
+                adminPassword: tempPassword,
+                adminPhone: ownerPhone,
+            };
+
+            // Use the correct API path directly
+            const createRes = await fetch('/api/tenant/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(createPayload)
+            });
+
+            const createJson = await createRes.json();
+
+            if (!createRes.ok) {
+                setError(createJson.error || 'Error creando la empresa');
+                setLoading(false);
+                return;
+            }
+
+            const tenantId = createJson.tenant.id;
+
+            // 3. If Paid Plan, Redirect to Checkout
+            if (selectedPlan !== 'free') { // Assuming 'free' exists, otherwise always checkout for paid plans
+                const checkoutRes = await fetch('/api/subscription/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tenantId,
+                        planId: selectedPlan === 'basico' ? 'basic' : (selectedPlan === 'profesional' ? 'pro' : selectedPlan)
+                    })
+                });
+
+                const checkoutJson = await checkoutRes.json();
+
+                if (!checkoutRes.ok) {
+                    setError(checkoutJson.error || 'Error creando checkout de pago');
+                    setLoading(false);
+                    // Optional: Delete tenant if checkout fails? Or let them retry?
+                    return;
+                }
+
+                // Redirect to LemonSqueezy
+                window.location.href = checkoutJson.checkoutUrl;
+                return;
+            }
+
+            // 4. If Free Plan (or if we had one), go to success/invite step
+            // For now, we assume all plans in the selector are paid or require checkout flow
+            // If you have a free plan that doesn't need checkout, handle it here.
+
+            // Since we are using LemonSqueezy for all plans in the list (Basic/Pro), 
+            // we should have redirected. If we are here, something is odd or it's a free plan.
+
+            // If we implemented a free plan logic:
+            setTenantData(createJson);
+            setCurrentStep('admin-invite'); // Or 'success'
+
+        } catch (err: any) {
+            setError(err.message || "Error inesperado");
+        } finally {
+            setLoading(false);
+        }
     }, [companyName, contactName, contactEmail, ownerPhone, selectedPlan, validateField]);
 
     const onVerifyCode = useCallback(async (e: React.FormEvent) => {
@@ -571,17 +614,17 @@ export default function RegisterTenantForm() {
             console.log('🏢 Creation result:', { createSuccess, createError, data });
 
             if (!createSuccess || createError) {
-            setError(createError || "Error al crear la empresa. Intentá de nuevo.");
-            return;
+                setError(createError || "Error al crear la empresa. Intentá de nuevo.");
+                return;
             }
 
             if (typeof window !== "undefined") {
-            const dataWithTimestamp = {
-                ...data,
-                timestamp: new Date().toISOString()
-            };
-            localStorage.removeItem(PENDING_VERIFICATION_KEY);
-            localStorage.setItem(TENANT_CREATED_KEY, JSON.stringify(dataWithTimestamp));
+                const dataWithTimestamp = {
+                    ...data,
+                    timestamp: new Date().toISOString()
+                };
+                localStorage.removeItem(PENDING_VERIFICATION_KEY);
+                localStorage.setItem(TENANT_CREATED_KEY, JSON.stringify(dataWithTimestamp));
             }
 
             console.log('✅ Tenant created successfully, moving to admin invite step');
@@ -595,7 +638,7 @@ export default function RegisterTenantForm() {
             console.log('🔄 Verification process finished');
             setVerifyingCode(false);
         }
-        }, [verificationCode, registrationData]);
+    }, [verificationCode, registrationData]);
 
     const onInviteAdmin = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
@@ -699,9 +742,9 @@ export default function RegisterTenantForm() {
                             </div>
                         )}
 
-                        <Button 
-                            type="submit" 
-                            className="w-full h-12 bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer" 
+                        <Button
+                            type="submit"
+                            className="w-full h-12 bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer"
                             disabled={verifyingCode}
                         >
                             {verifyingCode ? (
@@ -715,31 +758,31 @@ export default function RegisterTenantForm() {
                     </form>
                 </CardContent>
                 <CardFooter className="flex justify-between pt-4">
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         onClick={clearAllData}
                         className="border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer transition-all duration-200"
                     >
                         Cancelar
                     </Button>
-                    <Button 
-                        variant="ghost" 
+                    <Button
+                        variant="ghost"
                         onClick={async () => {
-                        setError(null);
-                        setVerificationCode("");
-                        try {
-                            const { success, error: resendError } = await authService.sendOwnerVerificationCode(registrationData?.contactEmail);
-                            if (!success) {
-                            setError(resendError || "Error al reenviar código");
-                            } else {
-                            // Mostrar mensaje de éxito temporal
-                            const originalError = error;
-                            setError("✅ Código reenviado correctamente");
-                            setTimeout(() => setError(originalError), 3000);
+                            setError(null);
+                            setVerificationCode("");
+                            try {
+                                const { success, error: resendError } = await authService.sendOwnerVerificationCode(registrationData?.contactEmail);
+                                if (!success) {
+                                    setError(resendError || "Error al reenviar código");
+                                } else {
+                                    // Mostrar mensaje de éxito temporal
+                                    const originalError = error;
+                                    setError("✅ Código reenviado correctamente");
+                                    setTimeout(() => setError(originalError), 3000);
+                                }
+                            } catch (err: any) {
+                                setError(err.message || "Error al reenviar código");
                             }
-                        } catch (err: any) {
-                            setError(err.message || "Error al reenviar código");
-                        }
                         }}
                         disabled={loading || verifyingCode}
                         size="sm"
@@ -795,9 +838,9 @@ export default function RegisterTenantForm() {
                             </div>
                         )}
 
-                        <Button 
-                            type="submit" 
-                            className="w-full h-12 bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer" 
+                        <Button
+                            type="submit"
+                            className="w-full h-12 bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer"
                             disabled={invitingAdmin}
                         >
                             {invitingAdmin ? (
@@ -811,8 +854,8 @@ export default function RegisterTenantForm() {
                     </form>
                 </CardContent>
                 <CardFooter className="justify-center pt-4">
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         onClick={() => router.push("/home")}
                         className="border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer transition-all duration-200"
                     >
@@ -846,7 +889,7 @@ export default function RegisterTenantForm() {
                     </div>
                 </CardContent>
                 <CardFooter className="justify-center pt-4">
-                    <Button 
+                    <Button
                         onClick={() => setCurrentStep('admin-invite')}
                         variant="outline"
                         className="bg-white border-2 border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
@@ -918,7 +961,7 @@ export default function RegisterTenantForm() {
                                     <p className="text-slate-500 text-sm">Datos básicos de tu organización</p>
                                 </div>
                             </div>
-                            
+
                             <div className="grid gap-6 sm:grid-cols-2">
                                 <ValidatedInput
                                     id="company"
@@ -941,7 +984,7 @@ export default function RegisterTenantForm() {
                                     placeholder="Ej: Juan Pérez"
                                 />
                             </div>
-                            
+
                             <ValidatedInput
                                 id="contactEmail"
                                 label="Tu email"
@@ -954,7 +997,7 @@ export default function RegisterTenantForm() {
                                 placeholder="tu@email.com"
                                 icon={Mail}
                             />
-                            
+
                             {companyName && (
                                 <div className="rounded-xl border-2 border-[#81C101]/20 bg-[#81C101]/5 p-4">
                                     <p className="text-sm text-[#81C101] flex items-center gap-2">
@@ -975,7 +1018,7 @@ export default function RegisterTenantForm() {
                                     <p className="text-slate-500 text-sm">Seleccioná el plan que mejor se adapte al tamaño de tu operación</p>
                                 </div>
                             </div>
-                            
+
                             <div className="grid gap-8 lg:grid-cols-2">
                                 {PLANS.map((plan) => (
                                     <PlanCard
@@ -1021,9 +1064,9 @@ export default function RegisterTenantForm() {
                                     <p className="text-slate-500 text-sm">Configurá tu acceso al sistema</p>
                                 </div>
                             </div>
-                            
+
                             <div className="grid gap-6 sm:grid-cols-2">
-                                
+
                                 <ValidatedInput
                                     id="ownerPhone"
                                     label="Teléfono"
@@ -1046,9 +1089,9 @@ export default function RegisterTenantForm() {
                         )}
 
                         <div className="flex flex-col gap-4 sm:flex-row sm:justify-between pt-6 border-t border-slate-200">
-                            <Button 
-                                type="submit" 
-                                disabled={loading} 
+                            <Button
+                                type="submit"
+                                disabled={loading}
                                 className="h-12 px-8 bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer"
                             >
                                 {loading ? (
@@ -1061,9 +1104,9 @@ export default function RegisterTenantForm() {
                             </Button>
 
                             <div className="flex gap-3">
-                                <Button 
-                                    type="button" 
-                                    variant="outline" 
+                                <Button
+                                    type="button"
+                                    variant="outline"
                                     asChild
                                     className="border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer transition-all duration-200"
                                 >

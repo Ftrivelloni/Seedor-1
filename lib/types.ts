@@ -13,6 +13,22 @@ export interface Tenant {
   plan_id?: string
   plan_expires_at?: string
   billing_cycle?: 'monthly' | 'yearly'
+  // LemonSqueezy integration fields (using existing column names)
+  lemon_customer_id?: string
+  lemon_subscription_id?: string
+  lemon_variant_id?: string  // Already existed
+  lemon_order_id?: string     // Already existed
+  lemon_checkout_id?: string  // Already existed
+  payment_status?: 'pending' | 'active' | 'past_due' | 'cancelled' | 'expired' | 'legacy'  // Already existed
+  payment_provider?: string   // Already existed
+  payment_reference?: string  // Already existed
+  payment_collected_at?: string  // Already existed (subscription start date)
+  subscription_renews_at?: string
+  subscription_ends_at?: string
+  payment_failed_at?: string
+  last_webhook_at?: string
+  trial_ends_at?: string     // Already existed
+  billing_status?: string    // Deprecated - use payment_status instead
 }
 
 export interface Plan {
@@ -51,6 +67,40 @@ export interface SubscriptionHistory {
   billing_amount?: number
   notes?: string
   created_by?: string
+  created_at: string
+  lemon_subscription_id?: string
+  lemon_order_id?: string
+}
+
+// LemonSqueezy specific types
+export interface LemonSqueezyCheckout {
+  id: string
+  checkout_id: string
+  checkout_url: string
+  variant_id: string
+  plan_name: string
+  tenant_name: string
+  tenant_slug: string
+  contact_name: string
+  contact_email: string
+  owner_phone?: string
+  expires_at: string
+  completed: boolean
+  completed_at?: string
+  tenant_id?: string
+  created_at: string
+}
+
+export interface LemonSqueezyWebhookEvent {
+  id: string
+  event_id: string
+  event_type: string
+  payload: Record<string, any>
+  processed: boolean
+  processed_at?: string
+  error?: string
+  retry_count: number
+  tenant_id?: string
   created_at: string
 }
 
