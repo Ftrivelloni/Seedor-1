@@ -5,13 +5,14 @@ import { useRouter, usePathname } from 'next/navigation'
 import { ROUTES } from '../lib/constants/routes'
 import { useUser, useUserActions, sessionManager } from '../lib/auth'
 import { tenantService } from '../lib/tenant'
+import type { Tenant, TenantMembership } from '../lib/auth/types'
 
 export default function TenantSelector() {
   const { user } = useUser()
   const { setSelectedTenant } = useUserActions()
   const router = useRouter()
   const pathname = usePathname()
-  const [tenants, setTenants] = useState<any[]>([])
+  const [tenants, setTenants] = useState<Tenant[]>([])
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
@@ -49,15 +50,15 @@ export default function TenantSelector() {
         if (!selected) {
           try {
             const peek = sessionManager?.peekCurrentUser()
-            if (peek && peek.tenantId && list.some((t: any) => t.id === peek.tenantId)) {
+            if (peek && peek.tenantId && list.some((t: Tenant) => t.id === peek.tenantId)) {
               setSelected(peek.tenantId)
             }
           } catch (e) {
             // ignore
           }
         }
-      } catch (err: any) {
-        const message = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err))
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
         console.error('[TenantSelector] Error loading tenants:', message)
 
         // Fallback: if API fails, use the user's current tenant from session if available
@@ -93,7 +94,7 @@ export default function TenantSelector() {
       return
     }
 
-    const membership = user.memberships?.find((m: any) => m.tenant_id === selected) || null
+    const membership = user.memberships?.find((m: TenantMembership) => m.tenant_id === selected) || null
     const desiredRole = membership?.role_code || user.rol
 
     // Avoid re-entrancy: if session already reflects this selection/role, do nothing
@@ -167,7 +168,7 @@ export default function TenantSelector() {
         onChange={(e) => setSelected(e.target.value)}
         className="bg-transparent text-sidebar-foreground text-sm font-semibold"
       >
-        {options.map((t: any) => (
+        {options.map((t: Tenant) => (
           <option key={t.id} value={t.id}>{t.name}</option>
         ))}
       </select>

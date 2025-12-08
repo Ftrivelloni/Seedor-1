@@ -104,9 +104,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handleAuthError = (event: CustomEvent<{ status: number }>) => {
       if (event.detail.status === 401) {
         setUser(null);
-        // Redirect to login if needed
-        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-          window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
+        // Redirect to login if needed, but NOT for public routes
+        if (typeof window !== 'undefined') {
+          const publicRoutes = [
+            '/login',
+            '/register-tenant',
+            '/admin-setup',
+            '/user-setup',
+            '/accept-invitacion',
+            '/auth/set-password',
+            '/forgot-password',
+            '/reset-password',
+          ];
+          const isPublicRoute = publicRoutes.some(route =>
+            window.location.pathname.startsWith(route)
+          );
+          if (!isPublicRoute) {
+            window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
+          }
         }
       }
     };

@@ -215,6 +215,10 @@ class AuthService {
       throw new Error('Token de invitación requerido');
     }
 
+    if (!dto.accessToken) {
+      throw new Error('Access token requerido');
+    }
+
     if (dto.password && !validatePassword(dto.password)) {
       throw new Error('La contraseña debe tener entre 6 y 128 caracteres');
     }
@@ -420,6 +424,93 @@ class AuthService {
     return tokenStorage.getAccessToken();
   }
 
+  /**
+   * Validates a token received from URL hash (magic link redirect) through our API.
+   * This extracts tokens directly from the URL hash without using Supabase client.
+   */
+  async validateTokenFromHash(accessToken: string, refreshToken?: string): Promise<{ success: boolean; user?: AuthUser; error?: string }> {
+    try {
+      console.log('🔄 Validating token from URL hash via API...');
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/validate-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ accessToken, refreshToken }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        console.error('❌ Token validation failed:', error);
+        return { success: false, error: error.message || 'Token validation failed' };
+      }
+
+      const data = await response.json();
+
+      // Store the validated token in our tokenStorage
+      tokenStorage.setAccessToken(data.accessToken);
+      if (data.refreshToken) {
+        tokenStorage.setRefreshToken(data.refreshToken);
+      }
+
+      console.log('✅ Token validated and stored successfully');
+      return { success: true, user: data.user };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error validating token';
+      console.error('❌ validateTokenFromHash error:', message);
+      return { success: false, error: message };
+    }
+  }
+
+  /**
+   * Gets the Supabase access token from either our storage or Supabase's localStorage.
+   * This is needed during flows where the user has a Supabase session but we haven't
+   * transferred it to our storage yet (e.g., after clicking magic link).
+   */
+  getSupabaseAccessToken(): string | null {
+    // First check our storage
+    const ourToken = tokenStorage.getAccessToken();
+    if (ourToken) return ourToken;
+
+    // If not found, look in Supabase's localStorage
+    if (typeof window === 'undefined') return null;
+
+    // Check custom Supabase storage key first (configured in supabaseClient.ts)
+    const customKey = 'seedor-auth';
+    const customData = localStorage.getItem(customKey);
+    if (customData) {
+      try {
+        const parsed = JSON.parse(customData);
+        if (parsed?.access_token) return parsed.access_token;
+        if (parsed?.session?.access_token) return parsed.session.access_token;
+      } catch {
+        // Continue to check other keys
+      }
+    }
+
+    // Fallback: check default Supabase keys (sb-<project>-auth-token)
+    const supabaseKeys = Object.keys(localStorage).filter(
+      (key) => key.startsWith('sb-') && key.includes('-auth-token') && !key.includes('code-verifier')
+    );
+
+    for (const key of supabaseKeys) {
+      const supabaseData = localStorage.getItem(key);
+      if (!supabaseData) continue;
+
+      try {
+        const parsed = JSON.parse(supabaseData);
+        if (parsed?.access_token) return parsed.access_token;
+        if (parsed?.session?.access_token) return parsed.session.access_token;
+        if (parsed?.currentSession?.access_token) return parsed.currentSession.access_token;
+      } catch {
+        continue;
+      }
+    }
+
+    return null;
+  }
+
   // ==================== LEGACY FORMAT METHODS ====================
   // These methods return { success, data, error } format for backwards compatibility
 
@@ -434,7 +525,24 @@ class AuthService {
 
   async acceptInvitationSimple(token: string): Promise<{ success: boolean; error?: string; data?: any }> {
     try {
-      const result = await this.acceptInvitation({ token });
+      let accessToken = this.getSupabaseAccessToken();
+
+      // If no token found, try to validate and transfer from Supabase
+      if (!accessToken) {
+        console.log('🔄 acceptInvitationSimple: No token found, trying to transfer Supabase session...');
+        const transferResult = await this.validateAndTransferSupabaseToken();
+        if (transferResult.success) {
+          accessToken = this.getSupabaseAccessToken();
+        }
+      }
+
+      if (!accessToken) {
+        console.error('❌ acceptInvitationSimple: No access token available after transfer attempt');
+        return { success: false, error: 'No hay sesión activa. Por favor, iniciá sesión nuevamente.' };
+      }
+
+      console.log('✅ acceptInvitationSimple: Found access token, proceeding with invitation acceptance');
+      const result = await this.acceptInvitation({ token, accessToken });
       return { success: true, data: result };
     } catch (err: any) {
       return { success: false, error: err.message || 'Error al aceptar invitación' };
@@ -450,8 +558,41 @@ class AuthService {
     };
   }): Promise<{ success: boolean; error?: string; data?: any }> {
     try {
+      // First check our tokenStorage directly
+      let accessToken = tokenStorage.getAccessToken();
+      console.log('🔍 acceptInvitationWithSetup: tokenStorage.getAccessToken():', accessToken ? `found (${accessToken.substring(0, 20)}...)` : 'null');
+
+      // If not in our storage, check Supabase storage locations
+      if (!accessToken) {
+        accessToken = this.getSupabaseAccessToken();
+        console.log('🔍 acceptInvitationWithSetup: getSupabaseAccessToken():', accessToken ? 'found' : 'null');
+      }
+
+      // If still no token, try to validate and transfer from Supabase localStorage
+      if (!accessToken) {
+        console.log('🔄 acceptInvitationWithSetup: No token found, trying to transfer Supabase session...');
+        const transferResult = await this.validateAndTransferSupabaseToken();
+        if (transferResult.success) {
+          accessToken = tokenStorage.getAccessToken();
+          console.log('🔍 acceptInvitationWithSetup: After transfer, tokenStorage:', accessToken ? 'found' : 'null');
+        }
+      }
+
+      if (!accessToken) {
+        // Log all localStorage keys for debugging
+        if (typeof window !== 'undefined') {
+          const allKeys = Object.keys(localStorage);
+          console.log('🔍 acceptInvitationWithSetup: All localStorage keys:', allKeys);
+          console.log('🔍 acceptInvitationWithSetup: seedor_access_token value:', localStorage.getItem('seedor_access_token'));
+        }
+        console.error('❌ acceptInvitationWithSetup: No access token available after transfer attempt');
+        return { success: false, error: 'No hay sesión activa. Por favor, iniciá sesión nuevamente.' };
+      }
+
+      console.log('✅ acceptInvitationWithSetup: Found access token, proceeding with invitation acceptance');
       const result = await this.acceptInvitation({
         token: params.token,
+        accessToken,
         password: params.userData?.password,
         fullName: params.userData?.fullName,
         phone: params.userData?.phone,
@@ -474,6 +615,126 @@ class AuthService {
   async getSafeSessionLegacy(): Promise<{ user: SessionUser | null }> {
     const user = this.getSafeSession();
     return { user };
+  }
+
+  // ==================== SUPABASE TOKEN BRIDGE ====================
+
+  /**
+   * Reads the Supabase token from localStorage (set by Supabase magic link)
+   * and validates it through our API, then stores it in our tokenStorage.
+   * This is needed because when users click magic links from email, Supabase
+   * stores the session in its own localStorage format.
+   */
+  async validateAndTransferSupabaseToken(): Promise<{ success: boolean; user?: AuthUser; error?: string }> {
+    if (typeof window === 'undefined') {
+      return { success: false, error: 'No window object' };
+    }
+
+    try {
+      // Log all localStorage keys for debugging
+      const allKeys = Object.keys(localStorage);
+      console.log('🔍 All localStorage keys:', allKeys);
+
+      let accessToken: string | null = null;
+      let refreshToken: string | null = null;
+
+      // First check custom Supabase storage key (configured in supabaseClient.ts)
+      const customKey = 'seedor-auth';
+      const customData = localStorage.getItem(customKey);
+      console.log('🔍 Checking seedor-auth key:', !!customData);
+
+      if (customData) {
+        try {
+          const parsed = JSON.parse(customData);
+          console.log('🔍 Parsed seedor-auth data keys:', Object.keys(parsed));
+          if (parsed?.access_token) {
+            accessToken = parsed.access_token;
+            refreshToken = parsed.refresh_token;
+            console.log('✅ Found token in seedor-auth');
+          } else if (parsed?.session?.access_token) {
+            accessToken = parsed.session.access_token;
+            refreshToken = parsed.session.refresh_token;
+            console.log('✅ Found token in seedor-auth.session');
+          }
+        } catch (e) {
+          console.log('⚠️ Failed to parse seedor-auth:', e);
+        }
+      }
+
+      // Fallback: check default Supabase keys (sb-<project>-auth-token)
+      if (!accessToken) {
+        const supabaseKeys = Object.keys(localStorage).filter(
+          (key) => key.startsWith('sb-') && key.includes('-auth-token') && !key.includes('code-verifier')
+        );
+
+        console.log('🔍 Found Supabase sb-* keys:', supabaseKeys);
+
+        for (const key of supabaseKeys) {
+          const supabaseData = localStorage.getItem(key);
+          if (!supabaseData) continue;
+
+          try {
+            const parsed = JSON.parse(supabaseData);
+            console.log('🔍 Parsed Supabase data for key', key, ':', Object.keys(parsed));
+
+            // Handle different storage formats
+            if (parsed?.access_token) {
+              accessToken = parsed.access_token;
+              refreshToken = parsed.refresh_token;
+              break;
+            }
+            // Some versions store session inside a 'session' property
+            if (parsed?.session?.access_token) {
+              accessToken = parsed.session.access_token;
+              refreshToken = parsed.session.refresh_token;
+              break;
+            }
+            // Or under currentSession
+            if (parsed?.currentSession?.access_token) {
+              accessToken = parsed.currentSession.access_token;
+              refreshToken = parsed.currentSession.refresh_token;
+              break;
+            }
+          } catch {
+            continue;
+          }
+        }
+      }
+
+      if (!accessToken) {
+        console.log('❌ No access token found in Supabase storage');
+        return { success: false, error: 'No Supabase session found' };
+      }
+
+      console.log('✅ Found access token, validating...');
+
+      // Validate the token through our API
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/validate-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ accessToken, refreshToken }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        return { success: false, error: error.message || 'Token validation failed' };
+      }
+
+      const data = await response.json();
+
+      // Store the validated token in our tokenStorage
+      tokenStorage.setAccessToken(data.accessToken);
+      if (data.refreshToken) {
+        tokenStorage.setRefreshToken(data.refreshToken);
+      }
+
+      return { success: true, user: data.user };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error validating token';
+      return { success: false, error: message };
+    }
   }
 }
 

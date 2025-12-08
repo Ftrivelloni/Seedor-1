@@ -155,6 +155,7 @@ export interface InviteUserResponse {
 // Accept Invitation
 export interface AcceptInvitationDto {
   token: string;
+  accessToken: string;
   password?: string;
   fullName?: string;
   phone?: string;
