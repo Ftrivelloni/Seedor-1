@@ -96,7 +96,7 @@ export function FinanzasPage() {
       kind: movimientoData.tipo,
       amount: movimientoData.monto,
       notes: movimientoData.concepto,
-      categoryName: movimientoData.categoria,
+      categoryId: movimientoData.categoria,
       receipt: movimientoData.comprobante,
     })
     await loadMovimientos()
@@ -260,7 +260,7 @@ export function FinanzasPage() {
             ) : (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Aún no tienes categorías</p>
-                <Button size="sm" onClick={(e) => { e.preventDefault(); }}>
+                <Button size="sm" onClick={(e) => { e.stopPropagation(); }}>
                   Crear categoría
                 </Button>
               </div>

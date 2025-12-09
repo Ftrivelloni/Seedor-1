@@ -629,9 +629,14 @@ export const demoFinanzasGetMovimientos = (tenantId: string): MovimientoCaja[] =
 
 export const demoFinanzasGetCategorias = (
   tenantId: string,
+  kind?: "ingreso" | "egreso",
 ): Array<{ id: string; name: string; tenant_id: string; kind: "ingreso" | "egreso" }> => {
   const store = getDemoStore();
-  return clone(store.finanzas.categories.filter((c) => c.tenant_id === tenantId));
+  let categories = store.finanzas.categories.filter((c) => c.tenant_id === tenantId);
+  if (kind) {
+    categories = categories.filter((c) => c.kind === kind);
+  }
+  return clone(categories);
 };
 
 const ensureFinanceCategory = (

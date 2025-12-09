@@ -165,6 +165,7 @@ export const finanzasMovementsApiService = {
   ): Promise<MovimientoCaja> {
     if (isDemoModeClient()) {
       return demoFinanzasCreateMovimiento(tenantId, {
+        tenantId,
         fecha: data.date,
         tipo: data.kind,
         monto: data.amount,
@@ -174,9 +175,22 @@ export const finanzasMovementsApiService = {
       });
     }
 
+    // Remove undefined fields to avoid API validation errors
+    const payload: Record<string, any> = {
+      date: data.date,
+      kind: data.kind,
+      amount: data.amount,
+    };
+    // Only add optional fields if they have actual values (not empty strings)
+    if (data.notes && data.notes.trim() !== '') payload.notes = data.notes;
+    if (data.categoryId) payload.categoryId = data.categoryId;
+    if (data.categoryName && data.categoryName.trim() !== '') payload.categoryName = data.categoryName;
+    if (data.receipt && data.receipt.trim() !== '') payload.receipt = data.receipt;
+    if (data.createdBy) payload.createdBy = data.createdBy;
+
     const response = await apiClient.post(
       `/finanzas/movements/tenant/${tenantId}`,
-      data,
+      payload,
     );
     return mapMovementToFrontend(response.data.movement);
   },
