@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 import { useAuth } from "../../hooks/use-auth"
+import { ingresoFrutaApiService, type IngresoFrutaRow } from "../../lib/empaque/empaque-service"
 
 import { IngresoFrutaFormModal } from "./ingreso-fruta-form-modal"
 import { Button } from "../ui/button"
@@ -17,8 +18,8 @@ export function IngresoFrutaPage() {
     const { user: currentUser } = useAuth({});
     
 
-    const [registros, setRegistros] = useState<any[]>([])
-    const [filtered, setFiltered] = useState<any[]>([])
+    const [registros, setRegistros] = useState<IngresoFrutaRow[]>([])
+    const [filtered, setFiltered] = useState<IngresoFrutaRow[]>([])
     const [isLoading, setIsLoading] = useState(true)
     
 
@@ -39,13 +40,12 @@ export function IngresoFrutaPage() {
             setIsLoading(false);
             return;
         }
-        
+
         try {
             setIsLoading(true)
-            const { ingresoFrutaApi } = await import("../../lib/api")
-            const data = await ingresoFrutaApi.getIngresos(tenantId)
+            const data = await ingresoFrutaApiService.getIngresos(tenantId)
             setRegistros(data || [])
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Error al cargar registros de ingreso de fruta:", error)
             setRegistros([])
         } finally {
@@ -205,13 +205,13 @@ export function IngresoFrutaPage() {
                             }
                             setSaving(true)
                             try {
-                                const { ingresoFrutaApi } = await import("../../lib/api")
-                                await ingresoFrutaApi.createIngreso({ ...data, tenant_id: currentUser.tenantId })
-                                const nuevos = await ingresoFrutaApi.getIngresos(currentUser.tenantId)
+                                await ingresoFrutaApiService.createIngreso(currentUser.tenantId, data)
+                                const nuevos = await ingresoFrutaApiService.getIngresos(currentUser.tenantId)
                                 setRegistros(nuevos)
                                 setModalOpen(false)
-                            } catch (e: any) {
-                                alert("Error al guardar el ingreso: " + (e?.message || JSON.stringify(e)))
+                            } catch (e: unknown) {
+                                const errorMessage = e instanceof Error ? e.message : JSON.stringify(e)
+                                alert("Error al guardar el ingreso: " + errorMessage)
                                 console.error(e)
                             } finally {
                                 setSaving(false)

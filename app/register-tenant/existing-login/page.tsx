@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '../../../components/ui/input'
 import { Button } from '../../../components/ui/button'
 import { Label } from '../../../components/ui/label'
-import { authService } from '../../../lib/supabaseAuth'
+import { authService } from '../../../lib/auth'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '../../../components/ui/card'
 import { UserPlus, Shield } from 'lucide-react'
 
@@ -30,9 +30,19 @@ export default function ExistingLoginPage() {
     setError(null)
     setLoading(true)
     try {
-      const { user, error: loginError } = await authService.login(emailParam, password)
-      if (loginError || !user) {
+      let user: any
+      try {
+        const result = await authService.login({ email: emailParam, password })
+        user = result.user
+      } catch {
         setError('Contraseña inválida')
+        setLoading(false)
+        return
+      }
+
+      if (!user) {
+        setError('Contraseña inválida')
+        setLoading(false)
         return
       }
 
@@ -72,8 +82,7 @@ export default function ExistingLoginPage() {
       try {
         let refreshed = false
         for (let i = 0; i < 6; i++) {
-          const sessionResult: any = await authService.getSafeSession()
-          const refreshedUser = sessionResult?.user
+          const refreshedUser = authService.getSafeSession()
           if (refreshedUser && refreshedUser.tenantId) {
             refreshed = true
             break

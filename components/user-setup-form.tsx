@@ -10,7 +10,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { authService, validators } from "../lib/supabaseAuth";
+import { authService, validators, tokenStorage } from "../lib/auth";
 
 const inputStrong = "h-12 bg-white border-2 border-slate-200 shadow-sm placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#81C101]/30 focus-visible:border-[#81C101] transition-all duration-200";
 
@@ -130,7 +130,38 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
       }
 
       try {
-        const { success, data, error: inviteError } = await authService.getInvitationByToken(token);
+        // Check if tokens are in URL hash (from Supabase magic link redirect)
+        // Format: #access_token=...&refresh_token=...&type=magiclink
+        if (typeof window !== 'undefined' && window.location.hash) {
+          console.log('🔍 UserSetupForm: Found URL hash, extracting tokens...');
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+
+          if (accessToken) {
+            console.log('✅ UserSetupForm: Found access_token in URL hash');
+
+            // Validate token through our API
+            const result = await authService.validateTokenFromHash(accessToken, refreshToken || undefined);
+
+            if (result.success) {
+              console.log('✅ UserSetupForm: Token validated and stored');
+              // Clear hash from URL for cleaner look
+              window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
+          }
+        }
+
+        // Fallback: try to validate from localStorage
+        if (!tokenStorage.hasValidToken()) {
+          console.log('🔧 UserSetupForm: No token in storage, trying to validate Supabase session via API...');
+          const result = await authService.validateAndTransferSupabaseToken();
+          if (result.success) {
+            console.log('✅ UserSetupForm: Supabase session token validated and stored');
+          }
+        }
+
+        const { success, data, error: inviteError } = await authService.getInvitationByTokenLegacy(token);
         
         if (!success || !data) {
           setError(inviteError || "Invitación no encontrada");

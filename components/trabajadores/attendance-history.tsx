@@ -15,8 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { attendanceApi } from '@/lib/api'
-import { AttendanceRecord, Worker } from '@/lib/types'
+import { workersService, AttendanceRecord, Worker } from '@/lib/workers'
 
 interface AttendanceHistoryProps {
   worker: Worker
@@ -45,7 +44,7 @@ export function AttendanceHistory({ worker, tenantId }: AttendanceHistoryProps) 
   const loadRecords = async () => {
     setLoading(true)
     try {
-      const data = await attendanceApi.getAttendanceByWorker(worker.id, startDate, endDate)
+      const data = await workersService.getAttendanceByWorker(worker.id, startDate, endDate)
       setRecords(data)
       calculateStats(data)
     } catch (err) {
@@ -71,7 +70,7 @@ export function AttendanceHistory({ worker, tenantId }: AttendanceHistoryProps) 
     if (!confirm('¿Está seguro de eliminar este registro?')) return
 
     try {
-      await attendanceApi.deleteAttendance(recordId)
+      await workersService.deleteAttendance(recordId)
       loadRecords()
     } catch (err) {
       console.error('Error deleting record:', err)

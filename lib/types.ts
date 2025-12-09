@@ -58,16 +58,24 @@ export interface SubscriptionHistory {
 export interface AuthUser {
   id: string
   email: string
-  nombre: string
-  tenantId: string
-  rol: string
-  tenant: {
+  nombre?: string
+  tenantId: string | null
+  rol: string | null
+  tenant?: {
     id: string
     name: string
     [key: string]: any
-  }
+  } | null
   profile?: any
   memberships?: any[]
+  isDemo?: boolean
+  worker?: {
+    id: string
+    fullName: string
+    email: string
+    role: string | null
+    tenantId: string | null
+  }
 }
 
 export interface TenantMembership {

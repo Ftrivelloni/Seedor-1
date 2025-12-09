@@ -10,7 +10,7 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Alert, AlertDescription } from "../../components/ui/alert";
-import { useUser } from "../../components/auth/UserContext";
+import { useUser } from "../../lib/auth";
 
 export default function FuncionalidadesEnhanced() {
     const router = useRouter();

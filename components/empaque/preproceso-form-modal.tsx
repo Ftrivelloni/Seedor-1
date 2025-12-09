@@ -6,9 +6,7 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Plus, X } from "lucide-react";
-import { isDemoModeClient } from "../../lib/demo/utils";
-import { demoEmpaqueCreatePreproceso } from "../../lib/demo/store";
-import { supabase } from "../../lib/supabaseClient";
+import { preprocesoApiService, type CreatePreprocesoData } from "../../lib/empaque/empaque-service";
 
 interface Props {
     open: boolean;
@@ -49,7 +47,6 @@ export default function PreprocesoFormModal({ open, onClose, onCreated, tenantId
     const [form, setForm] = useState<FormState>(initialState);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const isDemo = isDemoModeClient();
 
     const inputStrong =
         "h-11 w-full bg-white border border-gray-300/90 rounded-lg shadow-sm placeholder:text-gray-400 " +
@@ -108,46 +105,32 @@ export default function PreprocesoFormModal({ open, onClose, onCreated, tenantId
         const toInt = (v: string) => (Number.isNaN(Number(v)) ? 0 : parseInt(v, 10));
         const toFloat = (v: string) => (Number.isNaN(Number(v)) ? 0 : Number(v));
 
-        const payload = {
+        // Convert to camelCase for API
+        const payload: CreatePreprocesoData = {
             semana: toInt(form.semana),
-            fecha: form.fecha ? new Date(form.fecha).toISOString() : null,
+            fecha: form.fecha,
             duracion: toFloat(form.duracion),
-            bin_volcados: toInt(form.bin_volcados),
-            ritmo_maquina: toFloat(form.ritmo_maquina),
-            duracion_proceso: toFloat(form.duracion_proceso),
-            bin_pleno: toInt(form.bin_pleno),
-            bin_intermedio_I: toInt(form.bin_intermedio_I),
-            bin_intermedio_II: toInt(form.bin_intermedio_II),
-            bin_incipiente: toInt(form.bin_incipiente),
-            cant_personal: toInt(form.cant_personal),
-            tenant_id: tenantId,
+            binVolcados: toInt(form.bin_volcados),
+            ritmoMaquina: toFloat(form.ritmo_maquina),
+            duracionProceso: toFloat(form.duracion_proceso),
+            binPleno: toInt(form.bin_pleno),
+            binIntermedioI: toInt(form.bin_intermedio_I),
+            binIntermedioII: toInt(form.bin_intermedio_II),
+            binIncipiente: toInt(form.bin_incipiente),
+            cantPersonal: toInt(form.cant_personal),
         };
 
-        if (isDemo) {
-            demoEmpaqueCreatePreproceso({ ...payload, tenantId });
-            setLoading(false);
+        try {
+            await preprocesoApiService.createPreproceso(tenantId, payload);
             onCreated();
             onClose();
             setForm(initialState);
-            try {
-                window.dispatchEvent(new Event('preproceso:created'));
-            } catch {
-                // ignore
-            }
-            return;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+            alert("Error al guardar: " + errorMessage);
+        } finally {
+            setLoading(false);
         }
-
-        const { error } = await supabase.from("preseleccion").insert([payload]);
-        setLoading(false);
-
-        if (error) {
-            alert("Error al guardar: " + error.message);
-            return;
-        }
-
-        onCreated();
-        onClose();
-        setForm(initialState);
     };
 
     return (

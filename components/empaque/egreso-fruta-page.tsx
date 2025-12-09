@@ -1,7 +1,7 @@
 // components/empaque/egreso-fruta-page.tsx
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 import { useAuth } from "../../hooks/use-auth"
@@ -12,17 +12,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 
-import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, Search } from "lucide-react"
+import { ArrowLeft, ArrowUp, ChevronLeft, ChevronRight, Download, Search } from "lucide-react"
 import EgresoFrutaFormModal from "./egreso-fruta-form-modal"
-import { isDemoModeClient } from "../../lib/demo/utils"
-import { demoEmpaqueEgresos } from "../../lib/demo/store"
-import { supabase } from "../../lib/supabaseClient"
+import { egresoFrutaApiService, type EgresoFrutaRow } from "../../lib/empaque/empaque-service"
 
 export function EgresoFrutaPage() {
     const { user } = useAuth({});
-    
-    const [egresos, setEgresos] = useState<any[]>([])
-    const [filtered, setFiltered] = useState<any[]>([])
+
+    const [egresos, setEgresos] = useState<EgresoFrutaRow[]>([])
+    const [filtered, setFiltered] = useState<EgresoFrutaRow[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
     const [searchTerm, setSearchTerm] = useState("")
@@ -31,34 +29,36 @@ export function EgresoFrutaPage() {
 
     const [modalOpen, setModalOpen] = useState(false)
     const router = useRouter()
-    const isDemo = isDemoModeClient()
 
-    useEffect(() => {
-        if (user?.tenantId) {
-            loadEgresos();
-        }
-    }, [user?.tenantId, isDemo])
+    // Estabilizar tenantId
+    const tenantId = useMemo(() => user?.tenantId, [user?.tenantId])
 
-    const loadEgresos = async () => {
-        if (!user?.tenantId) {
+    const loadEgresos = useCallback(async () => {
+        if (!tenantId) {
             console.error('No tenant ID found for user');
+            setIsLoading(false);
             return;
         }
-        
-        setIsLoading(true)
-        if (isDemo) {
-            const data = demoEmpaqueEgresos(user.tenantId)
-            setEgresos(data)
+
+        try {
+            setIsLoading(true)
+            const data = await egresoFrutaApiService.getEgresos(tenantId)
+            setEgresos(data || [])
+        } catch (error) {
+            console.error('Error cargando egresos:', error)
+            setEgresos([])
+        } finally {
             setIsLoading(false)
-            return
         }
-        const { data, error } = await supabase
-            .from("egreso_fruta")
-            .select("*")
-            .eq("tenant_id", user.tenantId)
-        setIsLoading(false)
-        setEgresos(error ? [] : (data || []))
-    }
+    }, [tenantId])
+
+    useEffect(() => {
+        if (tenantId) {
+            loadEgresos();
+        } else {
+            setIsLoading(false);
+        }
+    }, [tenantId, loadEgresos])
 
     useEffect(() => {
         let list = [...egresos]
@@ -162,7 +162,7 @@ export function EgresoFrutaPage() {
                         open={modalOpen}
                         onClose={() => setModalOpen(false)}
                         onCreated={loadEgresos}
-                        tenantId={user.tenantId}
+                        tenantId={tenantId || ''}
                     />
                 </div>
             </div>

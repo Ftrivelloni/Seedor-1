@@ -7,9 +7,7 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Plus, X } from "lucide-react";
-import { isDemoModeClient } from "../../lib/demo/utils";
-import { demoEmpaqueCreateDespacho } from "../../lib/demo/store";
-import { supabase } from "../../lib/supabaseClient";
+import { despachoApiService, type CreateDespachoData } from "../../lib/empaque/empaque-service";
 
 interface Props {
     open: boolean;
@@ -69,7 +67,6 @@ export default function DespachoFormModal({
     const [form, setForm] = useState<FormState>(initialState);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const isDemo = isDemoModeClient();
 
     const inputStrong =
         "h-11 w-full bg-white border border-gray-300/90 rounded-lg shadow-sm placeholder:text-gray-400 " +
@@ -125,48 +122,41 @@ export default function DespachoFormModal({
         if (!validateAll()) return;
         setLoading(true);
 
-        const toInt = (v: string) => (v === "" ? null : parseInt(v, 10));
-        const payload = {
-            tenant_id: tenantId,
-            fecha: form.fecha ? new Date(form.fecha).toISOString() : null,
-            num_remito: toInt(form.num_remito),
-            cliente: form.cliente || null,
-            DTV: form.DTV || null,
-            codigo_cierre: toInt(form.codigo_cierre),
-            termografo: form.termografo || null,
-            DTC: form.DTC || null,
-            destino: form.destino || null,
-            transporte: form.transporte || null,
-            total_pallets: toInt(form.total_pallets),
-            total_cajas: toInt(form.total_cajas),
-            cuit: form.cuit || null,
-            chasis: form.chasis || null,
-            acoplado: form.acoplado || null,
-            chofer: form.chofer || null,
-            dni: toInt(form.dni),
-            celular: form.celular || null,
-            operario: form.operario || null,
+        const toInt = (v: string): number | undefined => (v === "" ? undefined : parseInt(v, 10));
+
+        // Convert to camelCase for API
+        const payload: CreateDespachoData = {
+            fecha: form.fecha,
+            numRemito: form.num_remito || undefined,
+            cliente: form.cliente || undefined,
+            DTV: form.DTV || undefined,
+            codigoCierre: form.codigo_cierre || undefined,
+            termografo: form.termografo || undefined,
+            DTC: form.DTC || undefined,
+            destino: form.destino || undefined,
+            transporte: form.transporte || undefined,
+            totalPallets: toInt(form.total_pallets),
+            totalCajas: toInt(form.total_cajas),
+            cuit: form.cuit || undefined,
+            chasis: form.chasis || undefined,
+            acoplado: form.acoplado || undefined,
+            chofer: form.chofer || undefined,
+            dni: form.dni || undefined,
+            celular: form.celular || undefined,
+            operario: form.operario || undefined,
         };
 
-        if (isDemo) {
-            demoEmpaqueCreateDespacho({ ...payload, tenantId });
-            setLoading(false);
+        try {
+            await despachoApiService.createDespacho(tenantId, payload);
             onCreated();
             onClose();
             setForm(initialState);
-            return;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+            alert("Error al guardar: " + errorMessage);
+        } finally {
+            setLoading(false);
         }
-
-        const { error } = await supabase.from("despacho").insert([payload]);
-        setLoading(false);
-
-        if (error) {
-            alert("Error al guardar: " + error.message);
-            return;
-        }
-        onCreated();
-        onClose();
-        setForm(initialState);
     };
 
     return (

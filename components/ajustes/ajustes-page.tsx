@@ -92,11 +92,11 @@ export function AjustesPage() {
     )
   }
 
-  const userPermissions = rolePermissions[user.rol as keyof typeof rolePermissions]
-  const isAdmin = user.rol.toLowerCase() === 'admin'
+  const userPermissions = rolePermissions[(user.rol || 'campo') as keyof typeof rolePermissions]
+  const isAdmin = user.rol?.toLowerCase() === 'admin'
 
   const handleEditName = () => {
-    setEditedName(user.nombre)
+    setEditedName(user.nombre || '')
     setIsEditing(true)
   }
 
@@ -216,12 +216,12 @@ export function AjustesPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="tenant-tipo">Tipo de Cultivo</Label>
-                    <Input id="tenant-tipo" value={user.tenant?.primary_crop || 'No disponible'} disabled />
+                    <Input id="tenant-tipo" value={(user.tenant as any)?.primary_crop || 'No disponible'} disabled />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="tenant-id">ID de Tenant</Label>
-                    <Input id="tenant-id" value={user.tenantId} disabled />
+                    <Input id="tenant-id" value={user.tenantId || ''} disabled />
                     <p className="text-xs text-muted-foreground">Identificador único de tu organización</p>
                   </div>
 

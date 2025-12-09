@@ -7,15 +7,15 @@ import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog"
-import { inventoryApi } from "../../lib/api"
 import { useToast } from "../../hooks/use-toast"
-import type { 
-  InventoryItem, 
-  InventoryCategory, 
-  InventoryLocation, 
-  CreateItemPayload,
-  UpdateItemPayload 
-} from "../../lib/types"
+import {
+  inventoryApiService,
+  type InventoryItem,
+  type InventoryCategory,
+  type InventoryLocation,
+  type CreateItemData,
+  type UpdateItemData,
+} from "../../lib/inventario/inventario-service"
 import { Plus, Trash2, ChevronDown } from "lucide-react"
 
 interface ItemFormModalProps {
@@ -124,7 +124,7 @@ export function ItemFormModal({
     }
 
     try {
-      const newCategory = await inventoryApi.createCategory(newCategoryName, tenantId)
+      const newCategory = await inventoryApiService.categories.createCategory(tenantId, { name: newCategoryName })
       // actualizar lista local inmediatamente para que aparezca en el select
       setLocalCategories(prev => [ ...(prev || []), newCategory ])
       setFormData(prev => ({ ...prev, category_id: newCategory.id }))
@@ -156,7 +156,7 @@ export function ItemFormModal({
     }
 
     try {
-      const newLocation = await inventoryApi.createLocation(newLocationName, tenantId)
+      const newLocation = await inventoryApiService.locations.createLocation(tenantId, { name: newLocationName })
       // actualizar lista local inmediatamente
       setLocalLocations(prev => [ ...(prev || []), newLocation ])
       setFormData(prev => ({ ...prev, location_id: newLocation.id }))
@@ -179,7 +179,7 @@ export function ItemFormModal({
 
   const handleDeleteCategory = async (categoryId: string) => {
     try {
-      await inventoryApi.deleteCategory(categoryId, tenantId)
+      await inventoryApiService.categories.deleteCategory(categoryId)
       // Actualizar lista local
       setLocalCategories(prev => (prev || []).filter(cat => cat.id !== categoryId))
       // Si la categoría eliminada estaba seleccionada, limpiar selección
@@ -203,7 +203,7 @@ export function ItemFormModal({
 
   const handleDeleteLocation = async (locationId: string) => {
     try {
-      await inventoryApi.deleteLocation(locationId, tenantId)
+      await inventoryApiService.locations.deleteLocation(locationId)
       // Actualizar lista local
       setLocalLocations(prev => (prev || []).filter(loc => loc.id !== locationId))
       // Si la ubicación eliminada estaba seleccionada, limpiar selección
@@ -291,29 +291,29 @@ export function ItemFormModal({
 
       if (item) {
         // Actualizar item existente
-        const updatePayload: UpdateItemPayload = {
+        const updatePayload: UpdateItemData = {
           name: formData.name.trim(),
-          category_id: formData.category_id,
-          location_id: formData.location_id,
+          categoryId: formData.category_id,
+          locationId: formData.location_id,
           unit: formData.unit.trim(),
-          min_stock: minStock
+          minStock: minStock
         }
-        await inventoryApi.updateItem(item.id, updatePayload, tenantId)
+        await inventoryApiService.items.updateItem(item.id, updatePayload)
         toast({
           title: "Éxito",
           description: "Item actualizado correctamente"
         })
       } else {
         // Crear nuevo item
-        const createPayload: CreateItemPayload = {
+        const createPayload: CreateItemData = {
           name: formData.name.trim(),
-          category_id: formData.category_id,
-          location_id: formData.location_id,
+          categoryId: formData.category_id,
+          locationId: formData.location_id,
           unit: formData.unit.trim(),
-          min_stock: minStock,
-          current_stock: currentStock
+          minStock: minStock,
+          currentStock: currentStock
         }
-        await inventoryApi.createItem(createPayload, tenantId)
+        await inventoryApiService.items.createItem(tenantId, createPayload)
         toast({
           title: "Éxito",
           description: "Item creado correctamente"

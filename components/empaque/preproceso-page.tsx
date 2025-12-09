@@ -9,15 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Input } from "../ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { useAuth } from "../../hooks/use-auth"
-import { Plus, Download, ArrowLeft, Cog, Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, ArrowLeft, Cog, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
-import { isDemoModeClient } from "../../lib/demo/utils"
-import { demoEmpaquePreprocesos } from "../../lib/demo/store"
-import { supabase } from "../../lib/supabaseClient"
+import { preprocesoApiService, type PreprocesoRow } from "../../lib/empaque/empaque-service"
 
 export function PreprocesoPage() {
-    const [registros, setRegistros] = useState<any[]>([])
-    const [filteredRegistros, setFilteredRegistros] = useState<any[]>([])
+    const [registros, setRegistros] = useState<PreprocesoRow[]>([])
+    const [filteredRegistros, setFilteredRegistros] = useState<PreprocesoRow[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
     const [modalOpen, setModalOpen] = useState(false)
@@ -26,10 +24,9 @@ export function PreprocesoPage() {
     const [pageSize, setPageSize] = useState(10)
 
     const router = useRouter()
-    
+
     const { user } = useAuth({});
-    const isDemo = isDemoModeClient();
-    
+
     // Estabilizar tenantId
     const tenantId = useMemo(() => user?.tenantId, [user?.tenantId])
 
@@ -39,33 +36,18 @@ export function PreprocesoPage() {
             setIsLoading(false);
             return;
         }
-        
+
         try {
             setIsLoading(true)
-            if (isDemo) {
-                const data = demoEmpaquePreprocesos(tenantId);
-                setRegistros(data || []);
-                setIsLoading(false);
-                return;
-            }
-            const { data, error } = await supabase
-                .from("preseleccion")
-                .select("*")
-                .eq("tenant_id", tenantId)
-            
-            if (error) {
-                console.error('Error cargando registros de preproceso:', error);
-                setRegistros([]);
-            } else {
-                setRegistros(data || []);
-            }
+            const data = await preprocesoApiService.getPreprocesos(tenantId)
+            setRegistros(data || [])
         } catch (err) {
             console.error('Error cargando preproceso:', err);
             setRegistros([]);
         } finally {
             setIsLoading(false)
         }
-    }, [tenantId, isDemo])
+    }, [tenantId])
 
     useEffect(() => {
         if (tenantId) {

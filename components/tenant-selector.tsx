@@ -3,24 +3,23 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { ROUTES } from '../lib/constants/routes'
-import { useUser, useUserActions } from './auth/UserContext'
-import { tenantApi } from '../lib/api'
-import { getSessionManager } from '../lib/sessionManager'
+import { useUser, useUserActions, sessionManager } from '../lib/auth'
+import { tenantService } from '../lib/tenant'
+import type { Tenant, TenantMembership } from '../lib/auth/types'
 
 export default function TenantSelector() {
   const { user } = useUser()
-  const { setUser, setSelectedTenant } = useUserActions()
+  const { setSelectedTenant } = useUserActions()
   const router = useRouter()
   const pathname = usePathname()
-  const [tenants, setTenants] = useState<any[]>([])
+  const [tenants, setTenants] = useState<Tenant[]>([])
   const [loading, setLoading] = useState(false)
-  const sessionManager = typeof window !== 'undefined' ? getSessionManager() : null
   const [selected, setSelected] = useState<string | null>(() => {
-    if (typeof window === 'undefined' || !sessionManager) return null
+    if (typeof window === 'undefined') return null
     try {
-      const s = sessionManager.peekCurrentUser()
-      return (s && (s as any).tenantId) || null
-    } catch (e) {
+      const s = sessionManager.getCurrentUser()
+      return (s && s.tenantId) || null
+    } catch {
       return null
     }
   })
@@ -42,7 +41,7 @@ export default function TenantSelector() {
       setLoading(true)
       try {
         console.debug('[TenantSelector] loading tenants for user', user?.id)
-        const list = await tenantApi.getUserTenants(user.id)
+        const list = await tenantService.getUserTenants()
         console.debug('[TenantSelector] tenants result:', list)
         setTenants(list || [])
 
@@ -51,15 +50,15 @@ export default function TenantSelector() {
         if (!selected) {
           try {
             const peek = sessionManager?.peekCurrentUser()
-            if (peek && peek.tenantId && list.some((t: any) => t.id === peek.tenantId)) {
+            if (peek && peek.tenantId && list.some((t: Tenant) => t.id === peek.tenantId)) {
               setSelected(peek.tenantId)
             }
           } catch (e) {
             // ignore
           }
         }
-      } catch (err: any) {
-        const message = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err))
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
         console.error('[TenantSelector] Error loading tenants:', message)
 
         // Fallback: if API fails, use the user's current tenant from session if available
@@ -95,40 +94,36 @@ export default function TenantSelector() {
       return
     }
 
-    const membership = user.memberships?.find((m: any) => m.tenant_id === selected) || null
+    const membership = user.memberships?.find((m: TenantMembership) => m.tenant_id === selected) || null
     const desiredRole = membership?.role_code || user.rol
 
     // Avoid re-entrancy: if session already reflects this selection/role, do nothing
     try {
       const current = sessionManager?.peekCurrentUser()
       if (current && current.tenantId === selected && (current.rol === desiredRole || !desiredRole)) {
-        // Ensure local user state mirrors persisted session but avoid setting if identical
-        if (user.tenantId !== selected || user.rol !== desiredRole) {
-          setUser?.({ ...user, tenant: tenantObj, tenantId: (tenantObj as any).id, rol: desiredRole })
-        }
         return
       }
-    } catch (e) {
+    } catch {
       // ignore peek errors
     }
 
     if (isPersistingRef.current) return
     isPersistingRef.current = true
 
-    const newUser = {
-      ...user,
-      tenant: tenantObj,
-      tenantId: (tenantObj as any).id,
-      rol: desiredRole
-    }
-
-    console.debug('[TenantSelector] persisting selection via setSelectedTenant', newUser.tenant?.id, 'role:', newUser.rol)
+    console.debug('[TenantSelector] persisting selection via setSelectedTenant', tenantObj?.id, 'role:', desiredRole)
     try {
-      if (setSelectedTenant) {
-        setSelectedTenant(tenantObj, newUser.rol)
+      if (setSelectedTenant && membership) {
+        // Use the new TenantMembership-based API
+        setSelectedTenant(membership)
       } else {
+        // Fallback: update session directly
+        const newUser = {
+          ...user,
+          tenant: tenantObj,
+          tenantId: tenantObj.id,
+          rol: desiredRole
+        }
         sessionManager?.setCurrentUser(newUser)
-        setUser?.(newUser)
       }
 
       // If user was on the Finanzas module and the newly selected tenant's plan
@@ -140,16 +135,15 @@ export default function TenantSelector() {
         if (typeof pathname === 'string' && pathname.startsWith('/finanzas') && !hasFinanzas) {
           router.push(ROUTES.DASHBOARD)
         }
-      } catch (e) {
+      } catch {
         // ignore routing errors
       }
     } catch (e) {
       console.warn('[TenantSelector] could not persist selection to sessionManager', e)
-      setUser?.(newUser)
     } finally {
       isPersistingRef.current = false
     }
-  }, [selected, tenants, user])
+  }, [selected, tenants, user, setSelectedTenant, pathname, router])
 
   if (!user) return null
 
@@ -174,7 +168,7 @@ export default function TenantSelector() {
         onChange={(e) => setSelected(e.target.value)}
         className="bg-transparent text-sidebar-foreground text-sm font-semibold"
       >
-        {options.map((t: any) => (
+        {options.map((t: Tenant) => (
           <option key={t.id} value={t.id}>{t.name}</option>
         ))}
       </select>

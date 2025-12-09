@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Loader2, Building2, User, Shield } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { authService } from "../lib/supabaseAuth";
+import { authService, sessionManager, tokenStorage } from "../lib/auth";
 
 export default function AcceptInvitationForm() {
   const router = useRouter();
@@ -30,10 +30,41 @@ export default function AcceptInvitationForm() {
       }
 
       try {
+        // Check if tokens are in URL hash (from Supabase magic link redirect)
+        // Format: #access_token=...&refresh_token=...&type=magiclink
+        if (typeof window !== 'undefined' && window.location.hash) {
+          console.log('🔍 AcceptInvitation: Found URL hash, extracting tokens...');
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+
+          if (accessToken) {
+            console.log('✅ AcceptInvitation: Found access_token in URL hash');
+
+            // Validate token through our API
+            const result = await authService.validateTokenFromHash(accessToken, refreshToken || undefined);
+
+            if (result.success) {
+              console.log('✅ AcceptInvitation: Token validated and stored');
+              // Clear hash from URL for cleaner look
+              window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
+          }
+        }
+
+        // First, try to validate and transfer Supabase session token if we don't have one
+        if (!tokenStorage.hasValidToken()) {
+          console.log('🔧 No token in storage, trying to validate Supabase session via API...');
+          const result = await authService.validateAndTransferSupabaseToken();
+          if (result.success) {
+            console.log('✅ Supabase session token validated and stored');
+          }
+        }
+
         console.log('🔍 Loading invitation with token:', token);
-        
-        const { success, data, error: inviteError } = await authService.getInvitationByToken(token);
-        
+
+        const { success, data, error: inviteError } = await authService.getInvitationByTokenLegacy(token);
+
         if (!success || !data) {
           console.error('❌ Error loading invitation:', inviteError);
           setError(inviteError || "Invitación no encontrada o expirada");
@@ -46,26 +77,25 @@ export default function AcceptInvitationForm() {
 
         try {
           console.log('🔍 Checking current session...');
-          
-          const { supabase } = await import('../lib/supabaseClient');
-          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-          
+
+          const currentUser = sessionManager.getCurrentUser();
+
           console.log('📋 Session data:', {
-            hasSession: !!sessionData.session,
-            userEmail: sessionData.session?.user?.email,
+            hasSession: !!currentUser,
+            userEmail: currentUser?.email,
             invitationEmail: data.email
           });
 
-          if (sessionData.session?.user?.email === data.email) {
+          if (currentUser?.email === data.email) {
             console.log('✅ User already authenticated with correct email');
             setIsExistingUser(true);
-            
+
             const fromSetPassword = window.location.search.includes('from=set-password');
             if (fromSetPassword && !['admin', 'campo', 'empaque', 'finanzas'].includes(data.role_code)) {
               console.log('🔄 Auto-accepting simple invitation from set-password...');
               setTimeout(() => acceptInvitation(), 1000);
             }
-          } else if (sessionData.session?.user) {
+          } else if (currentUser) {
             console.log('⚠️ User authenticated but with different email');
             setIsExistingUser(false);
           } else {

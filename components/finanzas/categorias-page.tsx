@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Plus, Tag, ArrowLeft } from 'lucide-react'
-import { finanzasApi } from '@/lib/api'
+import { finanzasApiService } from '@/lib/finanzas/finanzas-service'
 import { useAuth } from '@/hooks/use-auth'
 
 export default function CategoriasPage() {
@@ -25,8 +25,8 @@ export default function CategoriasPage() {
 
   useEffect(() => {
     if (tenantId) {
-      finanzasApi.getCategorias(tenantId).then((cats) => {
-        setCategorias(cats)
+      finanzasApiService.categories.listCategories(tenantId).then((cats) => {
+        setCategorias(cats.map(c => ({ id: c.id, name: c.name, kind: c.kind })))
         setLoading(false)
       })
     }
@@ -49,8 +49,11 @@ export default function CategoriasPage() {
 
     setAdding(true)
     try {
-      const created = await finanzasApi.createCategoria(tenantId, nombre.trim(), kind)
-      setCategorias((prev) => [...prev, created])
+      const created = await finanzasApiService.categories.createCategory(tenantId, {
+        name: nombre.trim(),
+        kind,
+      })
+      setCategorias((prev) => [...prev, { id: created.id, name: created.name, kind: created.kind }])
       setNombre('')
       setKind('')
     } catch (err: any) {
