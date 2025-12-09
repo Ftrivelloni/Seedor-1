@@ -25,7 +25,7 @@ export interface IngresoFrutaRow {
   productor: string;
   finca: string | null;
   producto: string;
-  lote: string | null;
+  lote: number | null;
   contratista: string | null;
   tipo_cosecha: string | null;
   cant_bin: number;
@@ -130,7 +130,7 @@ export interface CreateIngresoFrutaData {
   productor: string;
   finca?: string;
   producto: string;
-  lote?: string;
+  lote?: number;
   contratista?: string;
   tipoCosecha?: string;
   cantBin: number;

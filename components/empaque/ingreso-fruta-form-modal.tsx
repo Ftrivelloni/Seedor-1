@@ -105,7 +105,7 @@ export function IngresoFrutaFormModal({
             productor: form.productor,
             finca: form.finca || undefined,
             producto: form.producto,
-            lote: form.lote || undefined,
+            lote: normInt(form.lote),
             contratista: form.contratista || undefined,
             tipoCosecha: form.tipo_cosecha || undefined,
             cantBin: normInt(form.cant_bin) ?? 0,
