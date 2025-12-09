@@ -9,10 +9,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { FinanzasFormModal } from "./finanzas-form-modal"
 import { useAuth } from "../../hooks/use-auth"
-import type { MovimientoCaja } from "../../lib/types"
+import {
+  finanzasApiService,
+  type MovimientoCaja,
+} from "../../lib/finanzas/finanzas-service"
 import { Plus, Search, Download, DollarSign, TrendingUp, TrendingDown, FileText, FolderPlus } from "lucide-react"
 import Link from "next/link"
-import { finanzasApi } from "../../lib/api"
 
 export function FinanzasPage() {
   const { user, loading: authLoading } = useAuth({ requireRoles: ['admin', 'finanzas'] })
@@ -40,7 +42,7 @@ export function FinanzasPage() {
 
     try {
       setIsLoading(true)
-      const data = await finanzasApi.getMovimientos(user.tenantId)
+      const data = await finanzasApiService.movements.listMovements({ tenantId: user.tenantId })
       setMovimientos(data)
     } catch (error) {
       console.error("Error al cargar movimientos:", error)
@@ -79,7 +81,7 @@ export function FinanzasPage() {
     const loadCategorias = async () => {
       if (!user) return
       try {
-        const cats = await finanzasApi.getCategorias(user.tenantId || '')
+        const cats = await finanzasApiService.categories.listCategories(user.tenantId || '')
         setCategoriasCount(cats.length)
       } catch (e) {
         setCategoriasCount(0)
@@ -89,7 +91,14 @@ export function FinanzasPage() {
   }, [user])
 
   const handleCreateMovimiento = async (movimientoData: Omit<MovimientoCaja, "id">) => {
-    await finanzasApi.createMovimiento(movimientoData)
+    await finanzasApiService.movements.createMovement(movimientoData.tenantId, {
+      date: movimientoData.fecha,
+      kind: movimientoData.tipo,
+      amount: movimientoData.monto,
+      notes: movimientoData.concepto,
+      categoryName: movimientoData.categoria,
+      receipt: movimientoData.comprobante,
+    })
     await loadMovimientos()
   }
 

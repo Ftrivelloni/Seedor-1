@@ -8,19 +8,17 @@ import { Button } from "../ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Badge } from "../ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
-import { empaqueApi, ingresoFrutaApi, palletsApi, despachoApi } from "../../lib/api"
+import { empaqueApi } from "../../lib/api"
 import type { RegistroEmpaque } from "../../lib/mocks"
 import { Search, Package, AlertTriangle, ArrowDown, Cog, Archive, Truck, ArrowUp } from "lucide-react"
 import { useEmpaqueAuth } from "./EmpaqueAuthContext"
-import { isDemoModeClient } from "../../lib/demo/utils"
 import {
-    demoEmpaqueIngresos,
-    demoEmpaquePallets,
-    demoEmpaqueDespachos,
-    demoEmpaqueEgresos,
-    demoEmpaquePreprocesos,
-} from "../../lib/demo/store"
-import { supabase } from "../../lib/supabaseClient";
+    ingresoFrutaApiService,
+    preprocesoApiService,
+    palletsApiService,
+    despachoApiService,
+    egresoFrutaApiService,
+} from "../../lib/empaque/empaque-service"
 
 export function EmpaquePage() {
     const { empaqueUser: user } = useEmpaqueAuth();
@@ -42,8 +40,6 @@ export function EmpaquePage() {
     const [preprocesos, setPreprocesos] = useState<any[]>([]);
     const [isLoadingPreprocesos, setIsLoadingPreprocesos] = useState(true);
 
-    const isDemo = isDemoModeClient();
-
     const router = useRouter()
 
     useEffect(() => {
@@ -61,7 +57,7 @@ export function EmpaquePage() {
         return () => {
             window.removeEventListener('preproceso:created', handler);
         };
-    }, [user, isDemo])
+    }, [user])
     const loadPreprocesos = async () => {
         if (!user?.tenantId) {
             console.error('No se encontró la sesión del usuario o el tenant ID');
@@ -70,22 +66,8 @@ export function EmpaquePage() {
 
         try {
             setIsLoadingPreprocesos(true);
-            if (isDemo) {
-                const data = demoEmpaquePreprocesos(user.tenantId);
-                setPreprocesos(data);
-                setIsLoadingPreprocesos(false);
-                return;
-            }
-            const { data, error } = await supabase
-                .from("preseleccion")
-                .select("*")
-                .eq("tenant_id", user.tenantId);
-            if (error) {
-                console.error("Error al cargar preprocesos:", error);
-                setPreprocesos([]);
-            } else {
-                setPreprocesos(data || []);
-            }
+            const data = await preprocesoApiService.getPreprocesos(user.tenantId);
+            setPreprocesos(data || []);
         } catch (error) {
             console.error("Error al cargar preprocesos:", error);
             setPreprocesos([]);
@@ -98,14 +80,8 @@ export function EmpaquePage() {
         if (!user?.tenantId) return;
         try {
             setIsLoadingIngresos(true);
-            if (isDemo) {
-                const data = demoEmpaqueIngresos(user.tenantId);
-                setIngresosFruta(data);
-                setIsLoadingIngresos(false);
-                return;
-            }
-            const data = await ingresoFrutaApi.getIngresos(user.tenantId);
-            setIngresosFruta(data);
+            const data = await ingresoFrutaApiService.getIngresos(user.tenantId);
+            setIngresosFruta(data || []);
         } catch (e) {
             setIngresosFruta([]);
         } finally {
@@ -117,22 +93,8 @@ export function EmpaquePage() {
         if (!user?.tenantId) return;
         try {
             setIsLoadingPallets(true);
-            if (isDemo) {
-                const data = demoEmpaquePallets(user.tenantId);
-                setPallets(data);
-                setIsLoadingPallets(false);
-                return;
-            }
-            const { data, error } = await supabase
-                .from("pallets")
-                .select("*")
-                .eq("tenant_id", user.tenantId);
-            if (error) {
-                console.error("Error al cargar pallets:", error);
-                setPallets([]);
-            } else {
-                setPallets(data || []);
-            }
+            const data = await palletsApiService.getPallets(user.tenantId);
+            setPallets(data || []);
         } catch (error) {
             console.error("Error al cargar pallets:", error);
             setPallets([]);
@@ -145,22 +107,8 @@ export function EmpaquePage() {
         if (!user?.tenantId) return;
         try {
             setIsLoadingDespachos(true);
-            if (isDemo) {
-                const data = demoEmpaqueDespachos(user.tenantId);
-                setDespachos(data);
-                setIsLoadingDespachos(false);
-                return;
-            }
-            const { data, error } = await supabase
-                .from("despacho")
-                .select("*")
-                .eq("tenant_id", user.tenantId);
-            if (error) {
-                console.error("Error al cargar despachos:", error);
-                setDespachos([]);
-            } else {
-                setDespachos(data || []);
-            }
+            const data = await despachoApiService.getDespachos(user.tenantId);
+            setDespachos(data || []);
         } catch (error) {
             console.error("Error al cargar despachos:", error);
             setDespachos([]);
@@ -173,22 +121,8 @@ export function EmpaquePage() {
         if (!user?.tenantId) return;
         try {
             setIsLoadingEgresosFruta(true);
-            if (isDemo) {
-                const data = demoEmpaqueEgresos(user.tenantId);
-                setEgresosFruta(data);
-                setIsLoadingEgresosFruta(false);
-                return;
-            }
-            const { data, error } = await supabase
-                .from("egreso_fruta")
-                .select("*")
-                .eq("tenant_id", user.tenantId);
-            if (error) {
-                console.error("Error al cargar egresos de fruta:", error);
-                setEgresosFruta([]);
-            } else {
-                setEgresosFruta(data || []);
-            }
+            const data = await egresoFrutaApiService.getEgresos(user.tenantId);
+            setEgresosFruta(data || []);
         } catch (error) {
             console.error("Error al cargar egresos de fruta:", error);
             setEgresosFruta([]);

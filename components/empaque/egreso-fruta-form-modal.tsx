@@ -7,9 +7,7 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Plus, X } from "lucide-react";
-import { isDemoModeClient } from "../../lib/demo/utils";
-import { demoEmpaqueCreateEgreso } from "../../lib/demo/store";
-import { supabase } from "../../lib/supabaseClient";
+import { egresoFrutaApiService, type CreateEgresoFrutaData } from "../../lib/empaque/empaque-service";
 
 interface Props {
     open: boolean;
@@ -57,7 +55,6 @@ export default function EgresoFrutaFormModal({
     const [form, setForm] = useState<FormState>(initialState);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const isDemo = isDemoModeClient();
 
     const inputStrong =
         "h-11 w-full bg-white border border-gray-300/90 rounded-lg shadow-sm placeholder:text-gray-400 " +
@@ -116,43 +113,35 @@ export default function EgresoFrutaFormModal({
 
         setLoading(true);
 
-        const toNumber = (v: string) => (v === "" ? null : Number(v));
-        const payload = {
-            tenant_id: tenantId,
-            num_remito: toNumber(form.num_remito),
-            fecha: form.fecha ? new Date(form.fecha).toISOString() : null,
-            cliente: form.cliente || null,
-            finca: form.finca || null,
-            producto: form.producto || null,
-            DTV: form.DTV || null,
+        const toNumber = (v: string): number | undefined => (v === "" ? undefined : Number(v));
+
+        // Convert to camelCase for API
+        const payload: CreateEgresoFrutaData = {
+            fecha: form.fecha,
+            numRemito: form.num_remito || undefined,
+            cliente: form.cliente || undefined,
+            finca: form.finca || undefined,
+            producto: form.producto || undefined,
+            DTV: form.DTV || undefined,
             tara: toNumber(form.tara),
-            peso_neto: toNumber(form.peso_neto),
-            transporte: form.transporte || null,
-            chasis: form.chasis || null,
-            acoplado: form.acoplado || null,
-            chofer: form.chofer || null,
+            pesoNeto: toNumber(form.peso_neto),
+            transporte: form.transporte || undefined,
+            chasis: form.chasis || undefined,
+            acoplado: form.acoplado || undefined,
+            chofer: form.chofer || undefined,
         };
 
-        if (isDemo) {
-            demoEmpaqueCreateEgreso({ ...payload, tenantId });
-            setLoading(false);
+        try {
+            await egresoFrutaApiService.createEgreso(tenantId, payload);
             onCreated();
             onClose();
             setForm(initialState);
-            return;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+            alert("Error al guardar: " + errorMessage);
+        } finally {
+            setLoading(false);
         }
-
-        const { error } = await supabase.from("egreso_fruta").insert([payload]);
-        setLoading(false);
-
-        if (error) {
-            alert("Error al guardar: " + error.message);
-            return;
-        }
-
-        onCreated();
-        onClose();
-        setForm(initialState);
     };
 
     return (

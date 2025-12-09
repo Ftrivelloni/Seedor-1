@@ -1,7 +1,7 @@
 // components/inventario/inventario-page.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
@@ -10,21 +10,20 @@ import { Badge } from "../ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Sidebar } from "../sidebar"
-import { inventoryApi } from "../../lib/api"
-import { getSessionManager } from "../../lib/sessionManager"
 import { useAuth } from "../../hooks/use-auth"
 import { FeatureProvider } from "../../lib/features-context"
-import { Search, Package, AlertTriangle, Plus, Edit, Trash2, Eye, Filter } from "lucide-react"
+import { Search, Package, AlertTriangle, Plus, Edit, Trash2, Eye } from "lucide-react"
 import { ItemFormModal } from "./item-form-modal"
 import { MovementFormModal } from "./movement-form-modal"
 import { MovementHistoryModal } from "./movement-history-modal"
-import type { 
-  InventoryItem, 
-  InventoryCategory, 
-  InventoryLocation, 
-  InventorySummary,
-  InventoryMovement 
-} from "../../lib/types"
+import {
+  inventoryApiService,
+  type InventoryItem,
+  type InventoryCategory,
+  type InventoryLocation,
+  type InventorySummary,
+  type InventoryMovement,
+} from "../../lib/inventario/inventario-service"
 import { useToast } from "../../hooks/use-toast"
 
 export function InventarioPage() {
@@ -103,7 +102,7 @@ export function InventarioPage() {
 
     try {
       setIsLoading(true)
-      const data = await inventoryApi.listItems({
+      const data = await inventoryApiService.items.listItems({
         tenantId: user.tenantId,
         search: searchTerm || undefined,
         categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
@@ -126,7 +125,7 @@ export function InventarioPage() {
 
     try {
       setIsLoadingCategories(true)
-      const data = await inventoryApi.listCategories(user.tenantId)
+      const data = await inventoryApiService.categories.listCategories(user.tenantId)
       setCategories(data)
     } catch (error: any) {
       console.error('Error al cargar categorías:', error)
@@ -140,7 +139,7 @@ export function InventarioPage() {
 
     try {
       setIsLoadingLocations(true)
-      const data = await inventoryApi.listLocations(user.tenantId)
+      const data = await inventoryApiService.locations.listLocations(user.tenantId)
       setLocations(data)
     } catch (error: any) {
       console.error('Error al cargar ubicaciones:', error)
@@ -153,7 +152,7 @@ export function InventarioPage() {
     if (!user?.tenantId) return
 
     try {
-      const data = await inventoryApi.getInventorySummary(user.tenantId)
+      const data = await inventoryApiService.summary.getSummary(user.tenantId)
       setSummary(data)
     } catch (error: any) {
       console.error('Error al cargar resumen:', error)
@@ -165,7 +164,7 @@ export function InventarioPage() {
 
     try {
       setIsLoadingMovements(true)
-      const data = await inventoryApi.listMovements({
+      const data = await inventoryApiService.movements.listMovements({
         tenantId: user.tenantId,
         limit: 10 // Últimos 10 movimientos
       })
@@ -211,7 +210,7 @@ export function InventarioPage() {
     }
 
     try {
-      await inventoryApi.deleteItem(item.id, user.tenantId)
+      await inventoryApiService.items.deleteItem(item.id)
       toast({
         title: "Éxito",
         description: "Item eliminado correctamente"
@@ -250,7 +249,7 @@ export function InventarioPage() {
     }
 
     try {
-      await inventoryApi.deleteMovement(movementId, user.tenantId)
+      await inventoryApiService.movements.deleteMovement(movementId)
       toast({
         title: "Éxito",
         description: "Movimiento eliminado y stock actualizado correctamente"

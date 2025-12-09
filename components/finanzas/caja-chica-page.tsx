@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useAuth } from "../../hooks/use-auth"
-import { finanzasApi } from "../../lib/api"
-import type { MovimientoCaja } from "../../lib/types"
+import {
+  finanzasApiService,
+  type MovimientoCaja,
+} from "../../lib/finanzas/finanzas-service"
 import { FinanzasFormModal } from "./finanzas-form-modal"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
@@ -47,7 +49,7 @@ export function CajaChicaPage() {
     if (!user) return
     try {
       setIsLoading(true)
-      const data = await finanzasApi.getMovimientos(user.tenantId || '')
+      const data = await finanzasApiService.movements.listMovements({ tenantId: user.tenantId || '' })
       setMovimientos(data)
     } catch (err) {
       console.error("Error al cargar movimientos:", err)
@@ -74,7 +76,14 @@ export function CajaChicaPage() {
   }
 
   const handleCreateMovimiento = async (movimientoData: Omit<MovimientoCaja, "id">) => {
-    await finanzasApi.createMovimiento(movimientoData)
+    await finanzasApiService.movements.createMovement(movimientoData.tenantId, {
+      date: movimientoData.fecha,
+      kind: movimientoData.tipo,
+      amount: movimientoData.monto,
+      notes: movimientoData.concepto,
+      categoryName: movimientoData.categoria,
+      receipt: movimientoData.comprobante,
+    })
     await loadMovimientos()
   }
 

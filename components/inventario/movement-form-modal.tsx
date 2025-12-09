@@ -8,14 +8,14 @@ import { Label } from "../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Textarea } from "../ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog"
-import { inventoryApi } from "../../lib/api"
 import { useToast } from "../../hooks/use-toast"
-import type { 
-  InventoryItem,
-  InventoryMovementType,
-  CreateMovementPayload,
-  MovementTypeCode 
-} from "../../lib/types"
+import {
+  inventoryApiService,
+  type InventoryItem,
+  type InventoryMovementType,
+  type CreateMovementData,
+  type MovementTypeCode,
+} from "../../lib/inventario/inventario-service"
 import { getSessionManager } from "../../lib/sessionManager"
 
 interface MovementFormModalProps {
@@ -72,7 +72,7 @@ export function MovementFormModal({
 
   const loadMovementTypes = async () => {
     try {
-      const types = await inventoryApi.listMovementTypes()
+      const types = await inventoryApiService.movements.listMovementTypes()
       if (!types || types.length === 0) {
         // fallback básico si la tabla está vacía
         setMovementTypes([
@@ -237,21 +237,21 @@ export function MovementFormModal({
         return
       }
 
-      const payload: CreateMovementPayload = {
-        item_id: formData.item_id,
+      const payload: CreateMovementData = {
+        itemId: formData.item_id,
         type: formData.type,
         quantity: quantity,
-        unit_cost: unitCost ?? undefined,
+        unitCost: unitCost ?? undefined,
         reason: formData.reason.trim(),
         date: formData.date,
-        created_by: currentUser?.id
+        createdBy: currentUser?.id
       }
 
       console.log("Payload creado:", payload)
       console.log("TenantId:", tenantId)
-      console.log("Llamando a inventoryApi.createMovement...")
-      
-      const result = await inventoryApi.createMovement(payload, tenantId)
+      console.log("Llamando a inventoryApiService.movements.createMovement...")
+
+      const result = await inventoryApiService.movements.createMovement(tenantId, payload)
       console.log("Movimiento creado exitosamente:", result)
       
       toast({

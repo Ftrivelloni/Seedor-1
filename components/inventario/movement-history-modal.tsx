@@ -7,9 +7,12 @@ import { Badge } from "../ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog"
 import { ScrollArea } from "../ui/scroll-area"
-import { inventoryApi } from "../../lib/api"
 import { useToast } from "../../hooks/use-toast"
-import type { InventoryItem, InventoryMovement } from "../../lib/types"
+import {
+  inventoryApiService,
+  type InventoryItem,
+  type InventoryMovement,
+} from "../../lib/inventario/inventario-service"
 import { ArrowUp, ArrowDown, Repeat, ArrowRight } from "lucide-react"
 
 interface MovementHistoryModalProps {
@@ -42,7 +45,7 @@ export function MovementHistoryModal({
 
     try {
       setIsLoading(true)
-      const data = await inventoryApi.listMovements({
+      const data = await inventoryApiService.movements.listMovements({
         tenantId,
         itemId: item.id,
         limit: 100
@@ -65,7 +68,7 @@ export function MovementHistoryModal({
     }
 
     try {
-      await inventoryApi.deleteMovement(movementId, tenantId)
+      await inventoryApiService.movements.deleteMovement(movementId)
       toast({
         title: "Éxito",
         description: "Movimiento eliminado y stock actualizado correctamente"

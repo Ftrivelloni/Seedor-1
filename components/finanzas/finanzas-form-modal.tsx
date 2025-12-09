@@ -15,9 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog"
-import type { MovimientoCaja } from "../../lib/types"
 import { useEffect } from "react"
-import { finanzasApi } from "../../lib/api"
+import {
+  finanzasApiService,
+  type MovimientoCaja,
+} from "../../lib/finanzas/finanzas-service"
 
 interface FinanzasFormModalProps {
   isOpen: boolean
@@ -49,7 +51,7 @@ export function FinanzasFormModal({ isOpen, onClose, onSubmit, tenantId }: Finan
     const loadCategorias = async () => {
       if (!tenantId) return
       try {
-        const data = await finanzasApi.getCategorias(tenantId)
+        const data = await finanzasApiService.categories.listCategories(tenantId)
         setCategorias(data.map((c) => ({ id: c.id, name: c.name })))
       } catch (e) {
         console.error('Error cargando categorías:', e)

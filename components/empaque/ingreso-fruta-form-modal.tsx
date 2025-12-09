@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import { Plus, X } from "lucide-react"
+import type { CreateIngresoFrutaData } from "../../lib/empaque/empaque-service"
 
 const initialState = {
     fecha: "",
@@ -33,7 +34,7 @@ export function IngresoFrutaFormModal({
                                       }: {
     isOpen: boolean
     onClose: () => void
-    onSubmit: (data: any) => void
+    onSubmit: (data: CreateIngresoFrutaData) => void
 }) {
     const [form, setForm] = useState(initialState)
     const [loading, setLoading] = useState(false)
@@ -90,17 +91,31 @@ export function IngresoFrutaFormModal({
         if (Object.values(next).some(Boolean)) return
 
         setLoading(true)
-        const norm = (val: string, t: "int" | "float" | "date" = "int") =>
-            val === "" ? null : t === "date" ? val : t === "float" ? Number(val) : parseInt(val, 10)
+        const normInt = (val: string): number | undefined =>
+            val === "" ? undefined : parseInt(val, 10)
+        const normFloat = (val: string): number | undefined =>
+            val === "" ? undefined : Number(val)
 
-        const data = {
-            ...form,
-            num_ticket: norm(form.num_ticket),
-            num_remito: norm(form.num_remito),
-            lote: norm(form.lote),
-            cant_bin: norm(form.cant_bin),
-            peso_neto: norm(form.peso_neto, "float"),
-            fecha: norm(form.fecha, "date"),
+        // Convert snake_case form to camelCase API format
+        const data: CreateIngresoFrutaData = {
+            fecha: form.fecha,
+            estadoLiquidacion: form.estado_liquidacion,
+            numTicket: normInt(form.num_ticket),
+            numRemito: normInt(form.num_remito),
+            productor: form.productor,
+            finca: form.finca || undefined,
+            producto: form.producto,
+            lote: form.lote || undefined,
+            contratista: form.contratista || undefined,
+            tipoCosecha: form.tipo_cosecha || undefined,
+            cantBin: normInt(form.cant_bin) ?? 0,
+            tipoBin: form.tipo_bin,
+            pesoNeto: normFloat(form.peso_neto) ?? 0,
+            transporte: form.transporte || undefined,
+            chofer: form.chofer || undefined,
+            chasis: form.chasis || undefined,
+            acoplado: form.acoplado || undefined,
+            operario: form.operario || undefined,
         }
 
         await onSubmit(data)
