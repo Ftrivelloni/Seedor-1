@@ -247,26 +247,29 @@ export const ingresoFrutaApiService = {
       } as any);
     }
 
-    const response = await apiClient.post(`/empaque/ingreso-fruta/tenant/${tenantId}`, {
+    // Remove undefined fields to avoid API validation errors
+    const payload: Record<string, any> = {
       fecha: data.fecha,
-      estadoLiquidacion: data.estadoLiquidacion,
-      numTicket: data.numTicket,
-      numRemito: data.numRemito,
       productor: data.productor,
-      finca: data.finca,
       producto: data.producto,
-      lote: data.lote,
-      contratista: data.contratista,
-      tipoCosecha: data.tipoCosecha,
       cantBin: data.cantBin,
       tipoBin: data.tipoBin,
       pesoNeto: data.pesoNeto,
-      transporte: data.transporte,
-      chofer: data.chofer,
-      chasis: data.chasis,
-      acoplado: data.acoplado,
-      operario: data.operario,
-    });
+    };
+    if (data.estadoLiquidacion !== undefined) payload.estadoLiquidacion = data.estadoLiquidacion;
+    if (data.numTicket !== undefined) payload.numTicket = data.numTicket;
+    if (data.numRemito !== undefined) payload.numRemito = data.numRemito;
+    if (data.finca !== undefined) payload.finca = data.finca;
+    if (data.lote !== undefined) payload.lote = data.lote;
+    if (data.contratista !== undefined) payload.contratista = data.contratista;
+    if (data.tipoCosecha !== undefined) payload.tipoCosecha = data.tipoCosecha;
+    if (data.transporte !== undefined) payload.transporte = data.transporte;
+    if (data.chofer !== undefined) payload.chofer = data.chofer;
+    if (data.chasis !== undefined) payload.chasis = data.chasis;
+    if (data.acoplado !== undefined) payload.acoplado = data.acoplado;
+    if (data.operario !== undefined) payload.operario = data.operario;
+
+    const response = await apiClient.post(`/empaque/ingreso-fruta/tenant/${tenantId}`, payload);
     return response.data.ingreso;
   },
 
@@ -382,24 +385,26 @@ export const palletsApiService = {
       } as any);
     }
 
-    const response = await apiClient.post(`/empaque/pallets/tenant/${tenantId}`, {
-      semana: data.semana,
-      fecha: data.fecha,
-      numPallet: data.numPallet,
-      producto: data.producto,
-      productor: data.productor,
-      categoria: data.categoria,
-      codEnvase: data.codEnvase,
-      destino: data.destino,
-      kilos: data.kilos,
-      cantCajas: data.cantCajas,
-      peso: data.peso,
-      estado: data.estado,
-      ubicacion: data.ubicacion,
-      temperatura: data.temperatura,
-      vencimiento: data.vencimiento,
-      loteOrigen: data.loteOrigen,
-    });
+    // Remove undefined fields to avoid API validation errors
+    const payload: Record<string, any> = {};
+    if (data.semana !== undefined) payload.semana = data.semana;
+    if (data.fecha !== undefined) payload.fecha = data.fecha;
+    if (data.numPallet !== undefined) payload.numPallet = data.numPallet;
+    if (data.producto !== undefined) payload.producto = data.producto;
+    if (data.productor !== undefined) payload.productor = data.productor;
+    if (data.categoria !== undefined) payload.categoria = data.categoria;
+    if (data.codEnvase !== undefined) payload.codEnvase = data.codEnvase;
+    if (data.destino !== undefined) payload.destino = data.destino;
+    if (data.kilos !== undefined) payload.kilos = data.kilos;
+    if (data.cantCajas !== undefined) payload.cantCajas = data.cantCajas;
+    if (data.peso !== undefined) payload.peso = data.peso;
+    if (data.estado !== undefined) payload.estado = data.estado;
+    if (data.ubicacion !== undefined) payload.ubicacion = data.ubicacion;
+    if (data.temperatura !== undefined) payload.temperatura = data.temperatura;
+    if (data.vencimiento !== undefined) payload.vencimiento = data.vencimiento;
+    if (data.loteOrigen !== undefined) payload.loteOrigen = data.loteOrigen;
+
+    const response = await apiClient.post(`/empaque/pallets/tenant/${tenantId}`, payload);
     return response.data.pallet;
   },
 
@@ -451,26 +456,27 @@ export const despachoApiService = {
       } as any);
     }
 
-    const response = await apiClient.post(`/empaque/despacho/tenant/${tenantId}`, {
-      fecha: data.fecha,
-      numRemito: data.numRemito,
-      cliente: data.cliente,
-      DTV: data.DTV,
-      codigoCierre: data.codigoCierre,
-      termografo: data.termografo,
-      DTC: data.DTC,
-      destino: data.destino,
-      transporte: data.transporte,
-      totalPallets: data.totalPallets,
-      totalCajas: data.totalCajas,
-      cuit: data.cuit,
-      chasis: data.chasis,
-      acoplado: data.acoplado,
-      chofer: data.chofer,
-      dni: data.dni,
-      celular: data.celular,
-      operario: data.operario,
-    });
+    // Remove undefined fields to avoid API validation errors
+    const payload: Record<string, any> = { fecha: data.fecha };
+    if (data.numRemito !== undefined) payload.numRemito = data.numRemito;
+    if (data.cliente !== undefined) payload.cliente = data.cliente;
+    if (data.DTV !== undefined) payload.DTV = data.DTV;
+    if (data.codigoCierre !== undefined) payload.codigoCierre = data.codigoCierre;
+    if (data.termografo !== undefined) payload.termografo = data.termografo;
+    if (data.DTC !== undefined) payload.DTC = data.DTC;
+    if (data.destino !== undefined) payload.destino = data.destino;
+    if (data.transporte !== undefined) payload.transporte = data.transporte;
+    if (data.totalPallets !== undefined) payload.totalPallets = data.totalPallets;
+    if (data.totalCajas !== undefined) payload.totalCajas = data.totalCajas;
+    if (data.cuit !== undefined) payload.cuit = data.cuit;
+    if (data.chasis !== undefined) payload.chasis = data.chasis;
+    if (data.acoplado !== undefined) payload.acoplado = data.acoplado;
+    if (data.chofer !== undefined) payload.chofer = data.chofer;
+    if (data.dni !== undefined) payload.dni = data.dni;
+    if (data.celular !== undefined) payload.celular = data.celular;
+    if (data.operario !== undefined) payload.operario = data.operario;
+
+    const response = await apiClient.post(`/empaque/despacho/tenant/${tenantId}`, payload);
     return response.data.despacho;
   },
 
@@ -522,20 +528,21 @@ export const egresoFrutaApiService = {
       } as any);
     }
 
-    const response = await apiClient.post(`/empaque/egreso-fruta/tenant/${tenantId}`, {
-      fecha: data.fecha,
-      numRemito: data.numRemito,
-      cliente: data.cliente,
-      finca: data.finca,
-      producto: data.producto,
-      DTV: data.DTV,
-      tara: data.tara,
-      pesoNeto: data.pesoNeto,
-      transporte: data.transporte,
-      chasis: data.chasis,
-      acoplado: data.acoplado,
-      chofer: data.chofer,
-    });
+    // Remove undefined fields to avoid API validation errors
+    const payload: Record<string, any> = { fecha: data.fecha };
+    if (data.numRemito !== undefined) payload.numRemito = data.numRemito;
+    if (data.cliente !== undefined) payload.cliente = data.cliente;
+    if (data.finca !== undefined) payload.finca = data.finca;
+    if (data.producto !== undefined) payload.producto = data.producto;
+    if (data.DTV !== undefined) payload.DTV = data.DTV;
+    if (data.tara !== undefined) payload.tara = data.tara;
+    if (data.pesoNeto !== undefined) payload.pesoNeto = data.pesoNeto;
+    if (data.transporte !== undefined) payload.transporte = data.transporte;
+    if (data.chasis !== undefined) payload.chasis = data.chasis;
+    if (data.acoplado !== undefined) payload.acoplado = data.acoplado;
+    if (data.chofer !== undefined) payload.chofer = data.chofer;
+
+    const response = await apiClient.post(`/empaque/egreso-fruta/tenant/${tenantId}`, payload);
     return response.data.egreso;
   },
 
