@@ -6,7 +6,7 @@ import { Button } from "../ui/button"
 import { Card } from "../ui/card"
 import { Badge } from "../ui/badge"
 import { Plus, ArrowLeft, Pencil, Trash2 } from "lucide-react"
-import { lotsApi, tasksApi } from "../../lib/api"
+import { lotsApiService, tasksApiService } from "../../lib/campo"
 import { workersService, Worker } from "../../lib/workers"
 import type { Lot, Task, AuthUser } from "../../lib/types"
 import { TaskFormModal, type TaskFormData } from "./task-form-modal"
@@ -39,8 +39,8 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
     try {
       setLoading(true)
       const [lotData, tasksData, workersData] = await Promise.all([
-        lotsApi.getLotById(lotId),
-        tasksApi.getTasksByLot(lotId),
+        lotsApiService.getLotById(lotId),
+        tasksApiService.getTasksByLot(lotId),
         workersService.getWorkersByTenant(user?.tenantId || "")
       ])
       setLot(lotData)
@@ -60,7 +60,7 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
 
   const handleCreateTask = async (data: TaskFormData) => {
     try {
-      await tasksApi.createTask(user?.tenantId || "", {
+      await tasksApiService.createTask(user?.tenantId || "", {
         ...data,
         farm_id: farmId,
         lot_id: lotId
@@ -85,7 +85,7 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
     if (!selectedTask) return
 
     try {
-      await tasksApi.updateTask(selectedTask.id, data)
+      await tasksApiService.updateTask(selectedTask.id, data)
       toast({
         title: "Éxito",
         description: "Tarea actualizada correctamente"
@@ -113,7 +113,7 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
       const taskId = draggingTaskId
       setDraggingTaskId(null)
       setDragOrigin(null)
-      await tasksApi.updateTask(taskId, { status_code: "completada" })
+      await tasksApiService.updateTask(taskId, { status_code: "completada" })
       // Refresh to re-evaluate overdue/pending correctly
       loadData()
       toast({ title: "Tarea completada", description: "La tarea se movió a Completadas" })
@@ -203,7 +203,7 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
             if (!confirm("¿Eliminar esta tarea?")) return
             try {
               setDeleteLoadingId(task.id)
-              await tasksApi.deleteTask(task.id)
+              await tasksApiService.deleteTask(task.id)
               toast({ title: "Tarea eliminada" })
               loadData()
             } catch (error) {
@@ -351,7 +351,7 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
                     const taskId = draggingTaskId
                     setDraggingTaskId(null)
                     setDragOrigin(null)
-                    await tasksApi.updateTask(taskId, { status_code: "pendiente" })
+                    await tasksApiService.updateTask(taskId, { status_code: "pendiente" })
                     loadData()
                     toast({ title: "Tarea reabierta", description: "La tarea volvió a Por hacer" })
                   } catch (error) {

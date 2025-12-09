@@ -1,82 +1,72 @@
 "use client"
 import { useEffect } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { tokenStorage } from '../../lib/auth/api-client'
+import { sessionManager } from '../../lib/auth/session-manager'
 
+/**
+ * Component that cleans up corrupted or invalid auth sessions on mount.
+ * Now uses our API-based auth system instead of direct Supabase calls.
+ */
 export function SessionCleanup() {
   useEffect(() => {
-    const cleanupCorruptedSession = async () => {
+    const cleanupCorruptedSession = () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (error) {
-          console.error('SessionCleanup: Session error detected:', error.message)
-          
-          if (error.message.includes('refresh_token_not_found') || 
-              error.message.includes('Invalid Refresh Token')) {
-            console.warn('SessionCleanup: Clearing corrupted session...')
-            
-            await supabase.auth.signOut()
-            
-            if (typeof window !== 'undefined') {
-              const keysToRemove = []
-              for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i)
-                if (key && (
-                  key.includes('supabase') || 
-                  key.includes('auth') ||
-                  key.includes('session') ||
-                  key.includes('token')
-                )) {
-                  keysToRemove.push(key)
-                }
-              }
-              
-              keysToRemove.forEach(key => {
-                localStorage.removeItem(key)
-              })
-              
-              const sessionKeysToRemove = []
-              for (let i = 0; i < sessionStorage.length; i++) {
-                const key = sessionStorage.key(i)
-                if (key && (
-                  key.includes('supabase') || 
-                  key.includes('auth') ||
-                  key.includes('session') ||
-                  key.includes('token')
-                )) {
-                  sessionKeysToRemove.push(key)
-                }
-              }
-              
-              sessionKeysToRemove.forEach(key => {
-                sessionStorage.removeItem(key)
-              })
-            }
-            
-            console.log('SessionCleanup: Corrupted session cleaned successfully')
-            
-            window.location.reload()
-          }
-        }
-      } catch (error: any) {
-        console.error('SessionCleanup: Error during cleanup:', error)
-        
-        if (error.message && (
-            error.message.includes('refresh_token_not_found') || 
-            error.message.includes('Invalid Refresh Token'))) {
-          console.log('SessionCleanup: Force clearing all auth data due to error')
-          
-          try {
-            await supabase.auth.signOut()
-          } catch (signOutError) {
-          }
-          
+        // Check if we have a token but it's invalid/expired
+        const hasToken = tokenStorage.getAccessToken() !== null
+        const isValid = tokenStorage.hasValidToken()
+
+        if (hasToken && !isValid) {
+          console.warn('SessionCleanup: Invalid or expired token detected, clearing...')
+
+          // Clear our auth storage
+          tokenStorage.clearTokens()
+          sessionManager.clearCurrentTabSession()
+
+          // Also clear any legacy Supabase storage keys
           if (typeof window !== 'undefined') {
-            localStorage.clear()
-            sessionStorage.clear()
-            
-            window.location.reload()
+            const keysToRemove: string[] = []
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i)
+              if (key && (
+                key.startsWith('sb-') ||
+                key.includes('supabase') ||
+                key === 'seedor-auth'
+              )) {
+                keysToRemove.push(key)
+              }
+            }
+
+            keysToRemove.forEach(key => {
+              localStorage.removeItem(key)
+            })
+
+            const sessionKeysToRemove: string[] = []
+            for (let i = 0; i < sessionStorage.length; i++) {
+              const key = sessionStorage.key(i)
+              if (key && (
+                key.startsWith('sb-') ||
+                key.includes('supabase')
+              )) {
+                sessionKeysToRemove.push(key)
+              }
+            }
+
+            sessionKeysToRemove.forEach(key => {
+              sessionStorage.removeItem(key)
+            })
           }
+
+          console.log('SessionCleanup: Corrupted session cleaned successfully')
+        }
+      } catch (error) {
+        console.error('SessionCleanup: Error during cleanup:', error)
+
+        // Force clear on error
+        try {
+          tokenStorage.clearTokens()
+          sessionManager.clearCurrentTabSession()
+        } catch {
+          // Ignore cleanup errors
         }
       }
     }
@@ -84,5 +74,5 @@ export function SessionCleanup() {
     cleanupCorruptedSession()
   }, [])
 
-  return null 
+  return null
 }

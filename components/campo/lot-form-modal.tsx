@@ -7,7 +7,7 @@ import { Label } from "../ui/label"
 import { Textarea } from "../ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
-import { lotsApi } from "../../lib/api"
+import { lotsApiService } from "../../lib/campo"
 import type { Lot } from "../../lib/types"
 
 interface LotFormModalProps {
@@ -67,7 +67,7 @@ export function LotFormModal({ isOpen, onClose, onSubmit, farmId, lot }: LotForm
 
   const loadStatuses = async () => {
     try {
-      const data = await lotsApi.getLotStatuses()
+      const data = await lotsApiService.getLotStatuses()
       if (data && data.length > 0) {
         setStatuses(data)
       } else {

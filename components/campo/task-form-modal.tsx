@@ -12,7 +12,7 @@ import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "../../lib/utils"
-import { tasksApi } from "../../lib/api"
+import { tasksApiService } from "../../lib/campo"
 import { workersService, Worker } from "../../lib/workers"
 import type { Task, TaskType } from "../../lib/types"
 
@@ -85,7 +85,7 @@ export function TaskFormModal({ isOpen, onClose, onSubmit, farmId, lotId, tenant
 
   const loadTaskTypes = async () => {
     try {
-      const data = await tasksApi.getTaskTypes()
+      const data = await tasksApiService.getTaskTypes()
       if (data && data.length > 0) {
         setTaskTypes(data)
       } else {
