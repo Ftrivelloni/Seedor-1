@@ -4,12 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Check, Loader2, Eye, EyeOff, User, Mail, Phone, IdCard, Shield,
-  MapPin, Package, DollarSign
+  MapPin, Package, DollarSign, CreditCard
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { authService, validators } from "../lib/supabaseAuth";
 
 const inputStrong = "h-12 bg-white border-2 border-slate-200 shadow-sm placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#81C101]/30 focus-visible:border-[#81C101] transition-all duration-200";
@@ -120,6 +121,8 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
 
   const [saving, setSaving] = useState(false);
   const [savingMessage, setSavingMessage] = useState("Guardando...");
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [creatingCheckout, setCreatingCheckout] = useState(false);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -227,6 +230,53 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
     }));
   };
 
+  const handlePayment = async () => {
+    setCreatingCheckout(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/subscription/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tenantId: invitation.tenant_id,
+          planId: invitation.tenants?.plan === 'profesional' ? 'pro' : 'basic'
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        setError(result.error || 'Error al crear sesión de pago');
+        setCreatingCheckout(false);
+        return;
+      }
+
+      // Redirect to LemonSqueezy checkout
+      window.location.href = result.checkoutUrl;
+
+    } catch (err: any) {
+      setError(err.message || 'Error al procesar el pago');
+      setCreatingCheckout(false);
+    }
+  };
+
+  const skipPayment = () => {
+    console.log('⏭️ Skipping payment, proceeding to module selection');
+    setShowPaymentModal(false);
+    
+    if (onComplete) {
+      onComplete({
+        fullName,
+        phone,
+        documentId,
+        password
+      });
+    }
+  };
+
   const onSubmitUserInfo = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -269,20 +319,13 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
             }));
         }
 
-        if (onComplete) {
-            console.log('✅ Admin data prepared, calling onComplete');
-            onComplete({
-                fullName,
-                phone,
-                documentId,
-                password
-            });
-            return;
-        } else {
-            setCurrentStep('complete');
-        }
+        // Para admin, mostrar modal de pago en lugar de llamar onComplete directamente
+        setSaving(false);
+        setShowPaymentModal(true);
+        return;
         } else {
         console.log('🔄 Setting up module user profile (without creating worker)...');
+        setSavingMessage("Creando tu cuenta...");
         setSavingMessage("Creando tu cuenta...");
 
         const { success, error: acceptError } = await authService.acceptInvitationWithSetup({
@@ -392,7 +435,8 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
   const Icon = roleConfig.icon;
 
   return (
-    <Card className="mx-auto w-full max-w-lg rounded-3xl border-2 border-slate-200 bg-white shadow-2xl">
+    <>
+      <Card className="mx-auto w-full max-w-lg rounded-3xl border-2 border-slate-200 bg-white shadow-2xl">
       <CardHeader className="text-center pb-6">
         <div className="mx-auto mb-4 grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-[#81C101] to-[#9ED604] shadow-lg">
           <Icon className="size-8 text-white" />
@@ -524,11 +568,98 @@ export default function UserSetupForm({ userType = 'module-user', onComplete }: 
                 <Loader2 className="mr-2 size-4 animate-spin" /> Guardando...
               </>
             ) : (
-              userType === 'admin' ? "Continuar configuración" : "Crear cuenta y continuar"
+              <>
+                <CreditCard className="mr-2 size-4" />
+                {userType === 'admin' ? "Continuar con el pago" : "Crear cuenta y continuar"}
+              </>
             )}
           </Button>
         </form>
       </CardContent>
     </Card>
+
+    {userType === 'admin' && (
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onProceedToPayment={handlePayment}
+        onSkipPayment={skipPayment}
+        plan={invitation?.tenants?.plan || 'basico'}
+        tenantName={invitation?.tenants?.name || ''}
+        creatingCheckout={creatingCheckout}
+      />
+    )}
+  </>
+  );
+}
+
+function PaymentModal({ 
+  isOpen, 
+  onClose, 
+  onProceedToPayment, 
+  onSkipPayment, 
+  plan, 
+  tenantName,
+  creatingCheckout 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onProceedToPayment: () => void; 
+  onSkipPayment: () => void; 
+  plan: string; 
+  tenantName: string;
+  creatingCheckout: boolean;
+}) {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <div className="mx-auto mb-4 grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-[#81C101] to-[#9ED604] shadow-lg">
+            <CreditCard className="size-8 text-white" />
+          </div>
+          <DialogTitle className="text-2xl font-bold text-center">Suscripción al plan</DialogTitle>
+          <DialogDescription className="text-center">
+            Para activar tu cuenta de <strong className="text-[#81C101]">{tenantName}</strong>, completá el pago de tu suscripción
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="rounded-xl border-2 border-[#81C101]/20 bg-[#81C101]/5 p-6 text-center my-4">
+          <p className="text-sm text-slate-600 mb-2">Plan seleccionado</p>
+          <p className="text-3xl font-bold text-[#81C101] capitalize">{plan}</p>
+        </div>
+
+        <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-4">
+          <p className="text-sm text-blue-800">
+            💳 Serás redirigido a la plataforma de pago segura de LemonSqueezy para completar tu suscripción.
+          </p>
+        </div>
+
+        <DialogFooter className="flex-col gap-2 sm:flex-col">
+          <Button 
+            onClick={onProceedToPayment}
+            disabled={creatingCheckout}
+            className="w-full h-12 bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+          >
+            {creatingCheckout ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" /> Procesando...
+              </>
+            ) : (
+              <>
+                <CreditCard className="mr-2 size-4" /> Ir a pagar
+              </>
+            )}
+          </Button>
+          <Button 
+            variant="ghost"
+            onClick={onSkipPayment}
+            disabled={creatingCheckout}
+            className="w-full text-sm text-slate-500 hover:text-slate-700"
+          >
+            Continuar sin pagar (pagar después)
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

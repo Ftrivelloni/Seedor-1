@@ -21,33 +21,18 @@ export async function POST(request: NextRequest) {
     // 1. Create tenant
     const limits = plan === 'basico' ? { maxUsers: 10, maxFields: 5 } : { maxUsers: 30, maxFields: 20 }
 
-    // created_by must be NOT NULL in the DB. Prefer a configured system user id.
-    let systemUserId = process.env.SUPABASE_SERVICE_USER_ID || null
+    // Get system user ID - MUST be configured
+    const systemUserId = process.env.SUPABASE_SERVICE_USER_ID
 
     if (!systemUserId) {
-      // Attempt to create a lightweight service user via admin API to use as created_by
-      try {
-        const svcEmail = `seedor-system-${Date.now()}@local.invalid`
-        const svcPassword = Math.random().toString(36).slice(2) + Date.now().toString(36)
-        const { data: svcData, error: svcError } = await supabaseAdmin.auth.admin.createUser({
-          email: svcEmail,
-          password: svcPassword,
-          email_confirm: true,
-          user_metadata: { system: true }
-        })
-
-        if (svcError || !svcData.user) {
-          console.error('Failed to create system user fallback:', svcError)
-          return NextResponse.json({ success: false, error: 'Server misconfigured: missing SUPABASE_SERVICE_USER_ID and unable to create service user' }, { status: 500 })
-        }
-
-        systemUserId = svcData.user.id
-        console.log('[create-invite] Created fallback service user', systemUserId)
-      } catch (err) {
-        console.error('Error creating fallback service user', err)
-        return NextResponse.json({ success: false, error: 'Server misconfigured: missing SUPABASE_SERVICE_USER_ID' }, { status: 500 })
-      }
+      console.error('[create-invite] SUPABASE_SERVICE_USER_ID not configured')
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Server misconfigured: SUPABASE_SERVICE_USER_ID is required. Run: npm run setup:system-user' 
+      }, { status: 500 })
     }
+
+    console.log('[create-invite] Using system user:', systemUserId)
 
     const { data: tenant, error: tenantError } = await supabaseAdmin
       .from('tenants')

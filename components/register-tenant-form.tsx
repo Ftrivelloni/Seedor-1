@@ -247,7 +247,7 @@ const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, 
 export default function RegisterTenantForm() {
     const router = useRouter();
 
-    const [currentStep, setCurrentStep] = useState<'form' | 'verification' | 'admin-invite' | 'complete'>('form');
+    const [currentStep, setCurrentStep] = useState<'form' | 'verification' | 'admin-invite' | 'success' | 'complete'>('form');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -451,7 +451,6 @@ export default function RegisterTenantForm() {
         allErrors.companyName = validateField('companyName', companyName);
         allErrors.contactName = validateField('contactName', contactName);
         allErrors.contactEmail = validateField('contactEmail', contactEmail);
-
         allErrors.ownerPhone = validateField('ownerPhone', ownerPhone);
 
         const filteredErrors = Object.fromEntries(
@@ -494,27 +493,19 @@ export default function RegisterTenantForm() {
                 return;
             }
 
-            // 2. Create Tenant (Free or Paid - we create it first)
-            // Note: For paid plans, we'll redirect to checkout after creation
-            // The webhook will then update the subscription status
-
-            // We need a temporary password for the admin user since they haven't set one yet
-            // In a real flow, we might want to send an invite email instead
-            const tempPassword = Math.random().toString(36).slice(-8) + "Aa1!";
-
+            // 2. Create Tenant + Send Invitation (NEW FLOW)
             const createPayload = {
                 tenantName: companyName,
                 slug: generateSlug(companyName),
-                plan: selectedPlan === 'basico' ? 'basic' : (selectedPlan === 'profesional' ? 'pro' : selectedPlan), // Map to new plan IDs
-                contactEmail,
-                adminFullName: contactName,
-                adminEmail: contactEmail,
-                adminPassword: tempPassword,
-                adminPhone: ownerPhone,
+                plan: selectedPlan, // 'basico' or 'profesional'
+                contactName: contactName,
+                contactEmail: contactEmail,
+                ownerPhone: ownerPhone || null,
             };
 
-            // Use the correct API path directly
-            const createRes = await fetch('/api/tenant/create', {
+            console.log('[register] Creating tenant with invitation...', createPayload);
+
+            const createRes = await fetch('/api/tenant/create-invite', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(createPayload)
@@ -528,43 +519,12 @@ export default function RegisterTenantForm() {
                 return;
             }
 
-            const tenantId = createJson.tenant.id;
+            console.log('[register] Tenant created successfully, invitation sent');
 
-            // 3. If Paid Plan, Redirect to Checkout
-            if (selectedPlan !== 'free') { // Assuming 'free' exists, otherwise always checkout for paid plans
-                const checkoutRes = await fetch('/api/subscription/checkout', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        tenantId,
-                        planId: selectedPlan === 'basico' ? 'basic' : (selectedPlan === 'profesional' ? 'pro' : selectedPlan)
-                    })
-                });
-
-                const checkoutJson = await checkoutRes.json();
-
-                if (!checkoutRes.ok) {
-                    setError(checkoutJson.error || 'Error creando checkout de pago');
-                    setLoading(false);
-                    // Optional: Delete tenant if checkout fails? Or let them retry?
-                    return;
-                }
-
-                // Redirect to LemonSqueezy
-                window.location.href = checkoutJson.checkoutUrl;
-                return;
-            }
-
-            // 4. If Free Plan (or if we had one), go to success/invite step
-            // For now, we assume all plans in the selector are paid or require checkout flow
-            // If you have a free plan that doesn't need checkout, handle it here.
-
-            // Since we are using LemonSqueezy for all plans in the list (Basic/Pro), 
-            // we should have redirected. If we are here, something is odd or it's a free plan.
-
-            // If we implemented a free plan logic:
-            setTenantData(createJson);
-            setCurrentStep('admin-invite'); // Or 'success'
+            // 3. Show success message - user needs to check email
+            setTenantData(createJson.data);
+            setCurrentStep('success');
+            setLoading(false);
 
         } catch (err: any) {
             setError(err.message || "Error inesperado");
@@ -701,6 +661,64 @@ export default function RegisterTenantForm() {
         setRegistrationData(null);
         setTenantData(null);
     }, []);
+
+    // Success step - show after sending invitation
+    if (currentStep === 'success') {
+        return (
+            <Card className="mx-auto w-full max-w-md rounded-3xl border-2 border-slate-200 bg-white shadow-2xl">
+                <CardHeader className="text-center pb-6">
+                    <div className="mx-auto mb-4 grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-[#81C101] to-[#9ED604] shadow-lg">
+                        <Check className="size-8 text-white" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold text-slate-800">¡Invitación enviada!</CardTitle>
+                    <CardDescription className="text-slate-600 mt-2">
+                        Revisá tu correo electrónico
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="rounded-xl border-2 border-[#81C101]/20 bg-[#81C101]/5 p-4">
+                        <p className="text-sm text-slate-700 flex items-start gap-2">
+                            <Mail className="size-5 flex-shrink-0 text-[#81C101] mt-0.5" />
+                            <span>
+                                Enviamos un correo a <strong className="text-[#81C101]">{contactEmail}</strong> con un link de confirmación.
+                            </span>
+                        </p>
+                    </div>
+
+                    <div className="space-y-2 text-sm text-slate-600">
+                        <p className="font-semibold text-slate-700">Próximos pasos:</p>
+                        <ol className="list-decimal list-inside space-y-1 pl-2">
+                            <li>Hacé click en el link del correo</li>
+                            <li>Configurá tu contraseña</li>
+                            <li>Completá el pago de tu plan</li>
+                            <li>¡Empezá a usar Seedor!</li>
+                        </ol>
+                    </div>
+
+                    <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-4">
+                        <p className="text-xs text-blue-700">
+                            <strong>Nota:</strong> Si no ves el correo en unos minutos, revisá tu carpeta de spam.
+                        </p>
+                    </div>
+                </CardContent>
+                <CardFooter className="flex flex-col gap-3">
+                    <Button
+                        onClick={() => window.location.href = '/login'}
+                        className="w-full h-12 bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+                    >
+                        Ir al Login
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => setCurrentStep('form')}
+                        className="w-full border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                    >
+                        Volver al formulario
+                    </Button>
+                </CardFooter>
+            </Card>
+        );
+    }
 
     if (currentStep === 'verification') {
         return (
@@ -1096,10 +1114,13 @@ export default function RegisterTenantForm() {
                             >
                                 {loading ? (
                                     <>
-                                        <Loader2 className="mr-2 size-5 animate-spin" /> Enviando código...
+                                        <Loader2 className="mr-2 size-5 animate-spin" /> Enviando invitación...
                                     </>
                                 ) : (
-                                    "Crear empresa"
+                                    <>
+                                        <Mail className="mr-2 size-5" />
+                                        Enviar Invitación
+                                    </>
                                 )}
                             </Button>
 

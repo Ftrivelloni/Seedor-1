@@ -7,6 +7,7 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
+    "setup:system-user": "node scripts/create-system-user.js",
     "test": "npx playwright test",
     "test:random": "powershell .\\run-random-tests.ps1",
     "test:empaque": "powershell .\\run-empaque-tests.ps1",

@@ -258,6 +258,8 @@ export default function AdminSetupForm() {
   }, [token]);
 
   const handleWorkerInfoComplete = (workerData: any) => {
+    console.log('✅ AdminSetupForm: handleWorkerInfoComplete called with data:', workerData);
+    console.log('✅ AdminSetupForm: User skipped payment or completed it, going to modules');
     setAdminData(workerData);
     setCurrentStep('modules');
   };
@@ -270,12 +272,55 @@ export default function AdminSetupForm() {
     );
   };
 
-  const onSubmitModules = () => {
+  const onSubmitModules = async () => {
+    console.log('✅ AdminSetupForm: onSubmitModules called, selected modules:', selectedModules);
+    setError(null);
+    
+    // Si no hay módulos seleccionados, finalizar y aceptar invitación
     if (selectedModules.length === 0) {
-      setError("Seleccioná al menos un módulo");
+      console.log('⚡ AdminSetupForm: No modules selected, finishing setup directly');
+      
+      try {
+        // Finalizar aceptando la invitación de admin
+        if (typeof window !== 'undefined') {
+          const authData = sessionStorage.getItem('admin_auth_data');
+          if (authData && adminData) {
+            const data = JSON.parse(authData);
+
+            const completeUserData = {
+              fullName: adminData.fullName || data.fullName,
+              phone: adminData.phone || data.phone,
+              documentId: adminData.documentId || adminData.document_id,
+              password: data.password
+            };
+
+            const { success, error: acceptError } = await authService.acceptInvitationWithSetup({
+              token,
+              userData: completeUserData
+            });
+
+            if (!success) {
+              setError(acceptError || "Error al finalizar la configuración de administrador");
+              return;
+            }
+
+            sessionStorage.removeItem('admin_auth_data');
+          }
+        }
+
+        // Cerrar sesión para evitar inconsistencias
+        await authService.logout();
+        
+        // Redirigir a login
+        router.push("/login");
+      } catch (err: any) {
+        setError(err.message || "Error al finalizar configuración");
+      }
       return;
     }
-    setError(null);
+    
+    // Si hay módulos seleccionados, ir a invitar usuarios
+    console.log('✅ AdminSetupForm: Changing currentStep from modules to invite-users');
     setCurrentStep('invite-users');
   };
 
@@ -499,6 +544,7 @@ export default function AdminSetupForm() {
   }
 
   if (currentStep === 'worker-info') {
+    console.log('🎨 AdminSetupForm: Rendering worker-info step (UserSetupForm)');
     return (
       <UserSetupForm 
         userType="admin" 
@@ -508,6 +554,7 @@ export default function AdminSetupForm() {
   }
 
   if (currentStep === 'modules') {
+    console.log('🎨 AdminSetupForm: Rendering modules step');
     return (
       <Card className="mx-auto w-full max-w-2xl rounded-3xl border-2 border-slate-200 bg-white shadow-2xl">
         <CardHeader className="text-center pb-6">
@@ -516,7 +563,7 @@ export default function AdminSetupForm() {
           </div>
           <CardTitle className="text-2xl font-bold text-slate-800">Seleccioná los módulos</CardTitle>
           <CardDescription className="text-slate-600 mt-2">
-            Elegí qué módulos querés activar para tu plan <strong className="text-[#81C101]">{tenantPlan}</strong>
+            Elegí qué módulos querés activar para tu plan <strong className="text-[#81C101]">{tenantPlan}</strong> (opcional)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -571,7 +618,7 @@ export default function AdminSetupForm() {
             <Button 
               variant="outline" 
               onClick={() => setCurrentStep('worker-info')}
-              className="flex-1 h-12 border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200"
+              className="flex-1 h-12 border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800 hover:text-slate-800 transition-all duration-200"
             >
               Volver
             </Button>
@@ -579,7 +626,7 @@ export default function AdminSetupForm() {
               onClick={onSubmitModules}
               className="flex-1 h-12 bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
             >
-              Continuar
+              {selectedModules.length > 0 ? 'Continuar' : 'Continuar sin módulos'}
             </Button>
           </div>
         </CardContent>
@@ -666,8 +713,18 @@ export default function AdminSetupForm() {
                   <Loader2 className="mr-2 size-4 animate-spin" /> Finalizando...
                 </>
               ) : (
-                "Finalizar configuración"
+                "Enviar invitaciones y finalizar"
               )}
+            </Button>
+          </div>
+          <div className="mt-4 text-center">
+            <Button 
+              variant="ghost"
+              onClick={onFinishSetup}
+              disabled={invitingUsers}
+              className="text-sm text-slate-500 hover:text-slate-700"
+            >
+              Omitir invitaciones y finalizar
             </Button>
           </div>
         </CardContent>
