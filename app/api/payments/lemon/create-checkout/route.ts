@@ -132,10 +132,31 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    if (!checkoutData || !checkoutData.data) {
-      console.error('[create-checkout] Failed to create checkout:', checkoutData);
+    // Log the full response for debugging
+    console.log('[create-checkout] Raw checkoutData:', JSON.stringify(checkoutData, null, 2));
+
+    // Check if we got an error response
+    if (!checkoutData || checkoutData.error) {
+      console.error('[create-checkout] Lemon Squeezy API error:', checkoutData?.error);
       return NextResponse.json(
-        { success: false, error: 'Error al crear checkout en LemonSqueezy' },
+        { 
+          success: false, 
+          error: checkoutData?.error?.message || 'Error al crear checkout en LemonSqueezy',
+          details: checkoutData?.error 
+        },
+        { status: 500 }
+      );
+    }
+
+    // Validate response structure
+    if (!checkoutData.data || !checkoutData.data.attributes) {
+      console.error('[create-checkout] Invalid response structure:', checkoutData);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Respuesta inválida de LemonSqueezy',
+          details: process.env.NODE_ENV === 'development' ? checkoutData : undefined
+        },
         { status: 500 }
       );
     }
