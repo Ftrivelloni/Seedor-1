@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, Mail, Loader2, AlertCircle } from "lucide-react";
+import { Check, Mail, Loader2, AlertCircle, XCircle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -12,33 +12,127 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+type ProcessingStatus = 'loading' | 'processing' | 'success' | 'error' | 'already_processed';
+
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
+  const [status, setStatus] = useState<ProcessingStatus>('loading');
   const [email, setEmail] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [tenantName, setTenantName] = useState<string | null>(null);
 
   useEffect(() => {
-    // Get email from URL params if provided
-    const emailParam = searchParams.get("email");
-    if (emailParam) {
-      setEmail(emailParam);
-    }
+    const processCheckout = async () => {
+      // Get email from URL params (LemonSqueezy might pass it) or from localStorage
+      let userEmail = searchParams.get("email");
 
-    // Simulate checking for tenant creation (in production, this would be real)
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 2000);
+      // Try to get from localStorage if not in URL
+      if (!userEmail) {
+        const storedEmail = localStorage.getItem('seedor_checkout_email');
+        if (storedEmail) {
+          userEmail = storedEmail;
+        }
+      }
 
+      if (!userEmail) {
+        // No email - show generic success message
+        setStatus('success');
+        return;
+      }
+
+      setEmail(userEmail);
+      setStatus('processing');
+
+      try {
+        const response = await fetch('/api/payments/lemon/process-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          setTenantName(data.tenantName);
+          setStatus(data.alreadyProcessed ? 'already_processed' : 'success');
+          // Clear stored email
+          localStorage.removeItem('seedor_checkout_email');
+        } else {
+          setErrorMessage(data.error || 'Error procesando el pago');
+          setStatus('error');
+        }
+      } catch (error: any) {
+        console.error('Error processing checkout:', error);
+        setErrorMessage(error.message || 'Error de conexión');
+        setStatus('error');
+      }
+    };
+
+    // Wait a moment for any LemonSqueezy redirects to settle
+    const timer = setTimeout(processCheckout, 1000);
     return () => clearTimeout(timer);
   }, [searchParams]);
 
-  if (loading) {
+  if (status === 'loading' || status === 'processing') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
         <Card className="w-full max-w-md rounded-3xl border-2 border-slate-200 bg-white shadow-2xl">
           <CardContent className="pt-12 pb-12 text-center">
             <Loader2 className="size-12 mx-auto mb-4 text-[#81C101] animate-spin" />
-            <p className="text-slate-600">Procesando tu pago...</p>
+            <p className="text-slate-600">
+              {status === 'loading' ? 'Cargando...' : 'Procesando tu pago y creando tu cuenta...'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+        <Card className="w-full max-w-md rounded-3xl border-2 border-slate-200 bg-white shadow-2xl">
+          <CardHeader className="text-center pb-6">
+            <div className="mx-auto mb-4 grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-red-500 to-red-600 shadow-lg">
+              <XCircle className="size-8 text-white" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-slate-800">
+              Hubo un problema
+            </CardTitle>
+            <CardDescription className="text-slate-600 mt-2">
+              {errorMessage || 'No pudimos procesar tu pago'}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            <div className="rounded-xl border-2 border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="size-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-700">
+                  <p className="font-semibold mb-1">No te preocupes</p>
+                  <p>
+                    Si tu pago fue procesado correctamente, tu cuenta se creará
+                    automáticamente en unos minutos. Revisá tu email.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 pt-4">
+              <Button
+                onClick={() => window.location.href = '/register-tenant'}
+                className="w-full h-12 bg-gradient-to-r from-[#81C101] to-[#9ED604] hover:from-[#73AC01] hover:to-[#8BC34A] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                Volver a intentar
+              </Button>
+              <Button
+                onClick={() => window.location.href = '/'}
+                variant="outline"
+                className="w-full border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200"
+              >
+                Volver al inicio
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -56,7 +150,9 @@ export default function PaymentSuccessPage() {
             ¡Pago exitoso!
           </CardTitle>
           <CardDescription className="text-slate-600 mt-2">
-            Tu pago se procesó correctamente
+            {tenantName
+              ? `Tu empresa "${tenantName}" fue creada correctamente`
+              : 'Tu pago se procesó correctamente'}
           </CardDescription>
         </CardHeader>
 
@@ -98,7 +194,7 @@ export default function PaymentSuccessPage() {
                 <span className="flex-shrink-0 size-6 rounded-full bg-[#81C101] text-white flex items-center justify-center text-xs font-bold">
                   3
                 </span>
-                <span>Completá la configuración de tu cuenta de administrador</span>
+                <span>Configurá tu contraseña</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="flex-shrink-0 size-6 rounded-full bg-[#81C101] text-white flex items-center justify-center text-xs font-bold">
