@@ -516,22 +516,26 @@ export default function RegisterTenantForm() {
                     return;
                 }
 
-                // 2) Email does NOT exist -> create tenant and send invite to admin
-                const createRes = await fetch('/api/tenant/create-invite', {
+                // 2) Email does NOT exist -> create checkout in LemonSqueezy
+                const checkoutRes = await fetch('/api/payments/lemon/create-checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
-                const createJson = await createRes.json();
+                const checkoutJson = await checkoutRes.json();
 
-                if (!createRes.ok) {
-                    setError(createJson.error || 'Error creando la empresa');
+                if (!checkoutRes.ok) {
+                    setError(checkoutJson.error || 'Error creando checkout de pago');
                     return;
                 }
 
-                // Redirect to confirmation page
-                router.push(`/register-tenant/sent?email=${encodeURIComponent(contactEmail)}`);
+                // Redirect to LemonSqueezy checkout page
+                if (checkoutJson.checkoutUrl) {
+                    window.location.href = checkoutJson.checkoutUrl;
+                } else {
+                    setError('No se pudo generar la URL de pago');
+                }
 
             } catch (err: any) {
                 setError(err.message || "Error inesperado");
