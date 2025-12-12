@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createCheckout } from '@lemonsqueezy/lemonsqueezy.js';
-import { LEMON_CONFIG, getVariantId, CHECKOUT_CONFIG, type PlanName, type FrontendPlanName } from '@/lib/lemonsqueezy';
+import { LEMON_CONFIG, getVariantId, CHECKOUT_CONFIG, configureLemonSqueezy, type PlanName, type FrontendPlanName } from '@/lib/lemonsqueezy';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -29,6 +29,9 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Ensure Lemon Squeezy is configured
+    configureLemonSqueezy();
+
     const body = await request.json();
     const { tenantName, slug, plan, contactName, contactEmail, ownerPhone } = body;
 
@@ -78,43 +81,56 @@ export async function POST(request: NextRequest) {
     }
 
     // Get variant ID for the selected plan
-    const variantId = getVariantId(plan);
+    const variantIdString = getVariantId(plan);
+    const variantId = parseInt(variantIdString, 10);
+    const storeId = parseInt(LEMON_CONFIG.storeId, 10);
 
     console.log('[create-checkout] Creating checkout for:', {
       email: contactEmail,
       plan,
       variantId,
+      storeId,
       testMode: LEMON_CONFIG.testMode,
     });
 
     // Create checkout in LemonSqueezy
-    const checkoutData = await createCheckout(LEMON_CONFIG.storeId, variantId, {
-      checkoutOptions: CHECKOUT_CONFIG.checkoutOptions,
-      checkoutData: {
-        email: contactEmail.toLowerCase(),
-        name: contactName,
-        custom: {
-          tenant_name: tenantName,
-          tenant_slug: slug,
-          contact_name: contactName,
-          contact_email: contactEmail.toLowerCase(),
-          owner_phone: ownerPhone || '',
-          plan: plan,
+    const checkoutData = await createCheckout(
+      storeId,
+      variantId,
+      {
+        checkoutOptions: {
+          embed: false,
+          media: true,
+          logo: true,
+          desc: true,
+          discount: true,
         },
-      },
-      expiresAt: new Date(Date.now() + CHECKOUT_CONFIG.expiresInMs).toISOString(),
-      productOptions: {
-        name: plan === 'basico' ? 'Plan Básico' : 'Plan Profesional',
-        description: plan === 'basico'
-          ? 'Perfecto para campos pequeños - Hasta 10 usuarios'
-          : 'Para operaciones más grandes - Hasta 30 usuarios',
-        redirectUrl: CHECKOUT_CONFIG.successUrl,
-        receiptButtonText: 'Ir al Panel',
-        receiptThankYouNote: '¡Gracias por elegir Seedor! Recibirás un email con instrucciones para acceder.',
-        enabledVariants: [variantId],
-      },
-      testMode: LEMON_CONFIG.testMode,
-    });
+        checkoutData: {
+          email: contactEmail.toLowerCase(),
+          name: contactName,
+          custom: {
+            tenant_name: tenantName,
+            tenant_slug: slug,
+            contact_name: contactName,
+            contact_email: contactEmail.toLowerCase(),
+            owner_phone: ownerPhone || '',
+            plan: plan,
+          },
+        },
+        expiresAt: new Date(Date.now() + CHECKOUT_CONFIG.expiresInMs).toISOString(),
+        productOptions: {
+          name: plan === 'basico' ? 'Plan Básico' : 'Plan Profesional',
+          description: plan === 'basico'
+            ? 'Perfecto para campos pequeños - Hasta 10 usuarios'
+            : 'Para operaciones más grandes - Hasta 30 usuarios',
+          redirectUrl: CHECKOUT_CONFIG.successUrl,
+          receiptButtonText: 'Ir al Panel',
+          receiptThankYouNote: '¡Gracias por elegir Seedor! Recibirás un email con instrucciones para acceder.',
+          enabledVariants: [variantId],
+        },
+        testMode: LEMON_CONFIG.testMode,
+      }
+    );
 
     if (!checkoutData || !checkoutData.data) {
       console.error('[create-checkout] Failed to create checkout:', checkoutData);

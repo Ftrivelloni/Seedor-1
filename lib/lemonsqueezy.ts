@@ -13,10 +13,30 @@ const requiredEnvVars = [
   'LEMONSQUEEZY_STORE_ID',
   'LEMONSQUEEZY_VARIANT_BASIC_ID',
   'LEMONSQUEEZY_VARIANT_PRO_ID',
-  'LEMONSQUEEZY_VARIANT_ENTERPRISE_ID',
+  // Note: LEMONSQUEEZY_VARIANT_ENTERPRISE_ID is optional
   'LEMONSQUEEZY_WEBHOOK_SECRET',
 ] as const;
 
+/**
+ * Ensures that required environment variables are set and sets up the Lemon
+ * Squeezy JS SDK. Throws an error if any environment variables are missing or
+ * if there's an error setting up the SDK.
+ */
+export function configureLemonSqueezy() {
+  const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
+
+  if (missingVars.length > 0) {
+    throw new Error(
+      `Missing required LEMONSQUEEZY env variables: ${missingVars.join(
+        ', '
+      )}. Please, set them in your .env file.`
+    );
+  }
+
+  lemonSqueezySetup({ apiKey: process.env.LEMONSQUEEZY_API_KEY! });
+}
+
+// Auto-configure on module load
 for (const envVar of requiredEnvVars) {
   if (!process.env[envVar]) {
     console.error(`Missing required environment variable: ${envVar}`);
@@ -40,7 +60,7 @@ export const LEMON_CONFIG = {
   variants: {
     basic: process.env.LEMONSQUEEZY_VARIANT_BASIC_ID!,
     pro: process.env.LEMONSQUEEZY_VARIANT_PRO_ID!,
-    enterprise: process.env.LEMONSQUEEZY_VARIANT_ENTERPRISE_ID!,
+    enterprise: process.env.LEMONSQUEEZY_VARIANT_ENTERPRISE_ID || process.env.LEMONSQUEEZY_VARIANT_PRO_ID!, // Fallback to PRO if enterprise not configured
   },
   webhookSecret: process.env.LEMONSQUEEZY_WEBHOOK_SECRET!,
   testMode: process.env.LEMONSQUEEZY_TEST_MODE === 'true',
