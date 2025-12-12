@@ -113,8 +113,8 @@ export async function POST(request: NextRequest) {
             tenant_slug: slug,
             contact_name: contactName,
             contact_email: contactEmail.toLowerCase(),
-            owner_phone: ownerPhone || '',
             plan: plan,
+            ...(ownerPhone ? { owner_phone: ownerPhone } : {}),
           },
         },
         expiresAt: new Date(Date.now() + CHECKOUT_CONFIG.expiresInMs).toISOString(),
@@ -139,21 +139,25 @@ export async function POST(request: NextRequest) {
     if (!checkoutData || checkoutData.error) {
       console.error('[create-checkout] Lemon Squeezy API error:', checkoutData?.error);
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: checkoutData?.error?.message || 'Error al crear checkout en LemonSqueezy',
-          details: checkoutData?.error 
+          details: checkoutData?.error
         },
         { status: 500 }
       );
     }
 
-    // Validate response structure
-    if (!checkoutData.data || !checkoutData.data.attributes) {
+    // Validate response structure - SDK returns { statusCode, data: { data: { attributes } }, error }
+    // Note: There's double nesting - checkoutData.data.data.attributes
+    const outerData = checkoutData.data as any;
+    const innerData = outerData?.data;
+
+    if (!innerData || !innerData.attributes) {
       console.error('[create-checkout] Invalid response structure:', checkoutData);
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: 'Respuesta inválida de LemonSqueezy',
           details: process.env.NODE_ENV === 'development' ? checkoutData : undefined
         },
@@ -161,8 +165,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const checkoutUrl = checkoutData.data.attributes.url;
-    const checkoutId = checkoutData.data.id;
+    const checkoutUrl = innerData.attributes.url;
+    const checkoutId = innerData.id;
 
     console.log('[create-checkout] Checkout created:', {
       checkoutId,
