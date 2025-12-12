@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Check, Loader2, Eye, EyeOff, Mail, UserPlus, Users, MapPin, Package, DollarSign, CheckCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, Loader2, Mail, UserPlus, Users, MapPin, Package, DollarSign, CheckCircle } from "lucide-react";
 import {
     Card,
     CardContent,
@@ -13,8 +14,17 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
-import { authService, validators, sanitizeInput } from "../lib/supabaseAuth";
-import { useRouter } from "next/navigation";
+import { authService } from "../lib/auth";
+
+// Validators
+const validators = {
+  email: (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim().toLowerCase()),
+  phone: (phone: string): boolean => !phone || /^[\+]?[0-9\s\-\(\)]{8,20}$/.test(phone.trim()),
+  text: (text: string, minLen = 1, maxLen = 255): boolean => {
+    const trimmed = text.trim();
+    return trimmed.length >= minLen && trimmed.length <= maxLen;
+  },
+};
 
 const FORM_DATA_KEY = "seedor.tenant.registration";
 const PENDING_VERIFICATION_KEY = "seedor.tenant.verification";
@@ -556,31 +566,34 @@ export default function RegisterTenantForm() {
         setVerifyingCode(true);
 
         try {
-            const { success, error: verifyError } = await authService.verifyOwnerCode(
-                registrationData.contactEmail,
-                verificationCode.trim()
+            // Verify OTP code
+            const verifyResult = await authService.verifyOwnerCode({
+                email: registrationData.contactEmail,
+                code: verificationCode.trim()
+            });
+
+            console.log('📧 Verification result:', verifyResult);
+
+            // Create tenant with owner
+            console.log('🏢 Creating tenant with owner...');
+            const createResult = await authService.createTenantWithOwner(
+                {
+                    tenantName: registrationData.tenantName,
+                    slug: registrationData.slug,
+                    plan: registrationData.plan,
+                    contactName: registrationData.contactName,
+                    contactEmail: registrationData.contactEmail,
+                    ownerPhone: registrationData.ownerPhone,
+                },
+                verifyResult.userId
             );
 
-            console.log('📧 Verification result:', { success, verifyError });
-
-            if (!success || verifyError) {
-                setError(verifyError || "Código inválido. Verificá y volvé a intentar.");
-                return;
-            }
-
-            console.log('🏢 Creating tenant with owner...');
-            const { success: createSuccess, error: createError, data } = await authService.createTenantWithOwner(registrationData);
-
-            console.log('🏢 Creation result:', { createSuccess, createError, data });
-
-            if (!createSuccess || createError) {
-                setError(createError || "Error al crear la empresa. Intentá de nuevo.");
-                return;
-            }
+            console.log('🏢 Creation result:', createResult);
 
             if (typeof window !== "undefined") {
                 const dataWithTimestamp = {
-                    ...data,
+                    ...createResult,
+                    user: { id: verifyResult.userId },
                     timestamp: new Date().toISOString()
                 };
                 localStorage.removeItem(PENDING_VERIFICATION_KEY);
@@ -588,12 +601,13 @@ export default function RegisterTenantForm() {
             }
 
             console.log('✅ Tenant created successfully, moving to admin invite step');
-            setTenantData(data);
+            setTenantData({ ...createResult, user: { id: verifyResult.userId } });
             setCurrentStep('admin-invite');
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('❌ Error in verification process:', err);
-            setError(err.message || "Error durante la verificación. Intentá de nuevo.");
+            const errorMessage = err instanceof Error ? err.message : "Error durante la verificación. Intentá de nuevo.";
+            setError(errorMessage);
         } finally {
             console.log('🔄 Verification process finished');
             setVerifyingCode(false);
@@ -617,16 +631,11 @@ export default function RegisterTenantForm() {
         setInvitingAdmin(true);
 
         try {
-            const { success, error: inviteError } = await authService.inviteAdmin(
-                tenantData.tenant.id,
-                adminEmail,
-                tenantData.user.id
-            );
-
-            if (!success || inviteError) {
-                setError(inviteError || "Error al enviar invitación.");
-                return;
-            }
+            await authService.inviteUser({
+                tenantId: tenantData.tenant.id,
+                email: adminEmail,
+                roleCode: 'admin',
+            });
 
             if (typeof window !== "undefined") {
                 localStorage.removeItem(TENANT_CREATED_KEY);
@@ -634,12 +643,13 @@ export default function RegisterTenantForm() {
 
             setCurrentStep('complete');
 
-        } catch (err: any) {
-            setError(err.message || "Error inesperado.");
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : "Error inesperado.";
+            setError(errorMessage);
         } finally {
             setInvitingAdmin(false);
         }
-    }, [adminEmail, tenantData, registrationData]);
+    }, [adminEmail, tenantData]);
 
     const clearAllData = useCallback(() => {
         if (typeof window !== "undefined") {
@@ -789,17 +799,14 @@ export default function RegisterTenantForm() {
                             setError(null);
                             setVerificationCode("");
                             try {
-                                const { success, error: resendError } = await authService.sendOwnerVerificationCode(registrationData?.contactEmail);
-                                if (!success) {
-                                    setError(resendError || "Error al reenviar código");
-                                } else {
-                                    // Mostrar mensaje de éxito temporal
-                                    const originalError = error;
-                                    setError("✅ Código reenviado correctamente");
-                                    setTimeout(() => setError(originalError), 3000);
-                                }
-                            } catch (err: any) {
-                                setError(err.message || "Error al reenviar código");
+                                await authService.sendOwnerVerificationCode({ email: registrationData?.contactEmail });
+                                // Mostrar mensaje de éxito temporal
+                                const originalError = error;
+                                setError("✅ Código reenviado correctamente");
+                                setTimeout(() => setError(originalError), 3000);
+                            } catch (err: unknown) {
+                                const errorMessage = err instanceof Error ? err.message : "Error al reenviar código";
+                                setError(errorMessage);
                             }
                         }}
                         disabled={loading || verifyingCode}

@@ -2073,13 +2073,13 @@ export const inventoryApi = {
       ).length || 0
 
       // Último movimiento
-      const { data: lastMovement, error: movementError } = await supabase
+      const { data: lastMovement } = await supabase
         .from('inventory_movements')
         .select('date')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
 
       // No consideramos error si no hay movimientos
       const lastMovementDate = lastMovement?.date

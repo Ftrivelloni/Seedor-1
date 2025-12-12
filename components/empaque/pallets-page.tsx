@@ -1,14 +1,13 @@
 // components/empaque/pallets-page.tsx
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import PalletsFormModal from "./pallets-form-modal"
 import { useAuth } from "../../hooks/use-auth"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
-import { isDemoModeClient } from "../../lib/demo/utils"
-import { demoEmpaquePallets } from "../../lib/demo/store"
-import { supabase } from "../../lib/supabaseClient"
+import { palletsApiService, type PalletRow } from "../../lib/empaque/empaque-service"
+
 type Pallet = {
     id: string
     codigo: string
@@ -51,26 +50,26 @@ function EstadoBadge({ estado }: { estado: Pallet["estado"] }) {
 }
 
 
-function normalizeRow(row: any): Pallet {
+function normalizeRow(row: PalletRow): Pallet {
     const id = String(row.id ?? `${row.num_pallet ?? "np"}-${row.fecha ?? "s/fecha"}`)
     return {
         id,
-        codigo: String(row.num_pallet ?? row.codigo ?? id),
-        fechaCreacion: row.fecha ?? row.fechaCreacion ?? null,
-        tipoFruta: row.producto ?? row.tipoFruta ?? "",
-        cantidadCajas: row.cant_cajas ?? row.cantidadCajas ?? null,
-        pesoTotal: row.kilos ?? row.pesoTotal ?? row.peso ?? null,
-        loteOrigen: row.lote_origen ?? row.loteOrigen ?? null,
+        codigo: String(row.num_pallet ?? id),
+        fechaCreacion: row.fecha ?? null,
+        tipoFruta: row.producto ?? "",
+        cantidadCajas: row.cant_cajas ?? null,
+        pesoTotal: row.kilos ?? row.peso ?? null,
+        loteOrigen: row.lote_origen ?? null,
         ubicacion: row.ubicacion ?? null,
         estado: row.estado ?? "armado",
         destino: row.destino ?? null,
-        temperaturaAlmacen: row.temperatura ?? row.temperaturaAlmacen ?? null,
-        fechaVencimiento: row.vencimiento ?? row.fechaVencimiento ?? null,
+        temperaturaAlmacen: row.temperatura ?? null,
+        fechaVencimiento: row.vencimiento ?? null,
     }
 }
 
 export function PalletsPage() {
-    const [raw, setRaw] = useState<any[]>([])
+    const [raw, setRaw] = useState<PalletRow[]>([])
     const [pallets, setPallets] = useState<Pallet[]>([])
     const [filtered, setFiltered] = useState<Pallet[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -84,43 +83,40 @@ export function PalletsPage() {
 
     const [modalOpen, setModalOpen] = useState(false)
     const router = useRouter()
-    
-    const { user: currentUser } = useAuth({});
-    const isDemo = isDemoModeClient();
 
-    const fetchPallets = async (tenantId: string) => {
+    const { user: currentUser } = useAuth({});
+
+    // Estabilizar tenantId
+    const tenantId = useMemo(() => currentUser?.tenantId, [currentUser?.tenantId])
+
+    const fetchPallets = useCallback(async () => {
         if (!tenantId) {
             console.error('No se encontró ID del tenant');
+            setIsLoading(false);
             return;
         }
-        setIsLoading(true)
-        if (isDemo) {
-            const data = demoEmpaquePallets(tenantId)
-            setRaw(data)
-            setPallets(data.map(normalizeRow))
-            setIsLoading(false)
-            return
-        }
-        const { data, error } = await supabase
-            .from("pallets")
-            .select("*")
-            .eq("tenant_id", tenantId)
-        setIsLoading(false)
-        if (error) {
+
+        try {
+            setIsLoading(true)
+            const data = await palletsApiService.getPallets(tenantId)
+            setRaw(data || [])
+            setPallets((data || []).map(normalizeRow))
+        } catch (error) {
             console.error("Error al cargar pallets:", error)
             setRaw([])
             setPallets([])
-            return
+        } finally {
+            setIsLoading(false)
         }
-        setRaw(data || [])
-        setPallets((data || []).map(normalizeRow))
-    }
+    }, [tenantId])
 
     useEffect(() => {
-        if (currentUser?.tenantId) {
-            fetchPallets(currentUser.tenantId);
+        if (tenantId) {
+            fetchPallets();
+        } else {
+            setIsLoading(false);
         }
-    }, [currentUser?.tenantId, isDemo])
+    }, [tenantId, fetchPallets])
 
     useEffect(() => {
         let list = [...pallets]
@@ -236,8 +232,8 @@ export function PalletsPage() {
                     <PalletsFormModal
                         open={modalOpen}
                         onClose={() => setModalOpen(false)}
-                        onCreated={() => { if (currentUser?.tenantId) fetchPallets(currentUser.tenantId) }}
-                        tenantId={currentUser?.tenantId || ''}
+                        onCreated={fetchPallets}
+                        tenantId={tenantId || ''}
                     />
                 </div>
             </div>

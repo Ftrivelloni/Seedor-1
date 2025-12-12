@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '../../lib/supabaseClient'
-import { authService, validators } from '../../lib/supabaseAuth'
+import { authService, validators, tokenStorage } from '../../lib/auth'
+import type { AuthUser } from '../../lib/auth/types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Input } from '../ui/input'
 import { Button } from '../ui/button'
@@ -13,7 +13,7 @@ import { Loader2, Eye, EyeOff, CheckCircle } from 'lucide-react'
 export default function SetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  
+
   const [loading, setLoading] = useState(true)
   const [setting, setSetting] = useState(false)
   const [password, setPassword] = useState('')
@@ -22,35 +22,79 @@ export default function SetPasswordForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [sessionUser, setSessionUser] = useState<any>(null)
+  const [sessionUser, setSessionUser] = useState<AuthUser | null>(null)
 
   useEffect(() => {
     const checkSession = async () => {
       try {
         console.log('🔍 Checking session for set-password...')
-        
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (error) {
 
-          setError('Error al verificar sesión. Por favor, usa el link de invitación nuevamente.')
-          setLoading(false)
-          return
+        // First, check if we already have a valid token in our storage
+        if (tokenStorage.hasValidToken()) {
+          try {
+            const user = await authService.getMe()
+            setSessionUser(user)
+            setLoading(false)
+            return
+          } catch {
+            // Token invalid, continue to check other sources
+          }
         }
 
-        if (!session?.user) {
+        // Check if tokens are in URL hash (from Supabase magic link redirect)
+        // Format: #access_token=...&refresh_token=...&type=magiclink
+        if (typeof window !== 'undefined' && window.location.hash) {
+          console.log('🔍 Found URL hash, extracting tokens...')
+          const hashParams = new URLSearchParams(window.location.hash.substring(1))
+          const accessToken = hashParams.get('access_token')
+          const refreshToken = hashParams.get('refresh_token')
 
+          if (accessToken) {
+            console.log('✅ Found access_token in URL hash')
+
+            // Validate token through our API
+            const result = await authService.validateTokenFromHash(accessToken, refreshToken || undefined)
+
+            if (result.success) {
+              console.log('✅ Token validated and stored')
+              // Clear hash from URL for cleaner look
+              window.history.replaceState(null, '', window.location.pathname + window.location.search)
+
+              try {
+                const user = await authService.getMe()
+                setSessionUser(user)
+                setLoading(false)
+                return
+              } catch {
+                // Continue to error handling
+              }
+            }
+          }
+        }
+
+        // Fallback: try to validate from localStorage (legacy Supabase storage)
+        console.log('🔧 No token in hash, trying localStorage...')
+        const result = await authService.validateAndTransferSupabaseToken()
+
+        if (!result.success) {
           setError('No hay una sesión válida. Por favor, usa el link de invitación enviado a tu email.')
           setLoading(false)
           return
         }
 
+        console.log('✅ Supabase session token validated and stored')
 
-        setSessionUser(session.user)
-        setLoading(false)
+        // Now try to get user from API
+        try {
+          const user = await authService.getMe()
+          setSessionUser(user)
+          setLoading(false)
+        } catch {
+          setError('Error al verificar sesión. Por favor, usa el link de invitación nuevamente.')
+          setLoading(false)
+        }
 
-      } catch (err: any) {
-
+      } catch {
         setError('Error inesperado al verificar sesión.')
         setLoading(false)
       }
@@ -76,19 +120,8 @@ export default function SetPasswordForm() {
     setSetting(true)
 
     try {
-
-
-      // Actualizar contraseña usando la sesión activa
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: password
-      })
-
-      if (updateError) {
-
-        setError('Error al establecer contraseña: ' + updateError.message)
-        return
-      }
-
+      // Actualizar contraseña usando el API
+      await authService.setPassword(password)
 
       setSuccess(true)
 
@@ -97,20 +130,13 @@ export default function SetPasswordForm() {
         if (token) {
           router.push(`/accept-invitacion?token=${token}&from=set-password`)
         } else {
-          // Si no hay token, probablemente el usuario vino del email de Supabase
-          // Buscar token en localStorage o sessionStorage (guardado por Supabase)
-          const supabaseData = sessionStorage.getItem('sb-') || localStorage.getItem('sb-')
-          if (supabaseData) {
-            router.push('/login?message=password-set')
-          } else {
-            router.push('/login')
-          }
+          router.push('/login?message=password-set')
         }
       }, 2000)
 
-    } catch (err: any) {
-
-      setError(err.message || 'Error inesperado')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error inesperado'
+      setError(message)
     } finally {
       setSetting(false)
     }

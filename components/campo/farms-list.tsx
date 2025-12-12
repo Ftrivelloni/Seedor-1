@@ -5,9 +5,8 @@ import { useRouter } from "next/navigation"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import { Badge } from "../ui/badge"
-import { farmsApi } from "../../lib/api"
-import type { Farm } from "../../lib/types"
-import type { AuthUser } from "../../lib/types"
+import { farmsApiService } from "../../lib/campo"
+import type { Farm, AuthUser } from "../../lib/types"
 import { Plus, MapPin, Maximize2, Sprout, Edit, Trash2 } from "lucide-react"
 import { FarmFormModal } from "./farm-form-modal"
 import { toast } from "../../hooks/use-toast"
@@ -45,7 +44,7 @@ export function FarmsList({ user }: FarmsListProps) {
 
     try {
       setIsLoading(true)
-      const data = await farmsApi.getFarms(user.tenantId)
+      const data = await farmsApiService.getFarms(user.tenantId)
       setFarms(data)
     } catch (error: any) {
       console.error("Error al cargar campos:", error)
@@ -75,7 +74,7 @@ export function FarmsList({ user }: FarmsListProps) {
     }
     
     try {
-      const result = await farmsApi.createFarm(user.tenantId, user.id, farmData)
+      await farmsApiService.createFarm(user.tenantId || '', user.id, farmData)
       toast({
         title: "Campo creado",
         description: "El campo se ha creado exitosamente"
@@ -96,7 +95,7 @@ export function FarmsList({ user }: FarmsListProps) {
     if (!editingFarm) return
     
     try {
-      await farmsApi.updateFarm(editingFarm.id, farmData)
+      await farmsApiService.updateFarm(editingFarm.id, farmData)
       toast({
         title: "Campo actualizado",
         description: "El campo se ha actualizado exitosamente"
@@ -118,7 +117,7 @@ export function FarmsList({ user }: FarmsListProps) {
     if (!confirm("¿Estás seguro de eliminar este campo? Esta acción no se puede deshacer.")) return
     
     try {
-      await farmsApi.deleteFarm(farmId)
+      await farmsApiService.deleteFarm(farmId)
       toast({
         title: "Campo eliminado",
         description: "El campo se ha eliminado exitosamente"

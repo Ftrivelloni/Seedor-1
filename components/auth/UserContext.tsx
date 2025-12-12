@@ -1,7 +1,12 @@
 "use client"
 import { createContext, useContext, useEffect, useState, ReactNode } from "react"
-import { authService } from "../../lib/supabaseAuth"
-import { getSessionManager } from "../../lib/sessionManager"
+import { authService, sessionManager } from "../../lib/auth"
+
+/**
+ * @deprecated Use AuthContext from lib/auth instead
+ * This file is kept for backwards compatibility only.
+ * Now uses API-based auth instead of direct Supabase calls.
+ */
 
 export const UserContext = createContext<any>(null)
 
@@ -13,75 +18,30 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const loadUser = async () => {
       setLoading(true)
       try {
-
-        
-        const sessionManager = getSessionManager()
-        
         // Primero intentar obtener de la sesión de la pestaña (sin actualizar actividad)
         let sessionUser = sessionManager.peekCurrentUser()
-        
+
         if (!sessionUser) {
           // Si no hay sesión de pestaña, verificar con getSafeSession
-          const { user } = await authService.getSafeSession()
+          const { user } = await authService.getSafeSessionLegacy()
           sessionUser = user
         }
-        
+
         // Session loaded successfully
         setUser(sessionUser)
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('UserContext: Error loading user session:', error)
         setUser(null)
       } finally {
         setLoading(false)
       }
     }
-    
+
     loadUser()
-
-    const setupAuthListener = async () => {
-      try {
-        const { supabase } = await import("../../lib/supabaseClient")
-        
-        if (supabase?.auth?.onAuthStateChange) {
-          const { data: authListener } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
-
-            
-            // Simplificar el manejo - no usar flags que puedan causar bloqueos
-            try {
-              if (event === 'SIGNED_OUT') {
-
-                setUser(null)
-                // Limpiar también el SessionManager
-                const sessionManager = getSessionManager()
-                sessionManager.clearCurrentTabSession()
-              } else if (event === 'SIGNED_IN' && session?.user) {
-
-                // No actualizar aquí para evitar conflictos
-                // El login flow ya maneja esto a través del SessionManager
-              } else if (event === 'TOKEN_REFRESHED') {
-
-                // El SessionManager maneja la validación de tokens
-              }
-            } catch (error) {
-              console.error('Error handling auth state change:', error)
-            }
-          })
-
-          return () => {
-            authListener?.subscription?.unsubscribe()
-          }
-        }
-      } catch (error) {
-        console.error('Error setting up auth listener:', error)
-      }
-    }
-
-    setupAuthListener()
 
     // Listen for session updates dispatched by SessionManager (same tab) and storage events (cross-tab)
     const handleSessionUpdate = () => {
       try {
-        const sessionManager = getSessionManager()
         const latest = sessionManager.peekCurrentUser()
         setUser(latest)
       } catch (e) {
@@ -89,18 +49,29 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Handle logout events by checking token validity
+    const handleStorageChange = (e: StorageEvent) => {
+      // If seedor tokens were cleared (logout in another tab), clear user
+      if (e.key === 'seedor_access_token' && e.newValue === null) {
+        setUser(null)
+        sessionManager.clearCurrentTabSession()
+        return
+      }
+      // For other storage changes, just update user from session
+      handleSessionUpdate()
+    }
+
     window.addEventListener('seedor:session-updated', handleSessionUpdate)
-    window.addEventListener('storage', handleSessionUpdate)
+    window.addEventListener('storage', handleStorageChange)
 
     return () => {
       window.removeEventListener('seedor:session-updated', handleSessionUpdate)
-      window.removeEventListener('storage', handleSessionUpdate)
+      window.removeEventListener('storage', handleStorageChange)
     }
   }, [])
 
   const setSelectedTenant = (tenant: any, role?: string) => {
     try {
-      const sessionManager = getSessionManager()
       const updated = {
         ...user,
         tenant,

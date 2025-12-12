@@ -20,8 +20,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { attendanceApi } from '@/lib/api'
-import { Worker, AttendanceStatus, AttendanceRecord } from '@/lib/types'
+import { workersService, Worker, AttendanceRecord } from '@/lib/workers'
 import { cn } from '@/lib/utils'
 
 interface DailyAttendanceProps {
@@ -84,7 +83,7 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
 
   const loadStatuses = async () => {
     try {
-      const data = await attendanceApi.getAttendanceStatuses()
+      const data = await workersService.getAttendanceStatuses()
       if (data && data.length > 0) {
         const normalized = data.map((s: any) => (typeof s === 'string' ? { code: s, name: s } : s))
         setStatuses(normalized)
@@ -97,12 +96,12 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
   const loadExistingRecord = async () => {
     try {
       const dateStr = format(date, 'yyyy-MM-dd')
-      const records = await attendanceApi.getAttendanceByDate(tenantId, dateStr)
+      const records = await workersService.getAttendanceByDate(tenantId, dateStr)
       const record = records.find(r => r.worker_id === selectedWorkerId)
-      
+
       if (record) {
         setExistingRecord(record)
-  setStatus(typeof record.status === 'string' ? record.status : (record.status as any).code)
+        setStatus(typeof record.status === 'string' ? record.status : (record.status as any).code)
         setReason(record.reason || '')
       } else {
         setExistingRecord(null)
@@ -154,16 +153,16 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
 
       if (existingRecord) {
         // Update existing record
-        await attendanceApi.updateAttendance(existingRecord.id, {
-          status,
+        await workersService.updateAttendance(existingRecord.id, {
+          status: status as any,
           reason: reason.trim() || undefined
         })
       } else {
         // Create new record
-        await attendanceApi.createAttendance(tenantId, {
-          worker_id: selectedWorkerId,
+        await workersService.createAttendance(tenantId, {
+          workerId: selectedWorkerId,
           date: dateStr,
-          status,
+          status: status as any,
           reason: reason.trim() || undefined
         })
       }

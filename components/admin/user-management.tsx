@@ -9,6 +9,7 @@ import { Badge } from '../ui/badge'
 import { Trash2, UserPlus, Edit3, Shield, User, Package, DollarSign, Sprout, Mail, Phone, IdCard, Calendar, CheckCircle, Clock, XCircle, AlertCircle, AlertTriangle, X } from 'lucide-react'
 import { Alert, AlertDescription } from '../ui/alert'
 import { toast } from '../../hooks/use-toast'
+import { tokenStorage } from '../../lib/auth/api-client'
 import type { AuthUser } from '../../lib/types'
 
 interface TenantUser {
@@ -96,17 +97,12 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
   const isAdmin = currentUser?.rol?.toLowerCase() === 'admin'
 
-  // Helper function to get session with retry mechanism
-  const getSessionWithRetry = async (retryCount = 0): Promise<any> => {
-    const { supabase } = await import('../../lib/supabaseClient')
-    let { data: { session } } = await supabase.auth.getSession()
-    
-    if (!session && retryCount < 3) {
-      await new Promise(resolve => setTimeout(resolve, 500))
-      return getSessionWithRetry(retryCount + 1)
+  // Helper function to get access token with validation
+  const getAccessToken = (): string | null => {
+    if (!tokenStorage.hasValidToken()) {
+      return null
     }
-    
-    return session
+    return tokenStorage.getAccessToken()
   }
 
   // Available roles based on plan
@@ -155,10 +151,10 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   const loadUsers = async () => {
     try {
       setLoading(true)
-      
-      const session = await getSessionWithRetry()
-      
-      if (!session) {
+
+      const accessToken = getAccessToken()
+
+      if (!accessToken) {
         toast({
           title: 'Error',
           description: 'No se encontró una sesión activa. Por favor, recarga la página.',
@@ -166,11 +162,11 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         })
         return
       }
-      
+
       const response = await fetch('/api/admin/users', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       })
@@ -212,9 +208,9 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
   const checkUserLimits = async () => {
     try {
-      const session = await getSessionWithRetry()
-      
-      if (!session) {
+      const accessToken = getAccessToken()
+
+      if (!accessToken) {
         setUserLimits({ current: users.length, max: 3 })
         setCanAddMoreUsers(users.length < 3)
         return
@@ -223,7 +219,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
       const response = await fetch(`/api/tenant/${currentUser.tenantId}/limits`, {
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       })
@@ -281,9 +277,9 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     setSubmitting(true)
     
     try {
-      const session = await getSessionWithRetry()
-      
-      if (!session) {
+      const accessToken = getAccessToken()
+
+      if (!accessToken) {
         toast({
           title: 'Error',
           description: 'No se encontró una sesión activa',
@@ -295,7 +291,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
       const response = await fetch('/api/admin/users/invite', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -361,9 +357,9 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     setIsDeleting(true)
 
     try {
-      const session = await getSessionWithRetry()
-      
-      if (!session) {
+      const accessToken = getAccessToken()
+
+      if (!accessToken) {
         toast({
           title: 'Error',
           description: 'No se encontró una sesión activa',
@@ -375,7 +371,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
       const response = await fetch(`/api/admin/users?id=${userToDelete.membership?.user_id || userToDelete.id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
         }
       })
 
@@ -420,9 +416,9 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
     setIsUpdating(true)
     try {
-      const session = await getSessionWithRetry()
-      
-      if (!session) {
+      const accessToken = getAccessToken()
+
+      if (!accessToken) {
         toast({
           title: 'Error',
           description: 'No se encontró una sesión activa',
@@ -434,7 +430,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
       const response = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({

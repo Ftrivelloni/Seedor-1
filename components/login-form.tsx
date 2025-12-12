@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
 import { Eye, EyeOff, Loader2, Mail, Lock } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -12,12 +11,11 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
-import { authService } from "../lib/supabaseAuth";
+import { authService } from "../lib/auth";
 
 export default function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/home";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,33 +39,22 @@ export default function LoginForm() {
 
     setLoading(true);
     try {
-      console.log('🔄 Starting login process...');
-      const { user, error: authError } = await authService.login(email, password);
-
-      if (authError) {
-        console.error('❌ Login error:', authError);
-        setError(authError);
-        return;
-      }
+      const { user } = await authService.login({ email, password });
 
       if (!user) {
-        console.error('❌ No user returned from login');
         setError("Usuario no encontrado o credenciales incorrectas");
         return;
       }
 
-      console.log('✅ Login successful, user:', user.email);
-
       // Dar un momento para que se establezca la sesión
       setTimeout(() => {
         const next = params.get("next") || "/home";
-        console.log('🔄 Redirecting to:', next);
         router.push(next);
       }, 300);
 
-    } catch (err: any) {
-      console.error('❌ Unexpected login error:', err);
-      setError(err.message || "Error inesperado");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Error inesperado";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

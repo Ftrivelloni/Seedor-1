@@ -6,7 +6,8 @@ import { Button } from "./ui/button"
 import { useAuth } from "../hooks/use-auth"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { farmsApi, workersApi, attendanceApi } from "../lib/api"
+import { farmsApi } from "../lib/api"
+import { workersService, Worker, AttendanceRecord } from "../lib/workers"
 import { Package, Cog, Archive, Truck, ArrowUpRight, Sprout, ChevronRight, Boxes, Banknote, Users, Wrench, Clock, TrendingDown, AlertTriangle } from "lucide-react"
 
 type Farm = {
@@ -19,9 +20,9 @@ export function DashboardStats() {
   const router = useRouter()
   const [farms, setFarms] = useState<Farm[]>([])
   const [loadingFarms, setLoadingFarms] = useState(false)
-  const [workers, setWorkers] = useState<import("../lib/types").Worker[]>([])
+  const [workers, setWorkers] = useState<Worker[]>([])
   const [loadingWorkers, setLoadingWorkers] = useState(false)
-  const [attendance, setAttendance] = useState<import("../lib/types").AttendanceRecord[]>([])
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [loadingAttendance, setLoadingAttendance] = useState(false)
   const [finanzasStats, setFinanzasStats] = useState({ ingresos: 0, egresos: 0, balance: 0 })
   const [loadingFinanzas, setLoadingFinanzas] = useState(false)
@@ -49,7 +50,7 @@ export function DashboardStats() {
       if (!user?.tenantId) return
       try {
         setLoadingWorkers(true)
-        const data = await workersApi.getWorkersByTenant(user.tenantId)
+        const data = await workersService.getWorkersByTenant(user.tenantId)
         setWorkers(Array.isArray(data) ? data : [])
       } catch (e) {
         setWorkers([])
@@ -73,7 +74,7 @@ export function DashboardStats() {
       try {
         setLoadingAttendance(true)
         const today = getLocalDate()
-        const data = await attendanceApi.getAttendanceByDate(user.tenantId, today)
+        const data = await workersService.getAttendanceByDate(user.tenantId, today)
         setAttendance(Array.isArray(data) ? data : [])
       } catch (e) {
         setAttendance([])

@@ -1,63 +1,52 @@
 "use client"
 import { useEffect } from 'react'
-import { authService } from '../../lib/supabaseAuth'
+import { authService } from '../../lib/auth'
 
 export function AuthErrorHandler({ children }: { children: React.ReactNode }) {
   useEffect(() => {
+    const clearAndRedirect = async () => {
+      try {
+        await authService.logout()
+      } catch {
+        // Ignore logout errors
+      }
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login'
+      }
+    }
+
+    const isAuthError = (error: unknown): boolean => {
+      if (!error) return false
+
+      const errorMessage = typeof error === 'string'
+        ? error
+        : (error as Error)?.message || ''
+
+      return (
+        errorMessage.includes('refresh_token_not_found') ||
+        errorMessage.includes('Invalid Refresh Token') ||
+        errorMessage.includes('AuthApiError') ||
+        errorMessage.includes('401') ||
+        errorMessage.includes('Unauthorized')
+      )
+    }
+
     const handleError = (event: ErrorEvent) => {
       const error = event.error || event.message
-      
-      if (error && typeof error === 'string' && (
-          error.includes('refresh_token_not_found') ||
-          error.includes('Invalid Refresh Token') ||
-          error.includes('AuthApiError'))) {
+
+      if (isAuthError(error)) {
         console.log('Global auth error detected, clearing session:', error)
-        
-        authService.clearCorruptedSession().then(() => {
-          console.log('Session cleared due to authentication error')
-          
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login'
-          }
-        }).catch((clearError: any) => {
-          console.error('Error clearing session:', clearError)
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login'
-          }
-        })
+        clearAndRedirect()
       }
     }
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       const error = event.reason
-      
-      if (error && (
-          (error.message && (
-            error.message.includes('refresh_token_not_found') ||
-            error.message.includes('Invalid Refresh Token') ||
-            error.message.includes('AuthApiError')
-          )) ||
-          (typeof error === 'string' && (
-            error.includes('refresh_token_not_found') ||
-            error.includes('Invalid Refresh Token') ||
-            error.includes('AuthApiError')
-          )))) {
+
+      if (isAuthError(error)) {
         console.log('Global unhandled auth promise rejection, clearing session:', error)
-        
         event.preventDefault()
-        
-        authService.clearCorruptedSession().then(() => {
-          console.log('Session cleared due to unhandled authentication error')
-          
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login'
-          }
-        }).catch((clearError: any) => {
-          console.error('Error clearing session:', clearError)
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login'
-          }
-        })
+        clearAndRedirect()
       }
     }
 

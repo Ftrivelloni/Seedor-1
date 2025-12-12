@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
-import { authService } from "../lib/supabaseAuth";
+import { authService, tokenStorage } from "../lib/auth";
 import UserSetupForm from "./user-setup-form";
 
 const inputStrong = "h-12 bg-white border-2 border-slate-200 shadow-sm placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#81C101]/30 focus-visible:border-[#81C101] transition-all duration-200";
@@ -67,11 +67,63 @@ export default function AdminSetupForm() {
     const loadInitialData = async () => {
       console.log('🚀 AdminSetupForm: Starting loadInitialData with token:', token ? 'present' : 'missing');
       console.log('🔧 AdminSetupForm: AuthService available:', typeof authService, 'getSafeSession:', typeof authService.getSafeSession, 'getInvitationByToken:', typeof authService.getInvitationByToken);
-      
+
       try {
+        // Check if tokens are in URL hash (from Supabase magic link redirect)
+        // Format: #access_token=...&refresh_token=...&type=magiclink
+        // Or error format: #error=access_denied&error_code=otp_expired&error_description=...
+        if (typeof window !== 'undefined' && window.location.hash) {
+          console.log('🔍 AdminSetupForm: Found URL hash, extracting tokens...');
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+
+          // Check for error in hash first
+          const hashError = hashParams.get('error');
+          const errorCode = hashParams.get('error_code');
+          const errorDescription = hashParams.get('error_description');
+
+          if (hashError) {
+            console.error('❌ AdminSetupForm: Error in URL hash:', { hashError, errorCode, errorDescription });
+            // Clear hash from URL
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+
+            if (errorCode === 'otp_expired') {
+              setError('El link de invitación ha expirado. Por favor, solicitá una nueva invitación.');
+              setLoading(false);
+              return;
+            }
+            // Continue to check other auth methods
+          }
+
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+
+          if (accessToken) {
+            console.log('✅ AdminSetupForm: Found access_token in URL hash');
+
+            // Validate token through our API
+            const result = await authService.validateTokenFromHash(accessToken, refreshToken || undefined);
+
+            if (result.success) {
+              console.log('✅ AdminSetupForm: Token validated and stored');
+              // Clear hash from URL for cleaner look
+              window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
+          }
+        }
+
+        // Primero verificar si tenemos token. Si no, intentar validar y transferir
+        // el token de Supabase (guardado por el magic link) a través de nuestra API
+        if (!tokenStorage.hasValidToken()) {
+          console.log('🔧 AdminSetupForm: No token in tokenStorage, trying to validate Supabase session via API...');
+          const result = await authService.validateAndTransferSupabaseToken();
+          if (result.success) {
+            console.log('✅ AdminSetupForm: Supabase session token validated and stored');
+          }
+        }
+
         console.log('🔧 AdminSetupForm: Checking if user is already authenticated...');
         // Primero verificar si el usuario ya está autenticado
-        const { user: currentUser } = await authService.getSafeSession();
+        const { user: currentUser } = await authService.getSafeSessionLegacy();
 
         console.log('🔧 AdminSetupForm: Session result:', {
           hasUser: !!currentUser,
@@ -101,7 +153,7 @@ export default function AdminSetupForm() {
             setInvitation(mockInvitation)
 
             console.log('🔧 AdminSetupForm: Getting tenant limits for:', mockInvitation.tenant_id)
-            const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(mockInvitation.tenant_id)
+            const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimitsLegacy(mockInvitation.tenant_id)
             console.log('🔧 AdminSetupForm: Tenant limits result:', { limitsSuccess, limitsData })
 
             if (limitsSuccess && limitsData) {
@@ -127,7 +179,7 @@ export default function AdminSetupForm() {
             setInvitation(mockInvitation)
 
             console.log('🔧 AdminSetupForm: Getting tenant limits for:', currentUser.tenantId)
-            const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(currentUser.tenantId)
+            const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimitsLegacy(currentUser.tenantId)
 
             console.log('🔧 AdminSetupForm: Tenant limits result:', { limitsSuccess, limitsData })
 
@@ -171,7 +223,7 @@ export default function AdminSetupForm() {
                       setAdminData(user);
                     }
 
-                    const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(tenant.id);
+                    const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimitsLegacy(tenant.id);
                     if (limitsSuccess && limitsData) {
                       setTenantPlan(limitsData.plan);
                       const available = Object.keys(AVAILABLE_MODULES).filter(moduleId =>
@@ -210,14 +262,14 @@ export default function AdminSetupForm() {
 
         // Si no está autenticado, buscar la invitación por token (flujo original)
         console.log('🔍 AdminSetupForm: Getting invitation by token...');
-        const { success, data, error: inviteError } = await authService.getInvitationByToken(token);
+        const { success, data, error: inviteError } = await authService.getInvitationByTokenLegacy(token);
         console.log('📋 AdminSetupForm: Token invitation result:', { success, hasData: !!data, error: inviteError });
         
         if (!success || !data) {
           console.log('❌ AdminSetupForm: No invitation found for token');
           
           // Verificar si es un error de invitación más nueva
-          if (data?.errorType === 'NEWER_INVITATION_EXISTS') {
+          if ((data as any)?.errorType === 'NEWER_INVITATION_EXISTS') {
             setError(inviteError || "Esta invitación ha sido reemplazada por una más reciente");
           } else {
             setError(inviteError || "Invitación no encontrada");
@@ -231,7 +283,7 @@ export default function AdminSetupForm() {
         setInvitation(data);
 
         console.log('🏢 AdminSetupForm: Getting tenant limits for tenant:', data.tenant_id);
-        const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimits(data.tenant_id);
+        const { success: limitsSuccess, data: limitsData } = await authService.getTenantLimitsLegacy(data.tenant_id);
         console.log('📊 AdminSetupForm: Tenant limits result:', { success: limitsSuccess, hasData: !!limitsData });
         
         if (limitsSuccess && limitsData) {

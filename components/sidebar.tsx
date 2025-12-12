@@ -109,14 +109,14 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
     filteredNavItems = navItems.filter((i) => i.module === 'ajustes')
   } else {
     filteredNavItems = navItems.filter((item) => {
-      if (!canAccessModule(item.module, user.rol)) {
+      if (!canAccessModule(item.module, user.rol || '')) {
         return false
       }
-      
-      if (item.adminOnly && user.rol.toLowerCase() !== 'admin') {
+
+      if (item.adminOnly && user.rol?.toLowerCase() !== 'admin') {
         return false
       }
-      
+
       return true
     })
   }

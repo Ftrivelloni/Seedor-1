@@ -6,7 +6,7 @@ import { Button } from "../ui/button"
 import { Card } from "../ui/card"
 import { Badge } from "../ui/badge"
 import { Plus, ArrowLeft, Grid3x3, List, Pencil, Trash2 } from "lucide-react"
-import { farmsApi, lotsApi } from "../../lib/api"
+import { farmsApiService, lotsApiService } from "../../lib/campo"
 import type { Farm, Lot, AuthUser } from "../../lib/types"
 import { LotFormModal, type LotFormData } from "./lot-form-modal"
 import { toast } from "../../hooks/use-toast"
@@ -33,8 +33,8 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
     try {
       setLoading(true)
       const [farmData, lotsData] = await Promise.all([
-        farmsApi.getFarmById(farmId),
-        lotsApi.getLotsByFarm(farmId)
+        farmsApiService.getFarmById(farmId),
+        lotsApiService.getLotsByFarm(farmId)
       ])
       setFarm(farmData)
       setLots(lotsData)
@@ -52,7 +52,7 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
 
   const handleCreateLot = async (data: LotFormData) => {
     try {
-      await lotsApi.createLot(user?.tenantId || "", {
+      await lotsApiService.createLot(user?.tenantId || "", {
         ...data,
         farm_id: farmId
       })
@@ -76,7 +76,7 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
     if (!selectedLot) return
 
     try {
-      await lotsApi.updateLot(selectedLot.id, data)
+      await lotsApiService.updateLot(selectedLot.id, data)
       toast({
         title: "Éxito",
         description: "Lote actualizado correctamente"
@@ -96,7 +96,7 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
     if (!confirm("¿Estás seguro de que quieres eliminar este lote?")) return
 
     try {
-      await lotsApi.deleteLot(lotId)
+      await lotsApiService.deleteLot(lotId)
       toast({
         title: "Éxito",
         description: "Lote eliminado correctamente"

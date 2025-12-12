@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Plus, X } from "lucide-react";
-import { isDemoModeClient } from "../../lib/demo/utils";
-import { demoEmpaqueCreatePallet } from "../../lib/demo/store";
+import { palletsApiService, type CreatePalletData } from "../../lib/empaque/empaque-service";
 
 interface Props {
     open: boolean;
@@ -49,7 +47,6 @@ export default function PalletsFormModal({ open, onClose, onCreated, tenantId }:
     const [form, setForm] = useState<FormState>(initialState);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const isDemo = isDemoModeClient();
 
     const inputStrong =
         "h-11 w-full bg-white border border-gray-300/90 rounded-lg shadow-sm placeholder:text-gray-400 " +
@@ -106,44 +103,35 @@ export default function PalletsFormModal({ open, onClose, onCreated, tenantId }:
         if (!validateAll()) return;
 
         setLoading(true);
-        const toInt = (v: string) => (Number.isNaN(Number(v)) ? 0 : parseInt(v, 10));
-        const toFloat = (v: string) => (Number.isNaN(Number(v)) ? 0 : Number(v));
+        const toInt = (v: string) => (Number.isNaN(Number(v)) ? undefined : parseInt(v, 10));
+        const toFloat = (v: string) => (Number.isNaN(Number(v)) ? undefined : Number(v));
 
-        const payload = {
-            tenant_id: tenantId,
+        // Convert to camelCase for API
+        const payload: CreatePalletData = {
             semana: toInt(form.semana),
-            fecha: form.fecha ? new Date(form.fecha).toISOString() : null,
-            num_pallet: toInt(form.num_pallet),
-            producto: form.producto,
-            productor: form.productor,
-            categoria: form.categoria,
-            cod_envase: form.cod_envase,
-            destino: form.destino || null,
+            fecha: form.fecha || undefined,
+            numPallet: form.num_pallet || undefined,
+            producto: form.producto || undefined,
+            productor: form.productor || undefined,
+            categoria: form.categoria || undefined,
+            codEnvase: form.cod_envase || undefined,
+            destino: form.destino || undefined,
             kilos: toFloat(form.kilos),
-            cant_cajas: toInt(form.cant_cajas),
+            cantCajas: toInt(form.cant_cajas),
             peso: toFloat(form.peso),
         };
 
-        if (isDemo) {
-            demoEmpaqueCreatePallet({ ...payload, tenantId });
-            setLoading(false);
+        try {
+            await palletsApiService.createPallet(tenantId, payload);
             onCreated();
             onClose();
             setForm(initialState);
-            return;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+            alert("Error al guardar: " + errorMessage);
+        } finally {
+            setLoading(false);
         }
-
-        const { error } = await supabase.from("pallets").insert([payload]);
-        setLoading(false);
-
-        if (error) {
-            alert("Error al guardar: " + error.message);
-            return;
-        }
-
-        onCreated();
-        onClose();
-        setForm(initialState);
     };
 
     return (

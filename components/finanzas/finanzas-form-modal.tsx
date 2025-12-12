@@ -15,9 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog"
-import type { MovimientoCaja } from "../../lib/types"
 import { useEffect } from "react"
-import { finanzasApi } from "../../lib/api"
+import {
+  finanzasApiService,
+  type MovimientoCaja,
+} from "../../lib/finanzas/finanzas-service"
 
 interface FinanzasFormModalProps {
   isOpen: boolean
@@ -49,21 +51,29 @@ export function FinanzasFormModal({ isOpen, onClose, onSubmit, tenantId }: Finan
     const loadCategorias = async () => {
       if (!tenantId) return
       try {
-        const data = await finanzasApi.getCategorias(tenantId)
+        // Cargar solo las categorías del tipo seleccionado (ingreso o egreso)
+        const data = await finanzasApiService.categories.listCategories(tenantId, formData.tipo)
         setCategorias(data.map((c) => ({ id: c.id, name: c.name })))
       } catch (e) {
         console.error('Error cargando categorías:', e)
       }
     }
     if (isOpen) loadCategorias()
-  }, [tenantId, isOpen])
+  }, [tenantId, isOpen, formData.tipo])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validar que categoría esté seleccionada
+    if (!formData.categoria) {
+      alert('Por favor selecciona una categoría')
+      return
+    }
+    
     setIsLoading(true)
 
     try {
-      await onSubmit({
+      const movimiento: Omit<MovimientoCaja, "id"> = {
         tenantId,
         fecha: formData.fecha,
         tipo: formData.tipo,
@@ -71,7 +81,8 @@ export function FinanzasFormModal({ isOpen, onClose, onSubmit, tenantId }: Finan
         concepto: formData.concepto,
         categoria: formData.categoria,
         comprobante: formData.comprobante || undefined,
-      })
+      }
+      await onSubmit(movimiento)
       onClose()
       setFormData({
         fecha: new Date().toISOString().split("T")[0],
@@ -144,19 +155,36 @@ export function FinanzasFormModal({ isOpen, onClose, onSubmit, tenantId }: Finan
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="categoria">Categoría</Label>
-              <Select value={formData.categoria} onValueChange={(value) => handleChange("categoria", value)}>
-                <SelectTrigger>
+              <Label htmlFor="categoria">
+                Categoría <span className="text-red-500">*</span>
+              </Label>
+              <Select 
+                value={formData.categoria} 
+                onValueChange={(value) => handleChange("categoria", value)}
+                required
+              >
+                <SelectTrigger className={!formData.categoria ? "border-red-300" : ""}>
                   <SelectValue placeholder="Seleccionar categoría" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categorias.map((categoria) => (
-                    <SelectItem key={categoria.id} value={categoria.name}>
-                      {categoria.name}
-                    </SelectItem>
-                  ))}
+                  {categorias.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground text-center">
+                      No hay categorías. Ve a Categorías para crear una.
+                    </div>
+                  ) : (
+                    categorias.map((categoria) => (
+                      <SelectItem key={categoria.id} value={categoria.id}>
+                        {categoria.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {categorias.length === 0 && (
+                <p className="text-xs text-amber-600">
+                  Debes crear al menos una categoría antes de registrar un movimiento
+                </p>
+              )}
             </div>
           </div>
 
@@ -185,7 +213,10 @@ export function FinanzasFormModal({ isOpen, onClose, onSubmit, tenantId }: Finan
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              disabled={isLoading || categorias.length === 0 || !formData.categoria}
+            >
               {isLoading ? "Guardando..." : "Crear Movimiento"}
             </Button>
           </DialogFooter>

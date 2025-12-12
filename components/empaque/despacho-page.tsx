@@ -1,14 +1,12 @@
 // components/empaque/despacho-page.tsx
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import DespachoFormModal from "./despacho-form-modal"
 import { exportToExcel as exportDataToExcel } from "../../lib/utils/excel-export"
 import { useAuth } from "../../hooks/use-auth"
-import { isDemoModeClient } from "../../lib/demo/utils"
-import { demoEmpaqueDespachos } from "../../lib/demo/store"
-import { supabase } from "../../lib/supabaseClient"
+import { despachoApiService, type DespachoRow } from "../../lib/empaque/empaque-service"
 
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -27,8 +25,8 @@ import {
 } from "lucide-react"
 
 export function DespachoPage() {
-    const [despachos, setDespachos] = useState<any[]>([])
-    const [filtered, setFiltered] = useState<any[]>([])
+    const [despachos, setDespachos] = useState<DespachoRow[]>([])
+    const [filtered, setFiltered] = useState<DespachoRow[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
     const [searchTerm, setSearchTerm] = useState("")
@@ -39,36 +37,38 @@ export function DespachoPage() {
 
     const [modalOpen, setModalOpen] = useState(false)
     const router = useRouter()
-    
+
     const { user } = useAuth({});
-    const isDemo = isDemoModeClient();
 
-    useEffect(() => {
-        if (user?.tenantId) {
-            loadDespachos();
-        }
-    }, [user?.tenantId, isDemo]);
+    // Estabilizar tenantId
+    const tenantId = useMemo(() => user?.tenantId, [user?.tenantId])
 
-    const loadDespachos = async () => {
-        if (!user?.tenantId) {
+    const loadDespachos = useCallback(async () => {
+        if (!tenantId) {
             console.error('No se encontró ID del tenant');
+            setIsLoading(false);
             return;
         }
-        
-        setIsLoading(true)
-        if (isDemo) {
-            const data = demoEmpaqueDespachos(user.tenantId)
-            setDespachos(data)
+
+        try {
+            setIsLoading(true)
+            const data = await despachoApiService.getDespachos(tenantId)
+            setDespachos(data || [])
+        } catch (error) {
+            console.error('Error cargando despachos:', error)
+            setDespachos([])
+        } finally {
             setIsLoading(false)
-            return
         }
-        const { data, error } = await supabase
-            .from("despacho")
-            .select("*")
-            .eq("tenant_id", user.tenantId)
-        setIsLoading(false)
-        setDespachos(error ? [] : (data || []))
-    }
+    }, [tenantId])
+
+    useEffect(() => {
+        if (tenantId) {
+            loadDespachos();
+        } else {
+            setIsLoading(false);
+        }
+    }, [tenantId, loadDespachos])
 
     useEffect(() => {
         let list = [...despachos]
@@ -171,7 +171,7 @@ export function DespachoPage() {
                         open={modalOpen}
                         onClose={() => setModalOpen(false)}
                         onCreated={loadDespachos}
-                        tenantId={user?.tenantId || ''}
+                        tenantId={tenantId || ''}
                     />
                 </div>
             </div>
