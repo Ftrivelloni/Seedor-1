@@ -65,6 +65,7 @@ export type WebhookEventType = typeof WEBHOOK_EVENTS[keyof typeof WEBHOOK_EVENTS
 export interface WebhookPayload {
   meta: {
     event_name: WebhookEventType;
+    webhook_id?: string; // Unique per delivery, use for idempotency
     custom_data?: Record<string, any>;
     [key: string]: any;
   };
@@ -115,8 +116,8 @@ export function parseWebhookPayload(rawPayload: string): WebhookPayload {
  */
 export function extractCustomerEmail(payload: WebhookPayload): string | undefined {
   return payload.data?.attributes?.user_email ||
-         payload.data?.attributes?.customer_email ||
-         payload.meta?.custom_data?.email;
+    payload.data?.attributes?.customer_email ||
+    payload.meta?.custom_data?.email;
 }
 
 /**
@@ -129,6 +130,13 @@ export function extractSubscriptionId(payload: WebhookPayload): string | undefin
   // For subscription events, the ID is the subscription ID
   if (payload.data?.type === 'subscriptions') {
     return payload.data.id;
+  }
+
+  // For subscription-invoices (payment_success/payment_failed events)
+  // The subscription_id is in attributes, not in the data.id
+  if (payload.data?.type === 'subscription-invoices') {
+    const subscriptionId = payload.data.attributes?.subscription_id;
+    return subscriptionId ? subscriptionId.toString() : undefined;
   }
 
   // For order events, check relationships
@@ -169,6 +177,24 @@ export function extractVariantId(payload: WebhookPayload): string | undefined {
 
   // Check relationships
   return payload.data?.relationships?.variant?.data?.id;
+}
+
+/**
+ * Extract custom data from webhook payload meta
+ * This contains the data passed during checkout creation
+ *
+ * @param payload - The webhook payload
+ * @returns Custom data object or undefined
+ */
+export function extractCustomData(payload: WebhookPayload): {
+  plan?: string;
+  tenant_name?: string;
+  tenant_slug?: string;
+  contact_name?: string;
+  contact_email?: string;
+  [key: string]: any;
+} | undefined {
+  return payload.meta?.custom_data;
 }
 
 /**

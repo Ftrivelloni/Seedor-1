@@ -7,6 +7,7 @@ import {
   extractSubscriptionId,
   extractOrderId,
   extractVariantId,
+  extractCustomData,
   isEventProcessed,
   storeWebhookEvent,
   markEventProcessed,
@@ -17,12 +18,27 @@ import {
 import { getPlanFromVariantId } from '@/lib/lemonsqueezy';
 import { buildInvitationUrl } from '@/lib/utils/url';
 
+// Force Node.js runtime for crypto support
+export const runtime = 'nodejs';
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { autoRefreshToken: false, persistSession: false }
 });
+
+/**
+ * GET /api/payments/lemon/webhook
+ * Health check endpoint for verifying webhook is accessible
+ */
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    timestamp: new Date().toISOString(),
+    message: 'LemonSqueezy webhook endpoint is active',
+  });
+}
 
 /**
  * POST /api/payments/lemon/webhook
@@ -49,11 +65,16 @@ export async function POST(request: NextRequest) {
     // Parse payload
     const payload = parseWebhookPayload(rawBody);
     const eventType = payload.meta.event_name;
-    const eventId = `${eventType}_${payload.data.id}_${Date.now()}`;
+
+    // Use webhook_id for idempotency (unique per delivery)
+    // Fallback to eventType_dataId if webhook_id not present
+    const webhookId = payload.meta?.webhook_id;
+    const eventId = webhookId || `${eventType}_${payload.data.id}`;
 
     console.log('[webhook] Processing event:', {
       eventType,
       eventId,
+      webhookId: webhookId || 'not_present',
       dataId: payload.data.id,
     });
 
@@ -167,27 +188,84 @@ async function handleOrderCreated(payload: WebhookPayload, supabase: any) {
     plan,
   });
 
-  // Find checkout record
+  // Try to find checkout record first
   const { data: checkout, error: checkoutError } = await supabase
     .from('lemon_squeezy_checkouts')
     .select('*')
     .eq('contact_email', email.toLowerCase())
     .eq('completed', false)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .single();
 
-  if (checkoutError || !checkout) {
-    console.error('[webhook:order_created] Checkout not found:', email);
-    throw new Error('Checkout record not found for email: ' + email);
+  // Get custom_data from webhook payload as fallback
+  const customData = extractCustomData(payload);
+
+  // Determine tenant data source
+  let tenantData: {
+    tenant_name: string;
+    tenant_slug: string;
+    plan_name: string;
+    contact_name: string;
+    contact_email: string;
+  };
+
+  if (checkout) {
+    console.log('[webhook:order_created] Found checkout:', checkout.id);
+
+    // Check if tenant already exists for this checkout
+    if (checkout.tenant_id) {
+      console.log('[webhook:order_created] Tenant already created:', checkout.tenant_id);
+      return {
+        processed: true,
+        tenantId: checkout.tenant_id,
+        reason: 'tenant_already_exists',
+      };
+    }
+
+    tenantData = {
+      tenant_name: checkout.tenant_name,
+      tenant_slug: checkout.tenant_slug,
+      plan_name: checkout.plan_name,
+      contact_name: checkout.contact_name,
+      contact_email: checkout.contact_email,
+    };
+  } else if (customData && customData.tenant_name && customData.contact_email) {
+    // Use custom_data from webhook payload as fallback
+    console.log('[webhook:order_created] No checkout found, using custom_data from payload');
+    tenantData = {
+      tenant_name: customData.tenant_name,
+      tenant_slug: customData.tenant_slug || customData.tenant_name.toLowerCase().replace(/\s+/g, '-'),
+      plan_name: customData.plan || plan,
+      contact_name: customData.contact_name || customData.tenant_name,
+      contact_email: customData.contact_email || email,
+    };
+  } else {
+    console.error('[webhook:order_created] No checkout or custom_data found:', email);
+    throw new Error('Checkout record not found and no custom_data available for email: ' + email);
   }
 
-  console.log('[webhook:order_created] Found checkout:', checkout.id);
+  // Check if tenant already exists by email or slug
+  const { data: existingTenant } = await supabase
+    .from('tenants')
+    .select('id')
+    .or(`contact_email.eq.${tenantData.contact_email.toLowerCase()},slug.eq.${tenantData.tenant_slug}`)
+    .single();
 
-  // Check if tenant already exists for this checkout
-  if (checkout.tenant_id) {
-    console.log('[webhook:order_created] Tenant already created:', checkout.tenant_id);
+  if (existingTenant) {
+    console.log('[webhook:order_created] Tenant already exists:', existingTenant.id);
+
+    // Update checkout if exists
+    if (checkout) {
+      await supabase
+        .from('lemon_squeezy_checkouts')
+        .update({ completed: true, completed_at: new Date().toISOString(), tenant_id: existingTenant.id })
+        .eq('id', checkout.id);
+    }
+
     return {
       processed: true,
-      tenantId: checkout.tenant_id,
+      tenantId: existingTenant.id,
       reason: 'tenant_already_exists',
     };
   }
@@ -221,7 +299,7 @@ async function handleOrderCreated(payload: WebhookPayload, supabase: any) {
   }
 
   // Set limits based on plan
-  const limits = plan === 'basico'
+  const limits = plan === 'basic'
     ? { maxUsers: 10, maxFields: 5 }
     : { maxUsers: 30, maxFields: 20 };
 
@@ -230,11 +308,11 @@ async function handleOrderCreated(payload: WebhookPayload, supabase: any) {
     .from('tenants')
     .insert([
       {
-        name: checkout.tenant_name,
-        slug: checkout.tenant_slug,
-        plan: checkout.plan_name,
-        contact_name: checkout.contact_name,
-        contact_email: checkout.contact_email,
+        name: tenantData.tenant_name,
+        slug: tenantData.tenant_slug,
+        plan: tenantData.plan_name,
+        contact_name: tenantData.contact_name,
+        contact_email: tenantData.contact_email,
         created_by: systemUserId,
         max_users: limits.maxUsers,
         max_fields: limits.maxFields,
@@ -267,7 +345,7 @@ async function handleOrderCreated(payload: WebhookPayload, supabase: any) {
     .insert([
       {
         tenant_id: tenant.id,
-        email: checkout.contact_email.toLowerCase(),
+        email: tenantData.contact_email.toLowerCase(),
         role_code: 'admin',
         token_hash: token,
         invited_by: null,
@@ -287,7 +365,7 @@ async function handleOrderCreated(payload: WebhookPayload, supabase: any) {
     const inviteUrl = buildInvitationUrl('admin', token);
 
     const { error: sendError } = await supabase.auth.admin.inviteUserByEmail(
-      checkout.contact_email.toLowerCase(),
+      tenantData.contact_email.toLowerCase(),
       {
         redirectTo: inviteUrl,
         data: {
@@ -303,21 +381,23 @@ async function handleOrderCreated(payload: WebhookPayload, supabase: any) {
       console.error('[webhook:order_created] Error sending invitation email:', sendError);
       // Don't fail - invitation exists in DB, can be resent manually
     } else {
-      console.log('[webhook:order_created] Invitation email sent to:', checkout.contact_email);
+      console.log('[webhook:order_created] Invitation email sent to:', tenantData.contact_email);
     }
   }
 
-  // Mark checkout as completed
-  await supabase
-    .from('lemon_squeezy_checkouts')
-    .update({
-      completed: true,
-      completed_at: new Date().toISOString(),
-      tenant_id: tenant.id,
-    })
-    .eq('id', checkout.id);
+  // Mark checkout as completed (only if we found one)
+  if (checkout) {
+    await supabase
+      .from('lemon_squeezy_checkouts')
+      .update({
+        completed: true,
+        completed_at: new Date().toISOString(),
+        tenant_id: tenant.id,
+      })
+      .eq('id', checkout.id);
 
-  console.log('[webhook:order_created] Checkout marked as completed');
+    console.log('[webhook:order_created] Checkout marked as completed');
+  }
 
   return {
     processed: true,
