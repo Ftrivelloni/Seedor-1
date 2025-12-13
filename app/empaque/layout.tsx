@@ -95,6 +95,7 @@ function EmpaqueLayoutContent({
               campo: "/campo",
               empaque: "/empaque",
               inventario: "/inventario",
+              tasks: "/tasks",
               finanzas: "/finanzas",
               ajustes: "/ajustes",
               trabajadores: "/trabajadores",

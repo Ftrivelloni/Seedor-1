@@ -1,0 +1,6 @@
+2025/12/13-16:37:58.690 8403 Reusing MANIFEST /Users/mateopirola/Documents/GitHub/Seedor-1/whatsapp-sessions/session-seedor-bot/Default/Local Storage/leveldb/MANIFEST-000001
+2025/12/13-16:37:58.690 8403 Recovering log #3
+2025/12/13-16:37:58.690 8403 Reusing old log /Users/mateopirola/Documents/GitHub/Seedor-1/whatsapp-sessions/session-seedor-bot/Default/Local Storage/leveldb/000003.log 
+2025/12/13-16:39:59.531 bb03 Level-0 table #5: started
+2025/12/13-16:39:59.537 bb03 Level-0 table #5: 25481 bytes OK
+2025/12/13-16:39:59.545 bb03 Delete type=0 #3

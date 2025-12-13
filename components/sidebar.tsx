@@ -22,6 +22,7 @@ import {
   Contact2,
   UserPlus,
   Crown,
+  CheckSquare,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -64,6 +65,12 @@ const navItems: NavItem[] = [
     icon: Users,
     page: "trabajadores",
     module: "trabajadores"
+  },
+  {
+    title: "Tareas",
+    icon: CheckSquare,
+    page: "tasks",
+    module: "campo",
   },
   {
     title: "Usuarios",
