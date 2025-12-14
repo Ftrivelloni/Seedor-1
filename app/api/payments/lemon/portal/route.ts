@@ -12,11 +12,53 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 
 async function getSubscriptionUrlsById(subscriptionId: string) {
   configureLemonSqueezy();
-  const lsSub = await getSubscription(subscriptionId);
+
+  // SDK fetch
+  const lsSub = await getSubscription(subscriptionId).catch((err: any) => {
+    throw new Error(`LS SDK getSubscription failed: ${err?.message || err}`);
+  });
+
+  // If SDK returns but no urls, try REST as a second attempt (more tolerant)
+  let urls = lsSub?.data?.attributes?.urls || null;
+  let customerId = lsSub?.data?.attributes?.customer_id?.toString();
+  let subscriptionIdRet = lsSub?.data?.id;
+  let restAttempted = false;
+  let restError: string | null = null;
+
+  let restJson: any = null;
+
+  if (!urls) {
+    restAttempted = true;
+    const res = await fetch(`https://api.lemonsqueezy.com/v1/subscriptions/${subscriptionId}`, {
+      headers: {
+        Authorization: `Bearer ${process.env.LEMONSQUEEZY_API_KEY || ''}`,
+        Accept: 'application/vnd.api+json',
+      },
+    }).catch((err: any) => {
+      restError = err?.message || String(err);
+      return null;
+    });
+
+    if (res && res.ok) {
+      restJson = await res.json().catch(() => null);
+      urls = restJson?.data?.attributes?.urls || null;
+      customerId = restJson?.data?.attributes?.customer_id?.toString() || customerId;
+      subscriptionIdRet = restJson?.data?.id || subscriptionIdRet;
+    } else if (res) {
+      restError = `REST ${res.status}`;
+      restJson = await res.json().catch(() => null);
+    }
+  }
+
   return {
-    urls: lsSub?.data?.attributes?.urls || null,
-    subscriptionId: lsSub?.data?.id,
-    customerId: lsSub?.data?.attributes?.customer_id?.toString(),
+    urls,
+    subscriptionId: subscriptionIdRet,
+    customerId,
+    restAttempted,
+    restError,
+    sdkStatus: lsSub?.data?.attributes?.status,
+    restStatus: restJson?.data?.attributes?.status,
+    restJson,
   };
 }
 
@@ -40,6 +82,7 @@ async function getFirstSubscriptionUrlsByCustomer(customerId: string) {
         urls: first.attributes?.urls || null,
         subscriptionId: first.id,
         customerId: customerId,
+        restError: null,
       }
     : null;
 }
@@ -56,6 +99,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { tenantId, subscriptionId: overrideSubId } = body;
+    let lastRestError: string | null = null;
 
     if (!tenantId) {
       return NextResponse.json(
@@ -85,6 +129,7 @@ export async function POST(request: NextRequest) {
     if (subscriptionIdToUse) {
       try {
         const subData = await getSubscriptionUrlsById(subscriptionIdToUse);
+        lastRestError = subData?.restError || lastRestError;
         const portalUrl = subData?.urls?.update_payment_method || subData?.urls?.customer_portal;
 
         if (portalUrl) {
@@ -102,7 +147,12 @@ export async function POST(request: NextRequest) {
               .eq('id', tenantId);
           }
 
-          return NextResponse.json({ success: true, portalUrl, source: 'subscription_urls' });
+          return NextResponse.json({
+            success: true,
+            portalUrl,
+            source: 'subscription_urls',
+            subscriptionStatus: subData?.sdkStatus || subData?.restStatus,
+          });
         }
       } catch (err) {
         console.error('[portal] Error fetching LS subscription for subscription_urls:', err);
@@ -113,6 +163,7 @@ export async function POST(request: NextRequest) {
     if (tenant.lemon_customer_id) {
       try {
         const subFromCustomer = await getFirstSubscriptionUrlsByCustomer(tenant.lemon_customer_id);
+        lastRestError = subFromCustomer?.restError || lastRestError;
         const portalUrl = subFromCustomer?.urls?.update_payment_method || subFromCustomer?.urls?.customer_portal;
 
         if (portalUrl) {
@@ -130,7 +181,12 @@ export async function POST(request: NextRequest) {
               .eq('id', tenantId);
           }
 
-          return NextResponse.json({ success: true, portalUrl, source: 'customer_subscription_lookup' });
+          return NextResponse.json({
+            success: true,
+            portalUrl,
+            source: 'customer_subscription_lookup',
+            subscriptionStatus: subFromCustomer?.restStatus,
+          });
         }
       } catch (err) {
         console.error('[portal] Error fetching subscriptions by customer:', err);
@@ -148,6 +204,10 @@ export async function POST(request: NextRequest) {
           tenantHasCustomerId: !!tenant.lemon_customer_id,
           attemptedSubscriptionId: subscriptionIdToUse || null,
           source: 'portal',
+          note: 'If this keeps failing, verify the subscription is active and not cancelled/expired.',
+          restAttempted: true,
+          restError: lastRestError,
+          subscriptionStatus: undefined,
         },
       },
       { status: 400 }
