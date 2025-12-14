@@ -2,6 +2,7 @@ import qrcode from 'qrcode-terminal';
 import { Client, LocalAuth, Message } from 'whatsapp-web.js';
 
 import { whatsappConfig } from './whatsapp.config';
+import { getPuppeteerConfig } from './puppeteer-config';
 
 const NEXTJS_API_URL = process.env.NEXTJS_API_URL || 'http://localhost:3000';
 
@@ -102,15 +103,19 @@ export const createWhatsappClient = async (): Promise<Client> => {
       clientId: whatsappConfig.clientId,
       dataPath: whatsappConfig.dataPath,
     }),
+    puppeteer: getPuppeteerConfig(),
+  });
+
+  const readyPromise = new Promise<void>((resolve) => {
+    client.once('ready', () => {
+      console.log('WhatsApp client READY');
+      resolve();
+    });
   });
 
   client.on('qr', (qr) => {
     console.log('QR recibido: escanéalo en WhatsApp para autenticar');
     qrcode.generate(qr, { small: true });
-  });
-
-  client.on('ready', () => {
-    console.log('WhatsApp client READY');
   });
 
   client.on('message', async (msg: Message) => {
@@ -153,6 +158,7 @@ export const createWhatsappClient = async (): Promise<Client> => {
 
   console.log('Inicializando WhatsApp client...');
   await client.initialize();
+  await readyPromise;
 
   return client;
 };

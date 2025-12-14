@@ -34,3 +34,8 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# WhatsApp bot (fuera de control de versión)
+src/whatsapp/
+whatsapp-sessions/
+whatsapp-data/

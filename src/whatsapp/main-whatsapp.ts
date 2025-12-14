@@ -3,6 +3,7 @@ import { createWhatsappClient } from './bootstrap';
 import { Client } from 'whatsapp-web.js';
 
 const WHATSAPP_HTTP_PORT = parseInt(process.env.WHATSAPP_HTTP_PORT || '3002', 10);
+const WHATSAPP_TEST_PHONE = process.env.WHATSAPP_TEST_PHONE || '+5491137809999';
 
 let client: Client | null = null;
 
@@ -99,10 +100,18 @@ function requestHandler(req: IncomingMessage, res: ServerResponse): void {
 
   // Test endpoint para enviar mensajes de asistencia manualmente
   if (req.method === 'POST' && req.url === '/test-attendance') {
-    console.log('[Test] Disparando envío de mensajes de asistencia manualmente');
-    sendDailyAttendanceMessages();
+    console.log(
+      `[Test] Disparando envío de mensaje de asistencia manualmente al número de prueba ${WHATSAPP_TEST_PHONE}`,
+    );
+    // Solo enviamos al número de prueba para evitar spam.
+    sendDailyAttendanceMessages([WHATSAPP_TEST_PHONE]);
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ success: true, message: 'Envío de asistencia iniciado' }));
+    res.end(
+      JSON.stringify({
+        success: true,
+        message: `Envío de asistencia iniciado al número de prueba ${WHATSAPP_TEST_PHONE}`,
+      }),
+    );
     return;
   }
 
@@ -114,13 +123,31 @@ function requestHandler(req: IncomingMessage, res: ServerResponse): void {
 /**
  * Envía mensaje de asistencia a todos los trabajadores con teléfono
  */
-async function sendDailyAttendanceMessages(): Promise<void> {
+async function sendDailyAttendanceMessages(targetPhones?: string[]): Promise<void> {
   if (!client) {
     console.log('[Scheduler] Cliente de WhatsApp no disponible, saltando envío de asistencia');
     return;
   }
 
   try {
+    const message = 'Buenos días! 🌅\n\nIndicar presencia marcando *P* para presente, *A* para ausente.';
+
+    if (targetPhones?.length) {
+      console.log(`[Scheduler] Enviando mensaje de asistencia a número(s) de prueba: ${targetPhones.join(', ')}`);
+      for (const phone of targetPhones) {
+        const jid = formatPhoneToJid(phone);
+        try {
+          await client.sendMessage(jid, message);
+          console.log(`[Scheduler] Mensaje de prueba enviado a ${jid}`);
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        } catch (error) {
+          console.error(`[Scheduler] Error enviando mensaje de prueba a ${jid}:`, error);
+        }
+      }
+      console.log('[Scheduler] Envío de mensajes de prueba completado');
+      return;
+    }
+
     console.log('[Scheduler] Obteniendo trabajadores con teléfono...');
 
     const NEXTJS_API_URL = process.env.NEXTJS_API_URL || 'http://localhost:3000';
@@ -136,19 +163,16 @@ async function sendDailyAttendanceMessages(): Promise<void> {
 
     console.log(`[Scheduler] Enviando mensaje de asistencia a ${workers.length} trabajadores`);
 
-    const message = 'Buenos días! 🌅\n\nIndicar presencia marcando *P* para presente, *A* para ausente.';
-
     for (const worker of workers) {
-      if (worker.phone) {
-        const jid = formatPhoneToJid(worker.phone);
-        try {
-          await client.sendMessage(jid, message);
-          console.log(`[Scheduler] Mensaje enviado a ${worker.full_name} (${jid})`);
-          // Pequeña pausa para no sobrecargar
-          await new Promise(resolve => setTimeout(resolve, 500));
-        } catch (error) {
-          console.error(`[Scheduler] Error enviando a ${worker.full_name}:`, error);
-        }
+      if (!worker.phone) continue;
+      const jid = formatPhoneToJid(worker.phone);
+      try {
+        await client.sendMessage(jid, message);
+        console.log(`[Scheduler] Mensaje enviado a ${worker.full_name} (${jid})`);
+        // Pequeña pausa para no sobrecargar
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error(`[Scheduler] Error enviando a ${worker.full_name}:`, error);
       }
     }
 
@@ -211,4 +235,3 @@ async function main(): Promise<void> {
 }
 
 void main();
-

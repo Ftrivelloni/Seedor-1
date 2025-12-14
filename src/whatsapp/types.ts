@@ -9,6 +9,9 @@ export interface WhatsappConfig {
   clientId: string;
   dataPath?: string;
   adminPhones: string[];
+  executablePath?: string;
+  puppeteerArgs?: string[];
+  headless?: boolean;
 }
 
 export interface ParsedTaskCommand {
