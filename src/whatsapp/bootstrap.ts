@@ -32,12 +32,14 @@ async function handleWorkerResponse(msg: Message, status: 'completada' | 'incomp
     });
 
     const data = await response.json();
+    console.log(`[WhatsApp] Respuesta de API:`, JSON.stringify(data, null, 2));
 
     if (!response.ok) {
-      console.error('[WhatsApp] Error actualizando tarea:', data);
-      await msg.reply('❌ No se pudo actualizar la tarea. Intenta de nuevo o contacta a un admin.');
+      console.error('[WhatsApp] Error actualizando tarea:', JSON.stringify(data, null, 2));
+      await msg.reply(`❌ No se pudo actualizar la tarea: ${data.error || 'Error desconocido'}`);
       return;
     }
+
 
     if (status === 'completada') {
       await msg.reply(`✅ ¡Tarea completada! Gracias por tu trabajo.`);

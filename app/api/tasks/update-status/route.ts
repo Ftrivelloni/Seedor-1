@@ -15,6 +15,8 @@ export async function POST(request: NextRequest) {
         const body = await request.json()
         const { phone, status, comment } = body
 
+        console.log('[Tasks API] Recibida solicitud:', { phone, status, comment })
+
         if (!phone || !status) {
             return NextResponse.json(
                 { error: 'phone y status son requeridos' },
@@ -33,42 +35,72 @@ export async function POST(request: NextRequest) {
 
         // Normalizar teléfono (solo dígitos)
         const normalizedPhone = phone.replace(/\D/g, '')
+        console.log('[Tasks API] Teléfono normalizado:', normalizedPhone)
 
-        // Buscar el trabajador por teléfono
-        const { data: worker, error: workerError } = await supabase
+        // Buscar el trabajador por teléfono - búsqueda más flexible con LIKE
+        const { data: workers, error: workerError } = await supabase
             .from('workers')
-            .select('id, full_name, tenant_id')
-            .or(`phone.eq.${normalizedPhone},phone.eq.+${normalizedPhone}`)
-            .single()
+            .select('id, full_name, tenant_id, phone')
+
+        console.log('[Tasks API] Trabajadores encontrados:', workers?.length, 'Error:', workerError)
+
+        // Buscar trabajador cuyo teléfono contenga los dígitos
+        const worker = workers?.find(w => {
+            if (!w.phone) return false
+            const workerDigits = w.phone.replace(/\D/g, '')
+            // Comparar los últimos 10 dígitos (sin código de país)
+            return workerDigits.endsWith(normalizedPhone.slice(-10)) ||
+                normalizedPhone.endsWith(workerDigits.slice(-10))
+        })
 
         if (workerError || !worker) {
-            console.error('Worker not found for phone:', normalizedPhone, workerError)
+            console.error('[Tasks API] Worker not found for phone:', normalizedPhone)
+            console.error('[Tasks API] Teléfonos disponibles:', workers?.map(w => w.phone))
             return NextResponse.json(
-                { error: 'Trabajador no encontrado', phone: normalizedPhone },
+                { error: 'Trabajador no encontrado', phone: normalizedPhone, availablePhones: workers?.map(w => w.phone) },
                 { status: 404 }
             )
         }
 
-        // Buscar la tarea pendiente más reciente del trabajador para hoy
-        const today = new Date().toISOString().split('T')[0]
+        console.log('[Tasks API] Trabajador encontrado:', worker.id, worker.full_name)
 
+        // Buscar la tarea pendiente más reciente del trabajador (sin filtrar por fecha)
+        console.log('[Tasks API] Buscando tareas pendientes para worker_id:', worker.id)
+
+        // Primero buscar todas las tareas del trabajador para debug
+        const { data: allTasks, error: allTasksError } = await supabase
+            .from('tasks')
+            .select('id, title, status_code, scheduled_date, worker_id')
+            .eq('worker_id', worker.id)
+
+        console.log('[Tasks API] Todas las tareas del trabajador:', allTasks)
+
+        // Buscar cualquier tarea pendiente (sin filtrar por fecha)
         const { data: task, error: taskError } = await supabase
             .from('tasks')
-            .select('id, title, status_code')
+            .select('id, title, status_code, scheduled_date')
             .eq('worker_id', worker.id)
-            .eq('scheduled_date', today)
             .neq('status_code', 'completada')
+            .order('scheduled_date', { ascending: true }) // La más próxima primero
             .order('created_at', { ascending: false })
             .limit(1)
             .single()
 
         if (taskError || !task) {
-            console.error('Task not found for worker:', worker.id, taskError)
+            console.error('[Tasks API] No pending task found for worker:', worker.id)
+            console.error('[Tasks API] Task error:', taskError)
             return NextResponse.json(
-                { error: 'No se encontró tarea pendiente para hoy', workerId: worker.id },
+                {
+                    error: 'No se encontró tarea pendiente',
+                    workerId: worker.id,
+                    allTasks: allTasks?.map(t => ({ id: t.id, title: t.title, date: t.scheduled_date, status: t.status_code }))
+                },
                 { status: 404 }
             )
         }
+
+
+        console.log('[Tasks API] Tarea encontrada:', task.id, task.title)
 
         // Actualizar el estado de la tarea
         const updateData: { status_code: string; completion_comment?: string } = {
@@ -87,9 +119,9 @@ export async function POST(request: NextRequest) {
             .single()
 
         if (updateError) {
-            console.error('Error updating task:', updateError)
+            console.error('[Tasks API] Error updating task:', updateError)
             return NextResponse.json(
-                { error: 'Error actualizando tarea' },
+                { error: 'Error actualizando tarea', details: updateError },
                 { status: 500 }
             )
         }
@@ -110,9 +142,9 @@ export async function POST(request: NextRequest) {
         })
 
     } catch (error) {
-        console.error('Error in update-status:', error)
+        console.error('[Tasks API] Error in update-status:', error)
         return NextResponse.json(
-            { error: 'Error interno del servidor' },
+            { error: 'Error interno del servidor', details: String(error) },
             { status: 500 }
         )
     }
