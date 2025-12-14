@@ -102,6 +102,81 @@ function requestHandler(req: IncomingMessage, res: ServerResponse): void {
 }
 
 /**
+ * Envía mensaje de asistencia a todos los trabajadores con teléfono
+ */
+async function sendDailyAttendanceMessages(): Promise<void> {
+  if (!client) {
+    console.log('[Scheduler] Cliente de WhatsApp no disponible, saltando envío de asistencia');
+    return;
+  }
+
+  try {
+    console.log('[Scheduler] Obteniendo trabajadores con teléfono...');
+
+    const NEXTJS_API_URL = process.env.NEXTJS_API_URL || 'http://localhost:3000';
+    const response = await fetch(`${NEXTJS_API_URL}/api/workers/attendance`);
+
+    if (!response.ok) {
+      console.error('[Scheduler] Error obteniendo trabajadores:', await response.text());
+      return;
+    }
+
+    const data = await response.json();
+    const workers = data.workers || [];
+
+    console.log(`[Scheduler] Enviando mensaje de asistencia a ${workers.length} trabajadores`);
+
+    const message = 'Buenos días! 🌅\n\nIndicar presencia marcando *P* para presente, *A* para ausente.';
+
+    for (const worker of workers) {
+      if (worker.phone) {
+        const jid = formatPhoneToJid(worker.phone);
+        try {
+          await client.sendMessage(jid, message);
+          console.log(`[Scheduler] Mensaje enviado a ${worker.full_name} (${jid})`);
+          // Pequeña pausa para no sobrecargar
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error(`[Scheduler] Error enviando a ${worker.full_name}:`, error);
+        }
+      }
+    }
+
+    console.log('[Scheduler] Envío de mensajes de asistencia completado');
+
+  } catch (error) {
+    console.error('[Scheduler] Error en sendDailyAttendanceMessages:', error);
+  }
+}
+
+/**
+ * Inicia el scheduler para enviar mensajes de asistencia a las 7:30 AM
+ */
+function startAttendanceScheduler(): void {
+  const ATTENDANCE_HOUR = 7;
+  const ATTENDANCE_MINUTE = 30;
+
+  let lastSentDate = '';
+
+  console.log(`[Scheduler] Iniciado - Mensaje de asistencia programado para las ${ATTENDANCE_HOUR}:${ATTENDANCE_MINUTE.toString().padStart(2, '0')}`);
+
+  // Verificar cada minuto
+  setInterval(() => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const today = now.toISOString().split('T')[0];
+
+    // Verificar si es la hora programada y no se ha enviado hoy
+    if (currentHour === ATTENDANCE_HOUR && currentMinute === ATTENDANCE_MINUTE && lastSentDate !== today) {
+      console.log(`[Scheduler] Es hora de enviar mensajes de asistencia (${today})`);
+      lastSentDate = today;
+      sendDailyAttendanceMessages();
+    }
+  }, 60000); // Cada minuto
+}
+
+/**
  * Inicializa el cliente de WhatsApp y el servidor HTTP
  */
 async function main(): Promise<void> {
@@ -109,6 +184,9 @@ async function main(): Promise<void> {
     console.log('[WhatsApp] Iniciando cliente...');
     client = await createWhatsappClient();
     console.log('[WhatsApp] Cliente listo');
+
+    // Iniciar scheduler de asistencia
+    startAttendanceScheduler();
 
     const server = createServer(requestHandler);
     server.listen(WHATSAPP_HTTP_PORT, () => {
@@ -123,3 +201,4 @@ async function main(): Promise<void> {
 }
 
 void main();
+
