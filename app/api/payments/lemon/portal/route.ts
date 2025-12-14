@@ -44,18 +44,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!tenant.lemon_customer_id) {
-      return NextResponse.json(
-        { error: 'No customer found for this tenant' },
-        { status: 400 }
-      );
-    }
-
     // If we have a customer id, return the standard portal URL
     if (tenant.lemon_customer_id) {
       const portalUrl = `https://my.lemonsqueezy.com/billing?customer=${tenant.lemon_customer_id}`;
       console.log('[portal] Generated portal URL for tenant:', tenantId);
-      return NextResponse.json({ success: true, portalUrl });
+      return NextResponse.json({ success: true, portalUrl, source: 'customer_id' });
     }
 
     // Fallback: try to derive portal/update links from the subscription in LemonSqueezy
@@ -67,8 +60,8 @@ export async function POST(request: NextRequest) {
         const portalUrl = urls.customer_portal || urls.update_payment_method;
 
         if (portalUrl) {
-          console.log('[portal] Using LS subscription URLs for tenant:', tenantId);
-          return NextResponse.json({ success: true, portalUrl });
+          console.log('[portal] Using LS subscription URLs for tenant (fallback):', tenantId);
+          return NextResponse.json({ success: true, portalUrl, source: 'subscription_urls' });
         }
       } catch (err) {
         console.error('[portal] Error fetching LS subscription for fallback:', err);
@@ -76,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'No customer found for this tenant' },
+      { error: 'No customer found for this tenant', hint: 'No lemon_customer_id or subscription URL available' },
       { status: 400 }
     );
 

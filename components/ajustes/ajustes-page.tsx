@@ -130,13 +130,19 @@ export function AjustesPage() {
         body: JSON.stringify({ tenantId: resolvedTenantId })
       })
 
+      const data = await res.json().catch(() => ({}))
+
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
         throw new Error(data.error || 'No se pudo generar el portal de pago')
       }
 
-      const data = await res.json()
       if (data.portalUrl) {
+        toast({
+          title: "Portal listo",
+          description: data.source === 'subscription_urls'
+            ? 'Usamos el enlace de la suscripción. Si ves un 404 en LemonSqueezy, espera unos segundos y vuelve a intentar o contáctanos.'
+            : 'Se abrió el portal de facturación en otra pestaña. Si ves un 404 en LemonSqueezy, regresa y presiona de nuevo.',
+        })
         window.open(data.portalUrl, '_blank', 'noopener')
       }
     } catch (error: any) {
@@ -165,7 +171,10 @@ export function AjustesPage() {
         throw new Error(data.error || 'No se pudo actualizar el plan')
       }
 
-      toast({ title: "Plan actualizado", description: `Se cambió al plan ${newPlan}.` })
+      toast({
+        title: "Plan en proceso",
+        description: data.message || `Se solicitó el cambio al plan ${newPlan}. Si ves un error en la consola, espera el correo de confirmación de LemonSqueezy y refresca la página.`,
+      })
       await refreshFeatures()
     } catch (error: any) {
       toast({ title: "Error", description: error.message || 'No se pudo cambiar el plan', variant: "destructive" })
@@ -196,7 +205,10 @@ export function AjustesPage() {
         throw new Error(data.error || 'No se pudo cancelar la suscripción')
       }
 
-      toast({ title: "Suscripción cancelada", description: data.message || 'Se canceló la suscripción.' })
+      toast({
+        title: "Cancelación solicitada",
+        description: data.message || 'Procesamos la cancelación. Si ves errores en consola, revisa tu correo de LemonSqueezy y refresca para ver el estado.',
+      })
       await refreshFeatures()
     } catch (error: any) {
       toast({ title: "Error", description: error.message || 'No se pudo cancelar la suscripción', variant: "destructive" })
