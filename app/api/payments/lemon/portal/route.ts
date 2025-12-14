@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getSubscription } from '@lemonsqueezy/lemonsqueezy.js';
+import { configureLemonSqueezy } from '@/lib/lemonsqueezy';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -49,16 +51,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate customer portal URL
-    // LemonSqueezy uses a standard format for customer portal URLs
-    const portalUrl = `https://my.lemonsqueezy.com/billing?customer=${tenant.lemon_customer_id}`;
+    // If we have a customer id, return the standard portal URL
+    if (tenant.lemon_customer_id) {
+      const portalUrl = `https://my.lemonsqueezy.com/billing?customer=${tenant.lemon_customer_id}`;
+      console.log('[portal] Generated portal URL for tenant:', tenantId);
+      return NextResponse.json({ success: true, portalUrl });
+    }
 
-    console.log('[portal] Generated portal URL for tenant:', tenantId);
+    // Fallback: try to derive portal/update links from the subscription in LemonSqueezy
+    if (tenant.lemon_subscription_id) {
+      try {
+        configureLemonSqueezy();
+        const lsSub = await getSubscription(tenant.lemon_subscription_id);
+        const urls = lsSub?.data?.attributes?.urls || {};
+        const portalUrl = urls.customer_portal || urls.update_payment_method;
 
-    return NextResponse.json({
-      success: true,
-      portalUrl,
-    });
+        if (portalUrl) {
+          console.log('[portal] Using LS subscription URLs for tenant:', tenantId);
+          return NextResponse.json({ success: true, portalUrl });
+        }
+      } catch (err) {
+        console.error('[portal] Error fetching LS subscription for fallback:', err);
+      }
+    }
+
+    return NextResponse.json(
+      { error: 'No customer found for this tenant' },
+      { status: 400 }
+    );
 
   } catch (error: any) {
     console.error('[portal] Error:', error);
