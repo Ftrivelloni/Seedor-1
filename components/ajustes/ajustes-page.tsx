@@ -79,6 +79,7 @@ export function AjustesPage() {
   const [portalLoading, setPortalLoading] = useState(false)
   const [planLoading, setPlanLoading] = useState<string | null>(null)
   const [cancelLoading, setCancelLoading] = useState(false)
+  const resolvedTenantId = user?.tenantId || user?.tenant?.id || null
 
   if (authLoading) {
     return (
@@ -116,7 +117,7 @@ export function AjustesPage() {
   }
 
   const handleOpenPaymentPortal = async () => {
-    if (!user.tenantId) {
+    if (!resolvedTenantId) {
       toast({ title: "Sin tenant", description: "No se encontró el tenant actual." })
       return
     }
@@ -126,7 +127,7 @@ export function AjustesPage() {
       const res = await fetch('/api/payments/lemon/portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId: user.tenantId })
+        body: JSON.stringify({ tenantId: resolvedTenantId })
       })
 
       if (!res.ok) {
@@ -146,7 +147,7 @@ export function AjustesPage() {
   }
 
   const handleChangePlan = async (newPlan: 'basico' | 'profesional') => {
-    if (!user.tenantId) {
+    if (!resolvedTenantId) {
       toast({ title: "Sin tenant", description: "No se encontró el tenant actual." })
       return
     }
@@ -156,7 +157,7 @@ export function AjustesPage() {
       const res = await fetch('/api/payments/lemon/subscription/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId: user.tenantId, newPlan })
+        body: JSON.stringify({ tenantId: resolvedTenantId, newPlan })
       })
 
       const data = await res.json().catch(() => ({}))
@@ -174,7 +175,7 @@ export function AjustesPage() {
   }
 
   const handleCancelSubscription = async () => {
-    if (!user.tenantId) {
+    if (!resolvedTenantId) {
       toast({ title: "Sin tenant", description: "No se encontró el tenant actual." })
       return
     }
@@ -187,7 +188,7 @@ export function AjustesPage() {
       const res = await fetch('/api/payments/lemon/subscription/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId: user.tenantId })
+        body: JSON.stringify({ tenantId: resolvedTenantId })
       })
 
       const data = await res.json().catch(() => ({}))
