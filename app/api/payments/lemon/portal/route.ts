@@ -55,7 +55,7 @@ async function getFirstSubscriptionUrlsByCustomer(customerId: string) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { tenantId } = body;
+    const { tenantId, subscriptionId: overrideSubId } = body;
 
     if (!tenantId) {
       return NextResponse.json(
@@ -79,10 +79,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Prefer subscription URLs (they are more reliable than the generic customer portal)
+    const subscriptionIdToUse = overrideSubId || tenant.lemon_subscription_id;
+
     // 1) Try subscription ID directly (preferred, freshest signed URLs)
-    if (tenant.lemon_subscription_id) {
+    if (subscriptionIdToUse) {
       try {
-        const subData = await getSubscriptionUrlsById(tenant.lemon_subscription_id);
+        const subData = await getSubscriptionUrlsById(subscriptionIdToUse);
         const portalUrl = subData?.urls?.update_payment_method || subData?.urls?.customer_portal;
 
         if (portalUrl) {
@@ -137,7 +139,17 @@ export async function POST(request: NextRequest) {
 
     // 3) Do not return the generic customer portal if no subscription URLs were found, to avoid 404
     return NextResponse.json(
-      { error: 'No subscription URLs available', hint: 'Ensure lemon_subscription_id is stored for this tenant and the subscription exists in LemonSqueezy.' },
+      {
+        error: 'No subscription URLs available',
+        hint: 'Ensure lemon_subscription_id is stored for this tenant and the subscription exists in LemonSqueezy.',
+        debug: {
+          tenantId,
+          tenantHasSubscriptionId: !!tenant.lemon_subscription_id,
+          tenantHasCustomerId: !!tenant.lemon_customer_id,
+          attemptedSubscriptionId: subscriptionIdToUse || null,
+          source: 'portal',
+        },
+      },
       { status: 400 }
     );
 
