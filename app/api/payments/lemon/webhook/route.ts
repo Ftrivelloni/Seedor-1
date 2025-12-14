@@ -28,6 +28,103 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { autoRefreshToken: false, persistSession: false }
 });
 
+async function findTenantBySubscriptionOrFallback(
+  subscriptionId: string,
+  payload: WebhookPayload,
+  supabase: any
+) {
+  // Try direct subscription match first
+  const { data: tenantBySub, error: tenantBySubError } = await supabase
+    .from('tenants')
+    .select('*')
+    .eq('lemon_subscription_id', subscriptionId)
+    .maybeSingle?.();
+
+  if (tenantBySub) {
+    return tenantBySub;
+  }
+
+  if (tenantBySubError && tenantBySubError.code && tenantBySubError.code !== 'PGRST116') {
+    throw tenantBySubError;
+  }
+
+  const customData = extractCustomData(payload);
+
+  if (customData?.tenant_slug) {
+    const { data: tenantBySlug, error: tenantBySlugError } = await supabase
+      .from('tenants')
+      .select('*')
+      .eq('slug', customData.tenant_slug)
+      .maybeSingle?.();
+
+    if (tenantBySlug) {
+      return tenantBySlug;
+    }
+
+    if (tenantBySlugError && tenantBySlugError.code && tenantBySlugError.code !== 'PGRST116') {
+      throw tenantBySlugError;
+    }
+  }
+
+  const email = extractCustomerEmail(payload)?.toLowerCase();
+
+  if (email) {
+    const { data: tenantByEmail, error: tenantByEmailError } = await supabase
+      .from('tenants')
+      .select('*')
+      .eq('contact_email', email)
+      .maybeSingle?.();
+
+    if (tenantByEmail) {
+      return tenantByEmail;
+    }
+
+    if (tenantByEmailError && tenantByEmailError.code && tenantByEmailError.code !== 'PGRST116') {
+      throw tenantByEmailError;
+    }
+  }
+
+  return null;
+}
+
+async function backfillSubscriptionFields(
+  tenant: any,
+  subscriptionId: string,
+  payload: WebhookPayload,
+  supabase: any
+) {
+  const customerId = payload.data.attributes?.customer_id?.toString();
+  const updates: Record<string, any> = {};
+
+  if (!tenant.lemon_subscription_id && subscriptionId) {
+    updates.lemon_subscription_id = subscriptionId;
+  }
+
+  if (!tenant.lemon_customer_id && customerId) {
+    updates.lemon_customer_id = customerId;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return tenant;
+  }
+
+  const { data: updatedTenant, error: updateError } = await supabase
+    .from('tenants')
+    .update({
+      ...updates,
+      last_webhook_at: new Date().toISOString(),
+    })
+    .eq('id', tenant.id)
+    .select('*')
+    .single();
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  return updatedTenant;
+}
+
 /**
  * GET /api/payments/lemon/webhook
  * Health check endpoint for verifying webhook is accessible
@@ -419,15 +516,23 @@ async function handleSubscriptionCreated(payload: WebhookPayload, supabase: any)
     throw new Error('Missing required fields in subscription_created event');
   }
 
-  // Find tenant by email
-  const { data: tenant, error: tenantError } = await supabase
-    .from('tenants')
-    .select('*')
-    .eq('contact_email', email.toLowerCase())
-    .single();
+  const customData = extractCustomData(payload);
+
+  // Prefer slug if provided, fallback to contact email
+  const { data: tenant, error: tenantError } = customData?.tenant_slug
+    ? await supabase
+        .from('tenants')
+        .select('*')
+        .eq('slug', customData.tenant_slug)
+        .maybeSingle?.()
+    : await supabase
+        .from('tenants')
+        .select('*')
+        .eq('contact_email', email.toLowerCase())
+        .single();
 
   if (tenantError || !tenant) {
-    console.error('[webhook:subscription_created] Tenant not found:', email);
+    console.error('[webhook:subscription_created] Tenant not found:', customData?.tenant_slug || email);
     throw new Error('Tenant not found for email: ' + email);
   }
 
@@ -467,15 +572,13 @@ async function handleSubscriptionUpdated(payload: WebhookPayload, supabase: any)
     throw new Error('Missing subscription ID');
   }
 
-  const { data: tenant, error: tenantError } = await supabase
-    .from('tenants')
-    .select('*')
-    .eq('lemon_subscription_id', subscriptionId)
-    .single();
+  let tenant = await findTenantBySubscriptionOrFallback(subscriptionId, payload, supabase);
 
-  if (tenantError || !tenant) {
+  if (!tenant) {
     throw new Error('Tenant not found for subscription: ' + subscriptionId);
   }
+
+  tenant = await backfillSubscriptionFields(tenant, subscriptionId, payload, supabase);
 
   const renewsAt = payload.data.attributes.renews_at;
   const endsAt = payload.data.attributes.ends_at;
@@ -509,15 +612,13 @@ async function handleSubscriptionPaymentSuccess(payload: WebhookPayload, supabas
     throw new Error('Missing subscription ID');
   }
 
-  const { data: tenant, error: tenantError } = await supabase
-    .from('tenants')
-    .select('*')
-    .eq('lemon_subscription_id', subscriptionId)
-    .single();
+  let tenant = await findTenantBySubscriptionOrFallback(subscriptionId, payload, supabase);
 
-  if (tenantError || !tenant) {
+  if (!tenant) {
     throw new Error('Tenant not found for subscription: ' + subscriptionId);
   }
+
+  tenant = await backfillSubscriptionFields(tenant, subscriptionId, payload, supabase);
 
   const renewsAt = payload.data.attributes.renews_at;
 
@@ -553,15 +654,13 @@ async function handleSubscriptionPaymentFailed(payload: WebhookPayload, supabase
     throw new Error('Missing subscription ID');
   }
 
-  const { data: tenant, error: tenantError } = await supabase
-    .from('tenants')
-    .select('*')
-    .eq('lemon_subscription_id', subscriptionId)
-    .single();
+  let tenant = await findTenantBySubscriptionOrFallback(subscriptionId, payload, supabase);
 
-  if (tenantError || !tenant) {
+  if (!tenant) {
     throw new Error('Tenant not found for subscription: ' + subscriptionId);
   }
+
+  tenant = await backfillSubscriptionFields(tenant, subscriptionId, payload, supabase);
 
   const { error: updateError } = await supabase
     .from('tenants')
@@ -596,15 +695,13 @@ async function handleSubscriptionCancelled(payload: WebhookPayload, supabase: an
     throw new Error('Missing subscription ID');
   }
 
-  const { data: tenant, error: tenantError } = await supabase
-    .from('tenants')
-    .select('*')
-    .eq('lemon_subscription_id', subscriptionId)
-    .single();
+  let tenant = await findTenantBySubscriptionOrFallback(subscriptionId, payload, supabase);
 
-  if (tenantError || !tenant) {
+  if (!tenant) {
     throw new Error('Tenant not found for subscription: ' + subscriptionId);
   }
+
+  tenant = await backfillSubscriptionFields(tenant, subscriptionId, payload, supabase);
 
   const endsAt = payload.data.attributes.ends_at;
 
@@ -641,15 +738,13 @@ async function handleSubscriptionResumed(payload: WebhookPayload, supabase: any)
     throw new Error('Missing subscription ID');
   }
 
-  const { data: tenant, error: tenantError } = await supabase
-    .from('tenants')
-    .select('*')
-    .eq('lemon_subscription_id', subscriptionId)
-    .single();
+  let tenant = await findTenantBySubscriptionOrFallback(subscriptionId, payload, supabase);
 
-  if (tenantError || !tenant) {
+  if (!tenant) {
     throw new Error('Tenant not found for subscription: ' + subscriptionId);
   }
+
+  tenant = await backfillSubscriptionFields(tenant, subscriptionId, payload, supabase);
 
   const renewsAt = payload.data.attributes.renews_at;
 
