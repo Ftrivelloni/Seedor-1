@@ -44,32 +44,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If we have a customer id, return the standard portal URL
-    if (tenant.lemon_customer_id) {
-      const portalUrl = `https://my.lemonsqueezy.com/billing?customer=${tenant.lemon_customer_id}`;
-      console.log('[portal] Generated portal URL for tenant:', tenantId);
-      return NextResponse.json({ success: true, portalUrl, source: 'customer_id' });
-    }
-
-    // Fallback: try to derive portal/update links from the subscription in LemonSqueezy
+    // Prefer subscription URLs (they are more reliable than the generic customer portal)
     if (tenant.lemon_subscription_id) {
       try {
         configureLemonSqueezy();
         const lsSub = await getSubscription(tenant.lemon_subscription_id);
         const urls = lsSub?.data?.attributes?.urls || {};
-        const portalUrl = urls.customer_portal || urls.update_payment_method;
+        const portalUrl = urls.update_payment_method || urls.customer_portal;
 
         if (portalUrl) {
-          console.log('[portal] Using LS subscription URLs for tenant (fallback):', tenantId);
+          console.log('[portal] Using LS subscription URLs for tenant:', tenantId, 'source:subscription_urls');
           return NextResponse.json({ success: true, portalUrl, source: 'subscription_urls' });
         }
       } catch (err) {
-        console.error('[portal] Error fetching LS subscription for fallback:', err);
+        console.error('[portal] Error fetching LS subscription for subscription_urls:', err);
       }
     }
 
+    // If subscription URLs failed, fall back to the generic customer portal
+    if (tenant.lemon_customer_id) {
+      const portalUrl = `https://my.lemonsqueezy.com/billing?customer=${tenant.lemon_customer_id}`;
+      console.log('[portal] Fallback to customer portal for tenant:', tenantId);
+      return NextResponse.json({ success: true, portalUrl, source: 'customer_id' });
+    }
+
     return NextResponse.json(
-      { error: 'No customer found for this tenant', hint: 'No lemon_customer_id or subscription URL available' },
+      { error: 'No customer found for this tenant', hint: 'No lemon_subscription_id URLs or lemon_customer_id available' },
       { status: 400 }
     );
 

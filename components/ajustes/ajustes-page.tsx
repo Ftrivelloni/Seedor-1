@@ -168,7 +168,12 @@ export function AjustesPage() {
 
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        throw new Error(data.error || 'No se pudo actualizar el plan')
+        const message = data.error || 'No se pudo actualizar el plan'
+        toast({
+          title: 'Cambio enviado (con aviso)',
+          description: `${message}. Si ves 500 en consola pero recibes correo de LemonSqueezy, el cambio pudo aplicarse. Refresca después de unos minutos.`,
+        })
+        return
       }
 
       toast({
@@ -202,7 +207,12 @@ export function AjustesPage() {
 
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        throw new Error(data.error || 'No se pudo cancelar la suscripción')
+        const message = data.error || 'No se pudo cancelar la suscripción'
+        toast({
+          title: 'Cancelación enviada (con aviso)',
+          description: `${message}. Si ves 500 en consola pero recibes correo de LemonSqueezy, la cancelación pudo aplicarse. Refresca después de unos minutos.`,
+        })
+        return
       }
 
       toast({
