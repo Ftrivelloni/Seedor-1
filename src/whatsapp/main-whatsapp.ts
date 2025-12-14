@@ -97,9 +97,19 @@ function requestHandler(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  // Test endpoint para enviar mensajes de asistencia manualmente
+  if (req.method === 'POST' && req.url === '/test-attendance') {
+    console.log('[Test] Disparando envío de mensajes de asistencia manualmente');
+    sendDailyAttendanceMessages();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, message: 'Envío de asistencia iniciado' }));
+    return;
+  }
+
   res.writeHead(404, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'Not found' }));
 }
+
 
 /**
  * Envía mensaje de asistencia a todos los trabajadores con teléfono
