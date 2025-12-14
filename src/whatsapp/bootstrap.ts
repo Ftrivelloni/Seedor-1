@@ -3,6 +3,57 @@ import { Client, LocalAuth, Message } from 'whatsapp-web.js';
 
 import { whatsappConfig } from './whatsapp.config';
 
+const NEXTJS_API_URL = process.env.NEXTJS_API_URL || 'http://localhost:3000';
+
+/**
+ * Extrae el teléfono del JID de WhatsApp
+ */
+function extractPhone(from: string): string {
+  return from.replace(/\D/g, '');
+}
+
+/**
+ * Maneja respuestas de trabajadores (1 = completado, 2 = incompleto)
+ */
+async function handleWorkerResponse(msg: Message, status: 'completada' | 'incompleta', comment?: string): Promise<void> {
+  const phone = extractPhone(msg.from);
+
+  try {
+    console.log(`[WhatsApp] Respuesta del trabajador: phone=${phone} status=${status}`);
+
+    const response = await fetch(`${NEXTJS_API_URL}/api/tasks/update-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone,
+        status,
+        comment
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('[WhatsApp] Error actualizando tarea:', data);
+      await msg.reply('❌ No se pudo actualizar la tarea. Intenta de nuevo o contacta a un admin.');
+      return;
+    }
+
+    if (status === 'completada') {
+      await msg.reply(`✅ ¡Tarea completada! Gracias por tu trabajo.`);
+    } else {
+      const commentText = comment ? ` Comentario guardado: "${comment}".` : '';
+      await msg.reply(`❌ Tarea marcada como incompleta.${commentText}`);
+    }
+
+    console.log(`[WhatsApp] Tarea ${data.task.id} actualizada para ${data.worker.name}`);
+
+  } catch (error) {
+    console.error('[WhatsApp] Error en handleWorkerResponse:', error);
+    await msg.reply('❌ Error de conexión. Intenta de nuevo más tarde.');
+  }
+}
+
 /**
  * Ejecutar con: `npm run start:whatsapp` (muestra el QR en consola).
  * Escanea el QR con el teléfono para vincular la sesión.
@@ -25,8 +76,27 @@ export const createWhatsappClient = async (): Promise<Client> => {
   });
 
   client.on('message', async (msg: Message) => {
-    if (msg.body?.trim().toLowerCase() === 'ping') {
+    const body = msg.body?.trim();
+
+    if (!body) return;
+
+    // Comando de prueba
+    if (body.toLowerCase() === 'ping') {
       await msg.reply('pong');
+      return;
+    }
+
+    // Respuesta del trabajador: "1" = completado
+    if (body === '1') {
+      await handleWorkerResponse(msg, 'completada');
+      return;
+    }
+
+    // Respuesta del trabajador: "2" o "2 <comentario>" = incompleto
+    if (body.startsWith('2')) {
+      const comment = body.length > 1 ? body.substring(1).trim() : undefined;
+      await handleWorkerResponse(msg, 'incompleta', comment);
+      return;
     }
   });
 

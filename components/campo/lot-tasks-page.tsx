@@ -69,6 +69,35 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
         title: "Éxito",
         description: "Tarea creada correctamente"
       })
+
+      // Enviar notificación de WhatsApp al trabajador asignado
+      const workerId = data.worker_id || (data.responsible_membership_id?.startsWith('worker-')
+        ? data.responsible_membership_id.replace('worker-', '')
+        : null)
+
+      if (workerId) {
+        const worker = workers.find(w => w.id === workerId)
+        if (worker?.phone) {
+          try {
+            const message = `Tu tarea del dia de hoy es ${data.title}, indicar al final del dia si la tarea fue completa enviando un *1* en caso contrario enviar un *2*`
+
+            await fetch('http://localhost:3002/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                phone: worker.phone,
+                message
+              })
+            })
+
+            console.log(`[WhatsApp] Notificación enviada a ${worker.full_name}`)
+          } catch (whatsappError) {
+            console.error('Error enviando notificación de WhatsApp:', whatsappError)
+            // No mostramos error al usuario, la tarea ya fue creada
+          }
+        }
+      }
+
       loadData()
     } catch (error: any) {
       console.error("Error creating task:", error)
@@ -80,6 +109,8 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
       })
     }
   }
+
+
 
   const handleEditTask = async (data: TaskFormData) => {
     if (!selectedTask) return
@@ -142,7 +173,7 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
     const pending = tasks.filter(t => t.status_code !== "completada" && !isTaskOverdue(t))
     const completed = tasks.filter(t => t.status_code === "completada")
     const overdue = tasks.filter(t => isTaskOverdue(t))
-    
+
     return { pending, completed, overdue }
   }
 
@@ -152,13 +183,13 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
       const workerByMembership = workers.find(w => w.membership_id === task.responsible_membership_id)
       if (workerByMembership) return workerByMembership.full_name
     }
-    
+
     // Luego buscar por worker_id
     if (task.worker_id) {
       const workerById = workers.find(w => w.id === task.worker_id)
       if (workerById) return workerById.full_name
     }
-    
+
     return "Sin asignar"
   }
 
@@ -227,7 +258,7 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
           )}
         </div>
       </div>
-      
+
       <div className="space-y-1 text-xs text-muted-foreground">
         <p>Responsable: {getWorkerName(task)}</p>
         {task.scheduled_date && (
