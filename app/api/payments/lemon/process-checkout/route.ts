@@ -308,7 +308,7 @@ export async function POST(request: NextRequest) {
             const { data: tenantByEmail } = await supabaseAdmin
                 .from('tenants')
                 .select('id,name,contact_email')
-                .eq('contact_email', lowerEmail)
+                .ilike('contact_email', lowerEmail)
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
@@ -316,13 +316,43 @@ export async function POST(request: NextRequest) {
             tenantFallback = tenantByEmail || null;
         }
 
+        // Try to find by latest invitation for this email
+        if (!tenantFallback) {
+            const { data: invitation } = await supabaseAdmin
+                .from('invitations')
+                .select('tenant_id,token_hash')
+                .ilike('email', lowerEmail)
+                .is('revoked_at', null)
+                .is('accepted_at', null)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (invitation?.tenant_id) {
+                const { data: tenantFromInvite } = await supabaseAdmin
+                    .from('tenants')
+                    .select('id,name,contact_email')
+                    .eq('id', invitation.tenant_id)
+                    .maybeSingle();
+
+                if (tenantFromInvite) {
+                    return resendForTenant(tenantFromInvite, true);
+                }
+            }
+        }
+
         if (tenantFallback) {
             return resendForTenant(tenantFallback, true);
         }
 
         return NextResponse.json(
-            { success: false, error: 'No se encontró checkout pendiente o empresa asociada para este email' },
-            { status: 404 }
+            {
+                success: true,
+                invitationSent: false,
+                alreadyProcessed: true,
+                message: 'Ya procesamos tu pago pero no pudimos reenviar el email. Contactá a soporte con tu comprobante.',
+            },
+            { status: 200 }
         );
 
     } catch (error: any) {
