@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation"
 import { farmsApi } from "../lib/api"
 import { workersService, Worker, AttendanceRecord } from "../lib/workers"
 import { Package, Cog, Archive, Truck, ArrowUpRight, Sprout, ChevronRight, Boxes, Banknote, Users, Wrench, Clock, TrendingDown, AlertTriangle } from "lucide-react"
+import { useFeatures } from "../lib/features-context"
 
 type Farm = {
   id: string
@@ -18,6 +19,7 @@ type Farm = {
 export function DashboardStats() {
   const { user } = useAuth()
   const router = useRouter()
+  const { canAccessModule } = useFeatures()
   const [farms, setFarms] = useState<Farm[]>([])
   const [loadingFarms, setLoadingFarms] = useState(false)
   const [workers, setWorkers] = useState<Worker[]>([])
@@ -144,44 +146,40 @@ export function DashboardStats() {
 
   const firstTwoFarms = farms.slice(0, 2)
 
-  // Determine which boxes to show based on role
-  const roleKey = (user?.rol || '').toString().toLowerCase().trim()
-  const allowedBoxes = (() => {
-    // Normalize a few variants
-    if (roleKey.includes('admin')) return new Set(['empaque', 'campo', 'inventario', 'finanzas', 'trabajadores'])
-    if (roleKey.includes('empaque')) return new Set(['empaque', 'inventario', 'trabajadores'])
-    if (roleKey.includes('campo')) return new Set(['empaque', 'inventario', 'campo', 'trabajadores'])
-    if (roleKey.includes('finanzas')) return new Set(['finanzas', 'trabajadores'])
-    // Fallback: show a reasonable default (Empaque + Inventario + Trabajadores)
-    return new Set(['empaque', 'inventario', 'trabajadores'])
-  })()
+  // Use the same logic as sidebar: check role-based module access via canAccessModule
+  const userRole = user?.rol || ''
+  const canSeeEmpaque = canAccessModule('empaque', userRole)
+  const canSeeCampo = canAccessModule('campo', userRole)
+  const canSeeInventario = canAccessModule('inventario', userRole)
+  const canSeeFinanzas = canAccessModule('finanzas', userRole)
+  const canSeeTrabajadores = canAccessModule('trabajadores', userRole)
 
   const EmpaqueIcon = ({ className = "" }: { className?: string }) => (
-    <div className={`h-8 w-8 rounded-md bg-seedor/10 text-seedor flex items-center justify-center ${className}`}>
+    <div className={`h-8 w-8 rounded-md flex items-center justify-center ${className}`} style={{background: '#e8f5e0', color: '#63bd0a'}}>
       <Package className="h-4 w-4" />
     </div>
   )
 
   const CampoIcon = ({ className = "" }: { className?: string }) => (
-    <div className={`h-8 w-8 rounded-md bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300 flex items-center justify-center ${className}`}>
+    <div className={`h-8 w-8 rounded-md flex items-center justify-center ${className}`} style={{background: '#fef2ee', color: '#f96c57'}}>
       <Sprout className="h-4 w-4" />
     </div>
   )
 
   const InventarioIcon = ({ className = "" }: { className?: string }) => (
-    <div className={`h-8 w-8 rounded-md bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300 flex items-center justify-center ${className}`}>
+    <div className={`h-8 w-8 rounded-md flex items-center justify-center ${className}`} style={{background: '#fef0ee', color: '#f87163'}}>
       <Boxes className="h-4 w-4" />
     </div>
   )
 
   const FinanzasIcon = ({ className = "" }: { className?: string }) => (
-    <div className={`h-8 w-8 rounded-md bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300 flex items-center justify-center ${className}`}>
+    <div className={`h-8 w-8 rounded-md flex items-center justify-center ${className}`} style={{background: '#e8f3f9', color: '#297db5'}}>
       <Banknote className="h-4 w-4" />
     </div>
   )
 
   const TrabajadoresIcon = ({ className = "" }: { className?: string }) => (
-    <div className={`h-8 w-8 rounded-md bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-300 flex items-center justify-center ${className}`}>
+    <div className={`h-8 w-8 rounded-md flex items-center justify-center ${className}`} style={{background: '#fef0f3', color: '#f56b8b'}}>
       <Users className="h-4 w-4" />
     </div>
   )
@@ -190,23 +188,29 @@ export function DashboardStats() {
     label,
     onClick,
     icon: Icon,
-    tone = "seedor",
-  }: { label: string; onClick: () => void; icon: any; tone?: "seedor" | "purple" | "orange" | "green" }) => {
-    const toneClasses: Record<string, string> = {
-      seedor: "hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:!border-emerald-300 text-foreground",
-      purple: "hover:bg-purple-100 hover:border-purple-300 text-foreground dark:hover:bg-purple-900/30",
-      orange: "hover:bg-orange-100 hover:border-orange-300 text-foreground dark:hover:bg-orange-900/30",
-      green: "hover:bg-emerald-100 hover:border-emerald-300 text-foreground dark:hover:bg-emerald-900/30",
+    tone = "lime",
+  }: { label: string; onClick: () => void; icon: any; tone?: "lime" | "coral" | "yellow" | "pink" | "orange" | "blue" }) => {
+    const toneStyles: Record<string, {bg: string, border: string, hoverBg: string}> = {
+      lime: {bg: '#ffffff', border: '#e5e7eb', hoverBg: '#f0f7ea'},
+      coral: {bg: '#ffffff', border: '#e5e7eb', hoverBg: '#fef0ee'},
+      yellow: {bg: '#ffffff', border: '#e5e7eb', hoverBg: '#fef6e8'},
+      pink: {bg: '#ffffff', border: '#e5e7eb', hoverBg: '#fef0f3'},
+      orange: {bg: '#ffffff', border: '#e5e7eb', hoverBg: '#fef2ee'},
+      blue: {bg: '#ffffff', border: '#e5e7eb', hoverBg: '#e8f3f9'},
     }
+    const style = toneStyles[tone]
     return (
       <Button
         variant="outline"
-        className={`justify-start gap-2 border-muted/60 transition-colors hover:!text-black dark:hover:!text-black ${toneClasses[tone]} `}
+        className="justify-start gap-2 transition-all border text-foreground"
+        style={{background: style.bg, borderColor: style.border, color: '#1a1a1a'}}
+        onMouseEnter={(e) => {e.currentTarget.style.background = style.hoverBg; e.currentTarget.style.color = '#1a1a1a'}}
+        onMouseLeave={(e) => {e.currentTarget.style.background = style.bg; e.currentTarget.style.color = '#1a1a1a'}}
         onClick={onClick}
       >
-        <Icon className="h-4 w-4 opacity-80" />
+        <Icon className="h-4 w-4 opacity-70" />
         <span>{label}</span>
-        <ChevronRight className="ml-auto h-4 w-4 opacity-60" />
+        <ChevronRight className="ml-auto h-4 w-4 opacity-50" />
       </Button>
     )
   }
@@ -227,11 +231,11 @@ export function DashboardStats() {
           </div>
         </div>
       </header>
-      <main className="flex-1 p-6 overflow-auto">
+      <main className="flex-1 p-6 overflow-auto" style={{background: '#f9f9f9'}}>
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Empaque */}
-          {allowedBoxes.has('empaque') && (
-            <Card className="border-seedor/20 bg-white dark:bg-neutral-900">
+          {canSeeEmpaque && (
+            <Card className="border bg-white dark:bg-neutral-900 shadow-sm" style={{borderColor: '#e8f5e0'}}>
               <CardHeader className="flex flex-row items-start gap-3">
                 <EmpaqueIcon />
                 <div>
@@ -242,13 +246,13 @@ export function DashboardStats() {
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in-up">
                   <div className="flex flex-col gap-3">
-                    <ActionButton icon={Package} label="Ingreso Fruta" onClick={() => go('/empaque/ingreso-fruta')} tone="seedor" />
-                    <ActionButton icon={Cog} label="Preproceso" onClick={() => go('/empaque/preproceso')} tone="orange" />
-                    <ActionButton icon={Archive} label="Pallets" onClick={() => go('/empaque/pallets')} tone="green" />
+                    <ActionButton icon={Package} label="Ingreso Fruta" onClick={() => go('/empaque/ingreso-fruta')} tone="lime" />
+                    <ActionButton icon={Cog} label="Preproceso" onClick={() => go('/empaque/preproceso')} tone="lime" />
+                    <ActionButton icon={Archive} label="Pallets" onClick={() => go('/empaque/pallets')} tone="lime" />
                   </div>
                   <div className="flex flex-col gap-3">
-                    <ActionButton icon={Truck} label="Despacho" onClick={() => go('/empaque/despacho')} tone="purple" />
-                    <ActionButton icon={ArrowUpRight} label="Egreso fruta" onClick={() => go('/empaque/egreso-fruta')} tone="seedor" />
+                    <ActionButton icon={Truck} label="Despacho" onClick={() => go('/empaque/despacho')} tone="lime" />
+                    <ActionButton icon={ArrowUpRight} label="Egreso fruta" onClick={() => go('/empaque/egreso-fruta')} tone="lime" />
                   </div>
                 </div>
               </CardContent>
@@ -256,8 +260,8 @@ export function DashboardStats() {
           )}
 
           {/* Campo */}
-          {allowedBoxes.has('campo') && (
-            <Card className="border-emerald-200/30 bg-white dark:bg-neutral-900">
+          {canSeeCampo && (
+            <Card className="border bg-white dark:bg-neutral-900 shadow-sm" style={{borderColor: '#fef2ee'}}>
               <CardHeader className="flex flex-row items-start gap-3">
                 <CampoIcon />
                 <div>
@@ -280,10 +284,13 @@ export function DashboardStats() {
                           <Button
                             key={farm.id}
                             variant="outline"
-                            className="justify-start gap-2 border-emerald-200/60 hover:border-emerald-300 hover:bg-emerald-100/40 dark:hover:bg-emerald-900/20 hover:text-black dark:hover:text-black"
+                            className="justify-start gap-2 border transition-all text-foreground"
+                            style={{background: '#ffffff', borderColor: '#e5e7eb', color: '#1a1a1a'}}
+                            onMouseEnter={(e) => {e.currentTarget.style.background = '#fef2ee'; e.currentTarget.style.borderColor = '#fb8e7c'; e.currentTarget.style.color = '#1a1a1a'}}
+                            onMouseLeave={(e) => {e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#1a1a1a'}}
                             onClick={() => go(`/campo/${farm.id}`)}
                           >
-                            <Sprout className="h-4 w-4 text-emerald-600" />
+                            <Sprout className="h-4 w-4" style={{color: '#f96c57'}} />
                             <span>{farm.name}</span>
                             <ChevronRight className="ml-auto h-4 w-4 opacity-60" />
                           </Button>
@@ -292,9 +299,15 @@ export function DashboardStats() {
                         <p className="text-sm text-muted-foreground">Aún no hay campos creados</p>
                       )}
                     </div>
-                    <Button variant="ghost" className="px-0 text-seedor underline hover:text-seedor/80" onClick={() => go('/campo')}>
+                    <button 
+                      className="px-0 text-sm font-medium transition-opacity bg-transparent border-none cursor-pointer" 
+                      style={{color: '#f96c57'}}
+                      onMouseEnter={(e) => e.currentTarget.style.opacity = '0.6'}
+                      onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                      onClick={() => go('/campo')}
+                    >
                       Ver más
-                    </Button>
+                    </button>
                   </>
                 )}
               </CardContent>
@@ -304,8 +317,8 @@ export function DashboardStats() {
           {/* Placeholder squares */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
             {/* Inventario */}
-            {allowedBoxes.has('inventario') && (
-            <Card className="h-full border-sky-200/40 bg-white dark:bg-neutral-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => go('/inventario')}>
+            {canSeeInventario && (
+            <Card className="h-full border bg-white dark:bg-neutral-900 cursor-pointer hover:shadow-lg transition-shadow" style={{borderColor: '#fef0ee'}} onClick={() => go('/inventario')}>
               <CardHeader className="flex flex-row items-start gap-3 pb-4">
                 <InventarioIcon />
                 <div>
@@ -321,15 +334,15 @@ export function DashboardStats() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between py-2 border-b border-muted">
                     <span className="text-sm font-medium text-muted-foreground">Total de ítems</span>
-                    <span className="text-2xl font-bold text-sky-600">{inventarioStats.totalItems}</span>
+                    <span className="text-2xl font-bold" style={{color: '#f87163'}}>{inventarioStats.totalItems}</span>
                   </div>
                   <div className="flex items-center justify-between py-2 border-b border-muted">
                     <span className="text-sm font-medium text-muted-foreground">Bajo stock</span>
                     <div className="flex items-center gap-2">
                       {inventarioStats.lowStockItems > 0 && (
-                        <AlertTriangle className="h-5 w-5 text-destructive" />
+                        <AlertTriangle className="h-5 w-5" style={{color: '#f87163'}} />
                       )}
-                      <span className={`text-2xl font-bold ${inventarioStats.lowStockItems > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                      <span className="text-2xl font-bold" style={{color: inventarioStats.lowStockItems > 0 ? '#f87163' : '#f87163'}}>
                         {inventarioStats.lowStockItems}
                       </span>
                     </div>
@@ -347,16 +360,22 @@ export function DashboardStats() {
                     </span>
                   </div>
                 </div>
-                <Button variant="ghost" className="w-full justify-between group hover:bg-sky-50 dark:hover:bg-sky-950" onClick={() => go('/inventario')}>
-                  Ver detalles
-                  <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </Button>
+                <button 
+                  className="px-0 text-sm font-medium transition-opacity bg-transparent border-none cursor-pointer" 
+                  style={{color: '#f87163'}}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.6'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                  onClick={() => go('/inventario')}
+                >
+                  Ver más
+                </button>
               </CardContent>
             </Card>
             )}
 
             {/* Finanzas */}
-            <Card className="h-full border-amber-200/40 bg-white dark:bg-neutral-900 cursor-pointer hover:shadow-md transition-shadow" onClick={() => go('/finanzas')}>
+            {canSeeFinanzas && (
+            <Card className="h-full border bg-white dark:bg-neutral-900 cursor-pointer hover:shadow-lg transition-shadow" style={{borderColor: '#e8f3f9'}} onClick={() => go('/finanzas')}>
               <CardHeader className="flex flex-row items-start gap-3">
                 <FinanzasIcon />
                 <div>
@@ -378,54 +397,57 @@ export function DashboardStats() {
                 ) : (
                   <>
                     {/* Balance principal */}
-                    <div className="mb-4 p-3 rounded-lg bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-900/10 border border-amber-200/50">
+                    <div className="mb-4 p-3 rounded-lg border" style={{background: 'linear-gradient(135deg, #e8f3f9 0%, #e8f3f9 100%)', borderColor: '#d0e8f5'}}>
                       <p className="text-xs text-muted-foreground mb-1">Balance Total</p>
-                      <p className={`text-2xl font-bold ${finanzasStats.balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      <p className="text-2xl font-bold" style={{color: finanzasStats.balance >= 0 ? '#297db5' : '#f87163'}}>
                         ${finanzasStats.balance.toLocaleString()}
                       </p>
                     </div>
 
                     {/* Stats de Ingresos y Egresos */}
                     <div className="grid grid-cols-1 gap-2">
-                      <div className="flex items-center justify-between p-2 rounded-md bg-emerald-50 dark:bg-emerald-900/20">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <ArrowUpRight className="h-4 w-4 text-emerald-600" />
+                          <ArrowUpRight className="h-4 w-4" style={{color: '#63bd0a'}} />
                           <span className="text-sm font-medium">Ingresos</span>
                         </div>
-                        <span className="text-sm font-bold text-emerald-600">
+                        <span className="text-sm font-bold" style={{color: '#63bd0a'}}>
                           ${finanzasStats.ingresos.toLocaleString()}
                         </span>
                       </div>
                       
-                      <div className="flex items-center justify-between p-2 rounded-md bg-red-50 dark:bg-red-900/20">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <TrendingDown className="h-4 w-4 text-red-600" />
+                          <TrendingDown className="h-4 w-4" style={{color: '#f87163'}} />
                           <span className="text-sm font-medium">Egresos</span>
                         </div>
-                        <span className="text-sm font-bold text-red-600">
+                        <span className="text-sm font-bold" style={{color: '#f87163'}}>
                           ${finanzasStats.egresos.toLocaleString()}
                         </span>
                       </div>
                     </div>
 
-                    <Button 
-                      variant="ghost" 
-                      className="mt-4 px-0 text-amber-600 underline hover:text-amber-500 dark:text-amber-300 dark:hover:text-amber-200" 
+                    <button 
+                      className="mt-4 px-0 text-sm font-medium transition-opacity bg-transparent border-none cursor-pointer" 
+                      style={{color: '#297db5'}}
+                      onMouseEnter={(e) => e.currentTarget.style.opacity = '0.6'}
+                      onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                       onClick={(e) => {
                         e.stopPropagation()
                         go('/finanzas')
                       }}
                     >
-                      Ver detalles financieros
-                    </Button>
+                      Ver más
+                    </button>
                   </>
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* Trabajadores - Asistencia de hoy */}
-            {allowedBoxes.has('trabajadores') && (
-            <Card className="h-full border-violet-200/40 bg-white dark:bg-neutral-900">
+            {canSeeTrabajadores && (
+            <Card className="h-full border bg-white dark:bg-neutral-900 shadow-sm" style={{borderColor: '#fef0f3'}}>
               <CardHeader className="flex flex-row items-start gap-3">
                 <TrabajadoresIcon />
                 <div>
@@ -448,13 +470,13 @@ export function DashboardStats() {
                   <>
                     {/* Summary chips */}
                     <div className="flex flex-wrap items-center gap-2 mb-4">
-                      <span className="text-xs rounded-md bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-200 px-2 py-1">
+                      <span className="text-xs rounded-md px-2 py-1" style={{background: '#fef0f3', color: '#f56b8b'}}>
                         Activos: {workers.length}
                       </span>
-                      <span className="text-xs rounded-md bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200 px-2 py-1">
+                      <span className="text-xs rounded-md px-2 py-1" style={{background: '#fef0f3', color: '#f56b8b'}}>
                         Registrados: {new Set(attendance.map(a => a.worker_id)).size}
                       </span>
-                      <span className="text-xs rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200 px-2 py-1">
+                      <span className="text-xs rounded-md px-2 py-1" style={{background: '#fef0f3', color: '#f56b8b'}}>
                         Faltan: {Math.max(workers.length - new Set(attendance.map(a => a.worker_id)).size, 0)}
                       </span>
                     </div>
@@ -462,28 +484,34 @@ export function DashboardStats() {
                     {/* Breakdown */}
                     <div className="grid grid-cols-1 gap-2">
                       {[
-                        { code: 'PRE', label: 'Presente', color: 'text-emerald-700 bg-emerald-100 dark:text-emerald-200 dark:bg-emerald-900/40' },
-                        { code: 'AUS', label: 'Ausente', color: 'text-rose-700 bg-rose-100 dark:text-rose-200 dark:bg-rose-900/40' },
-                        { code: 'TAR', label: 'Tardanza', color: 'text-amber-700 bg-amber-100 dark:text-amber-200 dark:bg-amber-900/40' },
-                        { code: 'LIC', label: 'Licencia', color: 'text-sky-700 bg-sky-100 dark:text-sky-200 dark:bg-sky-900/40' },
-                        { code: 'VAC', label: 'Vacaciones', color: 'text-indigo-700 bg-indigo-100 dark:text-indigo-200 dark:bg-indigo-900/40' },
-                      ].map(({ code, label, color }) => {
+                        { code: 'PRE', label: 'Presente' },
+                        { code: 'AUS', label: 'Ausente' },
+                        { code: 'TAR', label: 'Tardanza' },
+                        { code: 'LIC', label: 'Licencia' },
+                        { code: 'VAC', label: 'Vacaciones' },
+                      ].map(({ code, label }) => {
                         const count = attendance.filter(a => a.status === code).length
                         return (
                           <div key={code} className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <span className={`inline-block h-2 w-2 rounded-full ${color.split(' ')[1]}`}></span>
+                              <span className="inline-block h-2 w-2 rounded-full" style={{background: '#f56b8b'}}></span>
                               <span className="text-sm">{label}</span>
                             </div>
-                            <span className={`text-xs rounded px-2 py-0.5 ${color}`}>{count}</span>
+                            <span className="text-xs rounded px-2 py-0.5" style={{background: '#fef0f3', color: '#f56b8b'}}>{count}</span>
                           </div>
                         )
                       })}
                     </div>
 
-                    <Button variant="ghost" className="mt-4 px-0 text-violet-600 underline hover:text-violet-500 dark:text-violet-300 dark:hover:text-violet-200" onClick={() => go('/trabajadores')}>
-                      Ver detalles de asistencia
-                    </Button>
+                    <button 
+                      className="mt-4 px-0 text-sm font-medium transition-opacity bg-transparent border-none cursor-pointer" 
+                      style={{color: '#f56b8b'}}
+                      onMouseEnter={(e) => e.currentTarget.style.opacity = '0.6'}
+                      onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                      onClick={() => go('/trabajadores')}
+                    >
+                      Ver más
+                    </button>
                   </>
                 )}
               </CardContent>

@@ -64,9 +64,9 @@ const roleDescriptions = {
 
 const roleBadgeColors = {
   admin: 'bg-red-100 text-red-800 border-red-200',
-  campo: 'bg-green-100 text-green-800 border-green-200',
-  empaque: 'bg-blue-100 text-blue-800 border-blue-200',
-  finanzas: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+  campo: 'border-orange-200',
+  empaque: 'border-green-200',
+  finanzas: 'border-blue-200'
 }
 
 export function UserManagement({ currentUser }: UserManagementProps) {
@@ -494,7 +494,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-6 overflow-auto" style={{background: '#f9f9f9'}}>
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex flex-col items-center justify-center py-16">
               <div className="relative">
@@ -528,7 +528,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
           </div>
         </div>
       </header>
-      <main className="flex-1 p-6 overflow-auto">
+      <main className="flex-1 p-6 overflow-auto" style={{background: '#f9f9f9'}}>
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex justify-between items-center mb-6">
             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -539,6 +539,9 @@ export function UserManagement({ currentUser }: UserManagementProps) {
                 <Button 
                   disabled={!canAddMoreUsers}
                   className="gap-2"
+                  style={{background: '#63bd0a', color: 'white'}} 
+                  onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = '#8bc34a')} 
+                  onMouseLeave={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = '#63bd0a')}
                 >
                   <UserPlus className="h-4 w-4" />
                   Agregar Usuario
@@ -547,7 +550,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
               <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="text-xl flex items-center gap-2">
-                <UserPlus className="h-5 w-5 text-primary" />
+                <UserPlus className="h-5 w-5" style={{color: '#63bd0a'}} />
                 Invitar Nuevo Usuario
               </DialogTitle>
               <DialogDescription>
@@ -626,7 +629,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
-              <Edit3 className="h-5 w-5 text-primary" />
+              <Edit3 className="h-5 w-5" style={{color: '#63bd0a'}} />
               Editar Rol de Usuario
             </DialogTitle>
             <DialogDescription>
@@ -782,23 +785,40 @@ export function UserManagement({ currentUser }: UserManagementProps) {
           const RoleIcon = roleIcons[user.role_code]
           
           return (
-            <Card key={user.id} className="hover:shadow-md transition-shadow duration-200 border-l-4 border-l-primary/20">
+            <Card key={user.id} className="hover:shadow-md transition-shadow duration-200 border-l-4 border-l-primary/20" style={{background: '#ffffff'}}>
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-4">
-                    <div className={`p-3 rounded-xl ${
-                      user.role_code === 'admin' ? 'bg-red-100 text-red-600' :
-                      user.role_code === 'campo' ? 'bg-green-100 text-green-600' :
-                      user.role_code === 'empaque' ? 'bg-blue-100 text-blue-600' :
-                      'bg-yellow-100 text-yellow-600'
-                    }`}>
+                    <div className={`p-3 rounded-xl`} style={{
+                      background: user.role_code === 'admin' ? '#fee2e2' :
+                                user.role_code === 'campo' ? '#fef2ee' :
+                                user.role_code === 'empaque' ? '#f0f7ea' :
+                                '#e0f2fe',
+                      color: user.role_code === 'admin' ? '#dc2626' :
+                             user.role_code === 'campo' ? '#f96c57' :
+                             user.role_code === 'empaque' ? '#63bd0a' :
+                             '#297db5'
+                    }}>
                       <RoleIcon className="h-5 w-5" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h4 className="font-semibold text-lg text-gray-900">{user.full_name || 'Sin nombre'}</h4>
                         <div className="flex items-center gap-2">
-                          <Badge className={`${roleBadgeColors[user.role_code]} font-medium px-3 py-1`}>
+                          <Badge className={`font-medium px-3 py-1`} style={{
+                            background: user.role_code === 'admin' ? '#fee2e2' :
+                                      user.role_code === 'campo' ? '#fef2ee' :
+                                      user.role_code === 'empaque' ? '#f0f7ea' :
+                                      '#e0f2fe',
+                            color: user.role_code === 'admin' ? '#dc2626' :
+                                   user.role_code === 'campo' ? '#f96c57' :
+                                   user.role_code === 'empaque' ? '#63bd0a' :
+                                   '#297db5',
+                            borderColor: user.role_code === 'admin' ? '#fecaca' :
+                                       user.role_code === 'campo' ? '#fed7cf' :
+                                       user.role_code === 'empaque' ? '#d7efc4' :
+                                       '#bae6fd'
+                          }}>
                             {roleLabels[user.role_code]}
                           </Badge>
                           <Badge 

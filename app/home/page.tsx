@@ -39,6 +39,25 @@ const HomePage = () => {
   }
   
   const renderPageContent = () => {
+    // If no tenant selected, show selection prompt
+    if (!user.tenantId || user.tenantId === '') {
+      return (
+        <div className="flex items-center justify-center min-h-[60vh] p-8">
+          <div className="text-center max-w-md">
+            <div className="mb-4">
+              <svg className="mx-auto h-16 w-16 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">Selecciona un perfil</h2>
+            <p className="text-muted-foreground mb-6">
+              Elegí el perfil correspondiente arriba para ver el dashboard y acceder a todos los módulos
+            </p>
+          </div>
+        </div>
+      )
+    }
+    
     switch (currentPage) {
       case "empaque":
         return <EmpaquePage />

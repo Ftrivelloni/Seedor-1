@@ -325,14 +325,14 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
           <Button onClick={() => {
             setSelectedWorker(undefined)
             setIsModalOpen(true)
-          }} className="shrink-0">
+          }} className="shrink-0" style={{background: '#f56b8b', color: 'white'}} onMouseEnter={(e) => e.currentTarget.style.background = '#f88da7'} onMouseLeave={(e) => e.currentTarget.style.background = '#f56b8b'}>
             <Plus className="mr-0 md:mr-2 h-4 w-4" />
             <span className="hidden md:inline">Nuevo trabajador</span>
           </Button>
         </div>
       </header>
 
-      <main className="flex-1 p-6 overflow-auto bg-muted/30">
+      <main className="flex-1 p-6 overflow-auto" style={{background: '#f9f9f9'}}>
         <div className="max-w-7xl mx-auto">
           <Tabs defaultValue="workers" className="w-full">
             <TabsList className="mb-6 grid w-full grid-cols-3 h-auto">
@@ -354,17 +354,17 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
               <div className="space-y-6">
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="p-6">
+            <Card className="p-6" style={{background: '#ffffff', borderColor: '#fef0f3'}}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Trabajadores</p>
-                  <p className="text-3xl font-bold">{allWorkers.length}</p>
+                  <p className="text-3xl font-bold" style={{color: '#f56b8b'}}>{allWorkers.length}</p>
                 </div>
-                <Users className="h-10 w-10 text-muted-foreground" />
+                <Users className="h-10 w-10" style={{color: '#f56b8b'}} />
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6" style={{background: '#ffffff', borderColor: '#fef0f3'}}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Activos</p>
@@ -374,7 +374,7 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6" style={{background: '#ffffff', borderColor: '#fef0f3'}}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Inactivos</p>
@@ -395,6 +395,7 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
                     onChange={(event) => handleSearchChange(event.target.value)}
                     placeholder="Buscar por nombre..."
                     className="pl-9"
+                    style={{background: '#ffffff'}}
                   />
                   {isSearching && (
                     <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -412,11 +413,11 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
             </div>
 
             {loading ? (
-              <Card className="p-12 text-center">
+              <Card className="p-12 text-center" style={{background: '#ffffff'}}>
                 <p className="text-muted-foreground">Cargando trabajadores...</p>
               </Card>
             ) : workers.length === 0 ? (
-              <Card className="p-12 text-center">
+              <Card className="p-12 text-center" style={{background: '#ffffff'}}>
                 {trimmedSearch ? (
                   <>
                     <h3 className="text-lg font-semibold mb-2">No se encontraron trabajadores</h3>
@@ -457,13 +458,14 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
               </Card>
             ) : (
               <div className="space-y-4">
-                <h2 className="text-lg font-semibold">Trabajadores Activos</h2>
+                <h2 className="text-lg font-semibold" style={{color: '#f56b8b'}}>Trabajadores Activos</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {activeWorkers.map((worker) => (
                     <Card
                       key={worker.id}
                       data-testid="worker-card"
                       className="p-4 hover:shadow-lg transition-shadow"
+                      style={{background: '#ffffff'}}
                     >
                       <div className="space-y-3">
                         <div className="flex items-start justify-between">
@@ -518,13 +520,14 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
 
                 {inactiveWorkers.length > 0 && (
                   <>
-                    <h2 className="text-lg font-semibold mt-8">Trabajadores Inactivos</h2>
+                    <h2 className="text-lg font-semibold mt-8" style={{color: '#f56b8b'}}>Trabajadores Inactivos</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {inactiveWorkers.map((worker) => (
                         <Card
                           key={worker.id}
                           data-testid="worker-card-inactive"
                           className="p-4 opacity-60"
+                          style={{background: '#ffffff'}}
                         >
                           <div className="space-y-3">
                             <div className="flex items-start justify-between">
@@ -581,11 +584,11 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
 
             <TabsContent value="attendance">
             {loading ? (
-              <Card className="p-12 text-center">
+              <Card className="p-12 text-center" style={{background: '#ffffff'}}>
                 <p className="text-muted-foreground">Cargando trabajadores...</p>
               </Card>
             ) : activeWorkers.length === 0 ? (
-              <Card className="p-12 text-center">
+              <Card className="p-12 text-center" style={{background: '#ffffff'}}>
                 <p className="text-muted-foreground">No hay trabajadores activos</p>
               </Card>
             ) : user?.tenantId ? (
@@ -595,7 +598,7 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
                 onSuccess={handleAttendanceSuccess}
               />
             ) : (
-              <Card className="p-12 text-center">
+              <Card className="p-12 text-center" style={{background: '#ffffff'}}>
                 <p className="text-muted-foreground text-red-600">Error: No se encontró el ID del tenant</p>
               </Card>
             )}
@@ -603,20 +606,20 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
 
             <TabsContent value="history">
             {loading ? (
-              <Card className="p-12 text-center">
+              <Card className="p-12 text-center" style={{background: '#ffffff'}}>
                 <p className="text-muted-foreground">Cargando trabajadores...</p>
               </Card>
             ) : activeWorkers.length === 0 ? (
-              <Card className="p-12 text-center">
+              <Card className="p-12 text-center" style={{background: '#ffffff'}}>
                 <p className="text-muted-foreground">No hay trabajadores activos</p>
               </Card>
             ) : (
               <div className="space-y-6">
-                <Card className="p-6">
+                <Card className="p-6" style={{background: '#ffffff'}}>
                   <div className="space-y-2">
-                    <Label>Seleccionar Trabajador</Label>
+                    <Label style={{color: '#f56b8b'}}>Seleccionar Trabajador</Label>
                     <Select value={selectedWorkerForHistory} onValueChange={setSelectedWorkerForHistory}>
-                      <SelectTrigger>
+                      <SelectTrigger style={{background: '#f5f5f5'}}>
                         <SelectValue placeholder="Seleccionar trabajador" />
                       </SelectTrigger>
                       <SelectContent>

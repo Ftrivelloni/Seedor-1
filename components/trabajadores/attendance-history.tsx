@@ -106,7 +106,7 @@ export function AttendanceHistory({ worker, tenantId }: AttendanceHistoryProps) 
   }
 
   return (
-    <Card>
+    <Card style={{background: '#ffffff'}}>
       <CardHeader>
         <CardTitle>Historial de Asistencia</CardTitle>
         <CardDescription>
@@ -126,7 +126,7 @@ export function AttendanceHistory({ worker, tenantId }: AttendanceHistoryProps) 
 
         {/* Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Card className="bg-green-50">
+          <Card style={{background: '#ffffff'}}>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -138,7 +138,7 @@ export function AttendanceHistory({ worker, tenantId }: AttendanceHistoryProps) 
             </CardContent>
           </Card>
 
-          <Card className="bg-red-50">
+          <Card style={{background: '#ffffff'}}>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2">
                 <XCircle className="h-4 w-4 text-red-600" />
@@ -150,7 +150,7 @@ export function AttendanceHistory({ worker, tenantId }: AttendanceHistoryProps) 
             </CardContent>
           </Card>
 
-          <Card className="bg-amber-50">
+          <Card style={{background: '#ffffff'}}>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-amber-600" />
@@ -162,7 +162,7 @@ export function AttendanceHistory({ worker, tenantId }: AttendanceHistoryProps) 
             </CardContent>
           </Card>
 
-          <Card className="bg-blue-50">
+          <Card style={{background: '#ffffff'}}>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-blue-600" />
@@ -174,7 +174,7 @@ export function AttendanceHistory({ worker, tenantId }: AttendanceHistoryProps) 
             </CardContent>
           </Card>
 
-          <Card className="bg-purple-50">
+          <Card style={{background: '#ffffff'}}>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4 text-purple-600" />

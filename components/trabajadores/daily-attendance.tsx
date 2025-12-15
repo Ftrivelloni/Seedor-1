@@ -211,7 +211,7 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
   }
 
   return (
-    <Card>
+    <Card style={{background: '#ffffff'}}>
       <CardHeader>
         <CardTitle>Tomar Asistencia Diaria</CardTitle>
         <CardDescription>
@@ -231,6 +231,7 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
                     'w-full justify-start text-left font-normal',
                     !date && 'text-muted-foreground'
                   )}
+                  style={{background: '#f5f5f5'}}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {date ? format(date, "PPP", { locale: es }) : 'Seleccionar fecha'}
@@ -267,6 +268,7 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
                     'w-full justify-between',
                     !selectedWorker && 'text-muted-foreground'
                   )}
+                  style={{background: '#f5f5f5'}}
                 >
                   {selectedWorker
                     ? `${selectedWorker.full_name} - ${getAreaLabel(selectedWorker.area_module)}`
@@ -309,7 +311,7 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
 
           {/* Worker Info Card */}
           {selectedWorker ? (
-            <Card className="bg-muted/50 border-2">
+            <Card className="border-2" style={{background: '#ffffff'}}>
               <CardContent className="p-4 space-y-3">
                 <div>
                   <h3 className="font-semibold text-lg leading-tight">{selectedWorker.full_name}</h3>
@@ -335,7 +337,7 @@ export function DailyAttendance({ workers, tenantId, onSuccess }: DailyAttendanc
               </CardContent>
             </Card>
           ) : (
-            <Card className="bg-muted/30 border-dashed border-2">
+            <Card className="border-dashed border-2" style={{background: '#ffffff'}}>
               <CardContent className="p-8 text-center">
                 <p className="text-muted-foreground">
                   Seleccione un trabajador para registrar su asistencia

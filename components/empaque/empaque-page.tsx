@@ -207,48 +207,48 @@ export function EmpaquePage() {
                     </div>
                 </div>
             </header>
-            <main className="flex-1 p-6 overflow-auto">
+            <main className="flex-1 p-6 overflow-auto" style={{background: '#f9f9f9'}}>
                 <div className="max-w-7xl mx-auto space-y-6">
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6 my-8">
-                <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('ingreso-fruta')}>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('ingreso-fruta')} style={{background: '#ffffff', borderColor: '#f0f7ea'}}>
                     <CardContent className="p-4 text-center">
-                        <ArrowDown className="h-8 w-8 mx-auto mb-2 text-blue-600" />
-                        <h3 className="font-medium">Ingreso Fruta</h3>
+                        <ArrowDown className="h-8 w-8 mx-auto mb-2" style={{color: '#63bd0a'}} />
+                        <h3 className="font-medium" style={{color: '#63bd0a'}}>Ingreso Fruta</h3>
                         <p className="text-xs text-muted-foreground">Recepción de materia prima</p>
                     </CardContent>
                 </Card>
-                <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('preproceso')}>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('preproceso')} style={{background: '#ffffff', borderColor: '#f0f7ea'}}>
                     <CardContent className="p-4 text-center">
-                        <Cog className="h-8 w-8 mx-auto mb-2 text-orange-600" />
-                        <h3 className="font-medium">Preproceso</h3>
+                        <Cog className="h-8 w-8 mx-auto mb-2" style={{color: '#63bd0a'}} />
+                        <h3 className="font-medium" style={{color: '#63bd0a'}}>Preproceso</h3>
                         <p className="text-xs text-muted-foreground">Preparación y limpieza</p>
                     </CardContent>
                 </Card>
-                <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('pallets')}>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('pallets')} style={{background: '#ffffff', borderColor: '#f0f7ea'}}>
                     <CardContent className="p-4 text-center">
-                        <Archive className="h-8 w-8 mx-auto mb-2 text-green-600" />
-                        <h3 className="font-medium">Pallets</h3>
+                        <Archive className="h-8 w-8 mx-auto mb-2" style={{color: '#63bd0a'}} />
+                        <h3 className="font-medium" style={{color: '#63bd0a'}}>Pallets</h3>
                         <p className="text-xs text-muted-foreground">Gestión de pallets</p>
                     </CardContent>
                 </Card>
-                <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('despacho')}>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('despacho')} style={{background: '#ffffff', borderColor: '#f0f7ea'}}>
                     <CardContent className="p-4 text-center">
-                        <Truck className="h-8 w-8 mx-auto mb-2 text-purple-600" />
-                        <h3 className="font-medium">Despacho</h3>
+                        <Truck className="h-8 w-8 mx-auto mb-2" style={{color: '#63bd0a'}} />
+                        <h3 className="font-medium" style={{color: '#63bd0a'}}>Despacho</h3>
                         <p className="text-xs text-muted-foreground">Envío a clientes</p>
                     </CardContent>
                 </Card>
-                <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('egreso-fruta')}>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigateToSubpage('egreso-fruta')} style={{background: '#ffffff', borderColor: '#f0f7ea'}}>
                     <CardContent className="p-4 text-center">
-                        <ArrowUp className="h-8 w-8 mx-auto mb-2 text-red-600" />
-                        <h3 className="font-medium">Egreso Fruta</h3>
+                        <ArrowUp className="h-8 w-8 mx-auto mb-2" style={{color: '#63bd0a'}} />
+                        <h3 className="font-medium" style={{color: '#63bd0a'}}>Egreso Fruta</h3>
                         <p className="text-xs text-muted-foreground">Salida de productos</p>
                     </CardContent>
                 </Card>
             </div>
 
-            <h2 className="text-xl font-bold mt-10 mb-4">Resumen</h2>
+            <h2 className="text-xl font-bold mt-10 mb-4" style={{color: '#63bd0a'}}>Resumen</h2>
 
             <EmpaqueFlow
                 ingresosFruta={ingresosFruta}
@@ -259,10 +259,10 @@ export function EmpaquePage() {
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <Card>
+                <Card style={{background: '#ffffff'}}>
                     <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
-                        <ArrowDown className="h-5 w-5 text-blue-600" />
+                        <ArrowDown className="h-5 w-5" style={{color: '#63bd0a'}} />
                         <span>Ingreso de Fruta</span>
                         </CardTitle>
                         <CardDescription>Resumen de ingresos</CardDescription>
@@ -285,10 +285,10 @@ export function EmpaquePage() {
                     </CardContent>
                     </Card>
 
-                <Card>
+                <Card style={{background: '#ffffff'}}>
                     <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
-                            <Cog className="h-5 w-5 text-orange-600" />
+                            <Cog className="h-5 w-5" style={{color: '#63bd0a'}} />
                             <span>Preproceso</span>
                         </CardTitle>
                         <CardDescription>Resumen de preparación y limpieza</CardDescription>
@@ -305,10 +305,10 @@ export function EmpaquePage() {
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card style={{background: '#ffffff'}}>
                     <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
-                            <Archive className="h-5 w-5 text-green-600" />
+                            <Archive className="h-5 w-5" style={{color: '#63bd0a'}} />
                             <span>Pallets</span>
                         </CardTitle>
                         <CardDescription>Resumen de pallets</CardDescription>
@@ -322,10 +322,10 @@ export function EmpaquePage() {
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card style={{background: '#ffffff'}}>
                     <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
-                            <Truck className="h-5 w-5 text-purple-600" />
+                            <Truck className="h-5 w-5" style={{color: '#63bd0a'}} />
                             <span>Despacho</span>
                         </CardTitle>
                         <CardDescription>Resumen de envíos recientes</CardDescription>
@@ -339,10 +339,10 @@ export function EmpaquePage() {
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card style={{background: '#ffffff'}}>
                     <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
-                            <ArrowUp className="h-5 w-5 text-red-600" />
+                            <ArrowUp className="h-5 w-5" style={{color: '#63bd0a'}} />
                             <span>Egreso de Fruta</span>
                         </CardTitle>
                         <CardDescription>Resumen de salidas</CardDescription>
@@ -508,7 +508,7 @@ export function EmpaqueFlow(props: {
     const fmtPallets = (v: number | null | undefined) => (v == null ? "-" : `${Number(v).toLocaleString()} pallets`);
 
     return (
-        <Card>
+        <Card style={{background: '#ffffff'}}>
             <CardHeader>
                 <div className="flex items-center justify-between gap-4 w-full">
                     <div>

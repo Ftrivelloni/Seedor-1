@@ -293,7 +293,7 @@ export function InventarioPage() {
             <p className="text-xs md:text-sm text-muted-foreground truncate">Control de insumos y stock - {user?.tenant?.name || 'Finca'}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={() => setShowItemModal(true)} size="sm" className="shrink-0">
+            <Button onClick={() => setShowItemModal(true)} size="sm" className="shrink-0" style={{background: '#f87163', color: 'white'}} onMouseEnter={(e) => e.currentTarget.style.background = '#fa9387'} onMouseLeave={(e) => e.currentTarget.style.background = '#f87163'}>
               <Plus className="h-4 w-4" />
               <span className="hidden md:inline ml-2">Nuevo ítem</span>
             </Button>
@@ -313,21 +313,21 @@ export function InventarioPage() {
           </div>
         </div>
       </header>
-      <main className="flex-1 p-6 space-y-6 overflow-auto">
+      <main className="flex-1 p-6 space-y-6 overflow-auto" style={{background: '#f9f9f9'}}>
 
             {/* Resumen Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
+              <Card style={{background: '#ffffff', borderColor: '#fef0ee'}}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total ítems</CardTitle>
-                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <Package className="h-4 w-4" style={{color: '#f87163'}} />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{summary.totalItems}</div>
+                  <div className="text-2xl font-bold" style={{color: '#f87163'}}>{summary.totalItems}</div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card style={{background: '#ffffff', borderColor: '#fef0ee'}}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Bajo stock</CardTitle>
                   <AlertTriangle className="h-4 w-4 text-destructive" />
@@ -337,10 +337,10 @@ export function InventarioPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card style={{background: '#ffffff', borderColor: '#fef0ee'}}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Último movimiento</CardTitle>
-                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <Package className="h-4 w-4" style={{color: '#f87163'}} />
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm font-medium">{formatDate(summary.lastMovementDate)}</div>
@@ -349,9 +349,9 @@ export function InventarioPage() {
             </div>
 
             {/* Filtros */}
-            <Card>
+            <Card style={{background: '#ffffff'}}>
               <CardHeader>
-                <CardTitle className="text-lg">Filtros</CardTitle>
+                <CardTitle className="text-lg" style={{color: '#f87163'}}>Filtros</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -362,36 +362,41 @@ export function InventarioPage() {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-9"
+                      style={{background: '#ffffff', borderColor: '#f87163', borderWidth: '1.5px'}}
                     />
                   </div>
 
-                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas las categorías" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas las categorías</SelectItem>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div>
+                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                      <SelectTrigger style={{background: '#ffffff', borderColor: '#f87163', borderWidth: '1.5px'}}>
+                        <SelectValue placeholder="Todas las categorías" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las categorías</SelectItem>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                  <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas las ubicaciones" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas las ubicaciones</SelectItem>
-                      {locations.map((location) => (
-                        <SelectItem key={location.id} value={location.id}>
-                          {location.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div>
+                    <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                      <SelectTrigger style={{background: '#ffffff', borderColor: '#f87163', borderWidth: '1.5px'}}>
+                        <SelectValue placeholder="Todas las ubicaciones" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las ubicaciones</SelectItem>
+                        {locations.map((location) => (
+                          <SelectItem key={location.id} value={location.id}>
+                            {location.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   <div className="flex items-center space-x-2">
                     <input
@@ -410,9 +415,9 @@ export function InventarioPage() {
             </Card>
 
             {/* Tabla de Items */}
-            <Card>
+            <Card style={{background: '#ffffff'}}>
               <CardHeader>
-                <CardTitle className="text-lg">Inventario</CardTitle>
+                <CardTitle className="text-lg" style={{color: '#f87163'}}>Inventario</CardTitle>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -490,10 +495,10 @@ export function InventarioPage() {
             </Card>
 
             {/* Tabla de Movimientos Recientes */}
-            <Card>
+            <Card style={{background: '#ffffff'}}>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2" style={{color: '#f87163'}}>
+                  <Package className="h-5 w-5" style={{color: '#f87163'}} />
                   Movimientos Recientes
                 </CardTitle>
               </CardHeader>

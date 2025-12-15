@@ -45,32 +45,14 @@ export default function TenantSelector() {
         console.debug('[TenantSelector] tenants result:', list)
         setTenants(list || [])
 
-        // Do not auto-select tenant for the user. Only use existing session selection
-        // if present and valid. Otherwise leave null so UI prompts user to choose.
-        if (!selected) {
-          try {
-            const peek = sessionManager?.peekCurrentUser()
-            if (peek && peek.tenantId && list.some((t: Tenant) => t.id === peek.tenantId)) {
-              setSelected(peek.tenantId)
-            }
-          } catch (e) {
-            // ignore
-          }
-        }
+        // Never auto-select a tenant. User must always manually choose from dropdown.
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         console.error('[TenantSelector] Error loading tenants:', message)
 
-        // Fallback: if API fails, use the user's current tenant from session if available
+        // Fallback: if API fails, show user's tenant as option but don't auto-select
         if (user?.tenant) {
           setTenants([user.tenant])
-          if (!selected) {
-            const fallbackId = user.tenant.id || user.tenantId
-            if (fallbackId) {
-              setSelected(fallbackId)
-              try { localStorage.setItem('seedor.selectedTenant', fallbackId) } catch {}
-            }
-          }
         } else {
           setTenants([])
         }
@@ -166,8 +148,9 @@ export default function TenantSelector() {
       <select
         value={selected || ''}
         onChange={(e) => setSelected(e.target.value)}
-        className="bg-transparent text-sidebar-foreground text-sm font-semibold"
+        className="bg-transparent text-sidebar-foreground text-sm font-semibold cursor-pointer"
       >
+        {!selected && <option value="">Seleccionar dueño</option>}
         {options.map((t: Tenant) => (
           <option key={t.id} value={t.id}>{t.name}</option>
         ))}

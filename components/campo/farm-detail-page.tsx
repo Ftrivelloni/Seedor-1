@@ -140,7 +140,7 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-6 overflow-auto" style={{background: '#f9f9f9'}}>
           <div className="max-w-7xl mx-auto flex items-center justify-center h-64">
             <p className="text-muted-foreground">Cargando información del campo...</p>
           </div>
@@ -164,7 +164,7 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-6 overflow-auto" style={{background: '#f9f9f9'}}>
           <div className="max-w-7xl mx-auto flex items-center justify-center h-64">
             <p className="text-muted-foreground">El campo solicitado no existe</p>
           </div>
@@ -212,7 +212,7 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
             <Button onClick={() => {
               setSelectedLot(undefined)
               setIsModalOpen(true)
-            }}>
+            }} style={{background: '#f96c57', color: 'white'}} onMouseEnter={(e) => e.currentTarget.style.background = '#fb8e7c'} onMouseLeave={(e) => e.currentTarget.style.background = '#f96c57'}>
               <Plus className="mr-2 h-4 w-4" />
               Cargar lote
             </Button>
@@ -220,18 +220,18 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
         </div>
       </header>
 
-      <main className="flex-1 p-6 overflow-auto bg-muted/30">
+      <main className="flex-1 p-6 overflow-auto" style={{background: '#f9f9f9'}}>
         <div className="max-w-7xl mx-auto">
           {lots.length === 0 ? (
-            <Card className="p-12 text-center">
-              <h3 className="text-lg font-semibold mb-2">No hay lotes cargados</h3>
+            <Card className="p-12 text-center" style={{background: '#ffffff'}}>
+              <h3 className="text-lg font-semibold mb-2" style={{color: '#f96c57'}}>No hay lotes cargados</h3>
               <p className="text-muted-foreground mb-6">
                 Comienza creando tu primer lote en este campo
               </p>
               <Button onClick={() => {
                 setSelectedLot(undefined)
                 setIsModalOpen(true)
-              }}>
+              }} style={{background: '#f96c57', color: 'white'}} onMouseEnter={(e) => e.currentTarget.style.background = '#fb8e7c'} onMouseLeave={(e) => e.currentTarget.style.background = '#f96c57'}>
                 <Plus className="mr-2 h-4 w-4" />
                 Cargar lote
               </Button>
@@ -243,6 +243,7 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
                   key={lot.id}
                   className="p-6 hover:shadow-lg transition-shadow cursor-pointer group relative"
                   onClick={() => router.push(`/campo/${farmId}/${lot.id}`)}
+                  style={{background: '#ffffff', borderColor: '#fef2ee'}}
                 >
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                     <Button
@@ -271,7 +272,7 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
                   </div>
                   <div className="space-y-3">
                     <div>
-                      <h3 className="font-semibold text-lg">{lot.code}</h3>
+                      <h3 className="font-semibold text-lg" style={{color: '#f96c57'}}>{lot.code}</h3>
                       <p className="text-sm text-muted-foreground capitalize">{lot.crop}</p>
                     </div>
                     {lot.variety && (
@@ -303,6 +304,7 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
                   key={lot.id} 
                   className="p-4 hover:shadow-md transition-shadow cursor-pointer"
                   onClick={() => router.push(`/campo/${farmId}/${lot.id}`)}
+                  style={{background: '#ffffff', borderColor: '#fef2ee'}}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 grid grid-cols-5 gap-4">

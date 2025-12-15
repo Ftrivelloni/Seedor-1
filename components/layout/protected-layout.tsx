@@ -74,7 +74,7 @@ export function ProtectedLayout({
 
   return (
     <FeatureProvider user={user}>
-      <div className="min-h-screen bg-background flex">
+      <div className="h-screen bg-background flex overflow-hidden">
         <Sidebar 
           user={user} 
           onLogout={handleLogout}

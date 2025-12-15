@@ -245,7 +245,7 @@ export function AjustesPage() {
           </div>
         </div>
       </header>
-      <main className="flex-1 p-6 overflow-auto">
+      <main className="flex-1 p-6 overflow-auto" style={{background: '#f9f9f9'}}>
         <div className="max-w-7xl mx-auto space-y-6">
           <Tabs defaultValue="profile" className="space-y-6">
             <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
@@ -261,10 +261,10 @@ export function AjustesPage() {
 
             <TabsContent value="profile" className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
+                <Card style={{background: '#ffffff'}}>
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
-                      <User className="h-5 w-5" />
+                      <User className="h-5 w-5" style={{color: '#63bd0a'}} />
                       <span>Perfil de Usuario</span>
                     </CardTitle>
                     <CardDescription>Información personal y de cuenta</CardDescription>
@@ -315,10 +315,10 @@ export function AjustesPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card style={{background: '#ffffff'}}>
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
-                      <Building className="h-5 w-5" />
+                      <Building className="h-5 w-5" style={{color: '#63bd0a'}} />
                       <span>Información de la Empresa</span>
                     </CardTitle>
                     <CardDescription>Detalles de tu organización</CardDescription>
@@ -354,10 +354,10 @@ export function AjustesPage() {
                 </Card>
               </div>
 
-              <Card>
+              <Card style={{background: '#ffffff'}}>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
-                    <Settings className="h-5 w-5" />
+                    <Settings className="h-5 w-5" style={{color: '#63bd0a'}} />
                     <span>Información del Sistema</span>
                   </CardTitle>
                   <CardDescription>Detalles técnicos y de configuración</CardDescription>
@@ -405,10 +405,10 @@ export function AjustesPage() {
             </TabsContent>
 
             <TabsContent value="permissions" className="space-y-6">
-              <Card>
+              <Card style={{background: '#ffffff'}}>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
-                    <Shield className="h-5 w-5" />
+                    <Shield className="h-5 w-5" style={{color: '#63bd0a'}} />
                     <span>Permisos y Accesos</span>
                   </CardTitle>
                   <CardDescription>Módulos y funcionalidades disponibles para tu rol</CardDescription>
@@ -443,10 +443,10 @@ export function AjustesPage() {
 
             {isAdmin && (
               <TabsContent value="plan" className="space-y-6">
-                <Card>
+                <Card style={{background: '#ffffff'}}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <CreditCard className="h-5 w-5" />
+                      <CreditCard className="h-5 w-5" style={{color: '#63bd0a'}} />
                       Gestión de pago
                     </CardTitle>
                     <CardDescription>Actualiza el método de pago de tu suscripción</CardDescription>
@@ -462,10 +462,10 @@ export function AjustesPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card style={{background: '#ffffff'}}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Crown className="h-5 w-5" />
+                      <Crown className="h-5 w-5" style={{color: '#63bd0a'}} />
                       Cambiar plan
                     </CardTitle>
                     <CardDescription>Actualiza el plan de suscripción para este tenant</CardDescription>
@@ -496,7 +496,7 @@ export function AjustesPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card style={{background: '#ffffff'}}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-red-600">
                       <Ban className="h-5 w-5" />

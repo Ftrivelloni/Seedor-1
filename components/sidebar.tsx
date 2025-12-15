@@ -110,7 +110,7 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
   let filteredNavItems = navItems
 
   // If the user has not selected a tenant/role yet, only show Ajustes
-  if (!user.rol || !user.tenantId) {
+  if (!user.tenantId || user.tenantId === '') {
     filteredNavItems = navItems.filter((i) => i.module === 'ajustes')
   } else {
     filteredNavItems = navItems.filter((item) => {
@@ -175,11 +175,28 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
                       key={item.page}
                       variant={isActive ? "default" : "ghost"}
                       className={cn(
-                        "w-full justify-start",
+                        "w-full justify-start transition-colors",
                         isActive
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent"
+                          ? "text-white"
+                          : "text-sidebar-foreground"
                       )}
+                      style={isActive ? {background: '#63bd0a'} : {}}
+                      onMouseEnter={(e) => {
+                        if (isActive) {
+                          e.currentTarget.style.background = '#8bc34a'
+                        } else {
+                          e.currentTarget.style.background = '#f0f7ea'
+                          e.currentTarget.style.color = '#1a1a1a'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (isActive) {
+                          e.currentTarget.style.background = '#63bd0a'
+                        } else {
+                          e.currentTarget.style.background = 'transparent'
+                          e.currentTarget.style.color = ''
+                        }
+                      }}
                       onClick={() => {
                         onNavigate(item.page)
                         setShowMobileMenu(false)
@@ -218,9 +235,10 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
                   className={cn(
                     "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-0 flex-1",
                     isActive
-                      ? "text-sidebar-primary-foreground bg-sidebar-primary"
+                      ? "text-white"
                       : "text-sidebar-foreground hover:bg-sidebar-accent"
                   )}
+                  style={isActive ? {background: '#63bd0a'} : {}}
                 >
                   <Icon className="h-5 w-5 flex-shrink-0" />
                   <span className="text-[10px] font-medium truncate w-full text-center">
@@ -239,7 +257,7 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
   return (
     <div
       className={cn(
-        "flex flex-col h-full bg-sidebar border-r border-sidebar-border transition-all duration-300",
+        "flex flex-col h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300",
         isCollapsed ? "w-16" : "w-64",
       )}
     >
@@ -289,12 +307,29 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
               key={item.page}
               variant={isActive ? "default" : "ghost"}
               className={cn(
-                "w-full justify-start",
+                "w-full justify-start transition-colors",
                 isActive
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  ? "text-white"
+                  : "text-sidebar-foreground",
                 isCollapsed && "px-2",
               )}
+              style={isActive ? {background: '#63bd0a'} : {}}
+              onMouseEnter={(e) => {
+                if (isActive) {
+                  e.currentTarget.style.background = '#8bc34a'
+                } else {
+                  e.currentTarget.style.background = '#f0f7ea'
+                  e.currentTarget.style.color = '#1a1a1a'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (isActive) {
+                  e.currentTarget.style.background = '#63bd0a'
+                } else {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = ''
+                }
+              }}
               onClick={() => onNavigate(item.page)}
             >
               <Icon className={cn("h-4 w-4", !isCollapsed && "mr-3")} />

@@ -79,11 +79,12 @@ class AuthService {
     // Store token
     tokenStorage.setAccessToken(accessToken);
 
-    // Create session user and store in session manager
+    // Create session user WITHOUT auto-selecting tenantId.
+    // User must manually select tenant from dropdown after login.
     const sessionUser: SessionUser = {
       id: user.id,
       email: user.email,
-      tenantId: user.tenantId,
+      tenantId: '', // Force empty - user must select tenant manually
       rol: user.rol,
       nombre: user.nombre,
       tenant: user.tenant,

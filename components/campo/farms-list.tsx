@@ -158,7 +158,7 @@ export function FarmsList({ user }: FarmsListProps) {
             <Button onClick={() => {
               setEditingFarm(undefined)
               setIsModalOpen(true)
-            }} size="sm" className="shrink-0">
+            }} size="sm" className="shrink-0" style={{background: '#f96c57', color: 'white'}} onMouseEnter={(e) => e.currentTarget.style.background = '#fb8e7c'} onMouseLeave={(e) => e.currentTarget.style.background = '#f96c57'}>
               <Plus className="h-4 w-4" />
               <span className="hidden md:inline ml-2">Crear Campo</span>
             </Button>
@@ -171,7 +171,7 @@ export function FarmsList({ user }: FarmsListProps) {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 overflow-auto">
+      <main className="flex-1 p-6 overflow-auto" style={{background: '#f9f9f9'}}>
         <div className="max-w-7xl mx-auto">
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
@@ -179,13 +179,13 @@ export function FarmsList({ user }: FarmsListProps) {
             </div>
           ) : farms.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-[calc(100vh-16rem)] space-y-4">
-              <Sprout className="h-16 w-16 text-muted-foreground" />
+              <Sprout className="h-16 w-16" style={{color: '#f96c57'}} />
               <div className="text-center">
                 <h3 className="text-lg font-semibold mb-2">No hay campos registrados</h3>
                 <p className="text-muted-foreground mb-4">
                   Comienza creando tu primer campo para gestionar tus lotes y cultivos
                 </p>
-                <Button onClick={() => setIsModalOpen(true)}>
+                <Button onClick={() => setIsModalOpen(true)} style={{background: '#f96c57', color: 'white'}} onMouseEnter={(e) => e.currentTarget.style.background = '#fb8e7c'} onMouseLeave={(e) => e.currentTarget.style.background = '#f96c57'}>
                   <Plus className="h-4 w-4 mr-2" />
                   Crear campo
                 </Button>
@@ -198,11 +198,12 @@ export function FarmsList({ user }: FarmsListProps) {
             key={farm.id}
             className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
             onClick={() => router.push(`/campo/${farm.id}`)}
+            style={{background: '#ffffff', borderColor: '#fef2ee'}}
           >
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <CardTitle className="text-xl mb-2">{farm.name}</CardTitle>
+                  <CardTitle className="text-xl mb-2" style={{color: '#f96c57'}}>{farm.name}</CardTitle>
                   {farm.location && (
                     <CardDescription className="flex items-center gap-2">
                       <MapPin className="h-4 w-4" />

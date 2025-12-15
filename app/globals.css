@@ -24,15 +24,19 @@
   --color-orange: #f96c57; /* Naranja coral */
   --color-orange-light: #fb8e7c; /* Naranja claro para hover */
   --color-orange-dark: #d54c37; /* Naranja oscuro */
+  
+  --color-blue: #297db5; /* Azul para finanzas */
+  --color-blue-light: #4d9bcf; /* Azul claro para hover */
+  --color-blue-dark: #1e5f8a; /* Azul oscuro */
 
   /* Variables de tema */
-  --background: oklch(1 0 0); /* Pure white background */
+  --background: oklch(0.985 0 0); /* Slightly darker than pure white */
   --foreground: oklch(0.15 0 0); /* Very dark gray text */
   --card: oklch(0.98 0 0); /* Off-white card background */
   --card-foreground: oklch(0.15 0 0); /* Very dark gray card text */
   --popover: oklch(1 0 0); /* White popover background */
   --popover-foreground: oklch(0.3 0 0); /* Dark gray popover text */
-  --primary: oklch(0.72 0.15 95); /* Verde lima como primary */
+  --primary: #63bd0a; /* Verde Seedor como primary */
   --primary-foreground: oklch(1 0 0); /* White text on primary */
   --secondary: oklch(0.82 0.15 75); /* Amarillo como secondary */
   --secondary-foreground: oklch(0.2 0 0); /* Dark text on secondary */
@@ -45,7 +49,7 @@
   --border: oklch(0.9 0 0); /* Light gray borders */
   --input: oklch(1 0 0); /* Pure white input background */
   --ring: oklch(0.72 0.15 95 / 0.4); /* Verde lima focus ring */
-  --chart-1: oklch(0.72 0.15 95); /* Verde lima */
+  --chart-1: #63bd0a; /* Verde Seedor */
   --chart-2: oklch(0.82 0.15 75); /* Amarillo */
   --chart-3: oklch(0.75 0.15 25); /* Coral */
   --chart-4: oklch(0.73 0.18 15); /* Rosa */
@@ -53,7 +57,7 @@
   --radius: 0.5rem;
   --sidebar: oklch(1 0 0); /* White sidebar background */
   --sidebar-foreground: oklch(0.3 0 0); /* Dark gray sidebar text */
-  --sidebar-primary: oklch(0.72 0.15 95); /* Verde lima sidebar primary */
+  --sidebar-primary: #63bd0a; /* Verde Seedor sidebar primary */
   --sidebar-primary-foreground: oklch(1 0 0); /* White text on sidebar primary */
   --sidebar-accent: oklch(0.82 0.15 75); /* Amarillo sidebar accent */
   --sidebar-accent-foreground: oklch(0.2 0 0); /* Dark text on sidebar accent */
