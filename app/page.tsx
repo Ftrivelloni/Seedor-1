@@ -1,49 +1,12 @@
 "use client"
 import Link from "next/link"
 import Image from "next/image"
-import { useRef, useState, useEffect } from "react"
 import { Button } from "../components/ui/button"
 import { ArrowRight, Leaf, Warehouse, LineChart, ChevronDown, Users, Shield, BarChart3, Clock, CheckCircle, Star, Sparkles, TrendingUp, Zap, Target, Award, HeartHandshake } from "lucide-react"
 import Header from "../components/header"
 import { PrimaryButton, OutlineButton, CTAPrimaryButton, CTAOutlineButton } from "../components/landing/interactive-buttons"
 
 export default function LandingPage() {
-    // Video autoplay fallback handling
-    // On some browsers/environments (especially mobile or strict autoplay policies),
-    // videos may not autoplay even with muted attribute. This provides a graceful fallback.
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [videoFailed, setVideoFailed] = useState(false);
-
-    useEffect(() => {
-        const video = videoRef.current;
-        if (!video) return;
-
-        const attemptPlay = async () => {
-            try {
-                await video.play();
-            } catch (error) {
-                // NotAllowedError: autoplay blocked by browser policy
-                // AbortError: play() interrupted (e.g., by pause or src change)
-                if (process.env.NODE_ENV === 'development') {
-                    console.warn('Video autoplay failed:', error);
-                }
-                setVideoFailed(true);
-            }
-        };
-
-        // If video is ready, attempt play immediately
-        // readyState >= 3 means HAVE_FUTURE_DATA (enough data to play)
-        if (video.readyState >= 3) {
-            attemptPlay();
-        } else {
-            video.addEventListener('canplay', attemptPlay, { once: true });
-        }
-
-        return () => {
-            video.removeEventListener('canplay', attemptPlay);
-        };
-    }, []);
-
     const scrollToHero = () => {
         const heroSection = document.getElementById('hero');
         if (heroSection) {
@@ -60,45 +23,19 @@ export default function LandingPage() {
 
             <main className="min-h-screen bg-background">
                 <section className="relative flex min-h-screen items-center justify-center overflow-hidden">
-                    {/* Background video with programmatic autoplay and fallback */}
+                    {/* Background video - simple approach for reliable autoplay */}
                     <video
-                        ref={videoRef}
                         className="absolute inset-0 z-0 h-full w-full object-cover"
                         autoPlay
                         muted
                         loop
                         playsInline
-                        preload="auto"
                         poster="/Campo_panoramica.jpg"
                         aria-hidden="true"
-                        style={{ display: videoFailed ? 'none' : 'block' }}
-                        onError={() => {
-                            if (process.env.NODE_ENV === 'development') {
-                                console.warn('Video source failed to load');
-                            }
-                            setVideoFailed(true);
-                        }}
                     >
-                        {/* 
-                          Using optimized video for web streaming:
-                          - H.264 codec (libx264) with main profile for broad compatibility
-                          - yuv420p pixel format (required for browser playback)
-                          - faststart flag (moov atom at start for streaming)
-                          - No audio track (required for autoplay without user interaction)
-                          - ~15-40MB instead of original 303MB
-                        */}
-                        <source src="/DroneView_web.mp4" type="video/mp4" />
+                        <source src="/video_home.mp4" type="video/mp4" />
                     </video>
 
-                    {/* Fallback poster image when video cannot autoplay */}
-                    {videoFailed && (
-                        <img
-                            src="/Campo_panoramica.jpg"
-                            alt=""
-                            aria-hidden="true"
-                            className="absolute inset-0 z-0 h-full w-full object-cover"
-                        />
-                    )}
 
                     <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/60 via-black/40 to-black/60" />
 
