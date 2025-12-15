@@ -1,16 +1,53 @@
 "use client"
 import Link from "next/link"
 import Image from "next/image"
+import { useRef, useState, useEffect } from "react"
 import { Button } from "../components/ui/button"
 import { ArrowRight, Leaf, Warehouse, LineChart, ChevronDown, Users, Shield, BarChart3, Clock, CheckCircle, Star, Sparkles, TrendingUp, Zap, Target, Award, HeartHandshake } from "lucide-react"
 import Header from "../components/header"
 import { PrimaryButton, OutlineButton, CTAPrimaryButton, CTAOutlineButton } from "../components/landing/interactive-buttons"
 
 export default function LandingPage() {
+    // Video autoplay fallback handling
+    // On some browsers/environments (especially mobile or strict autoplay policies),
+    // videos may not autoplay even with muted attribute. This provides a graceful fallback.
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [videoFailed, setVideoFailed] = useState(false);
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        const attemptPlay = async () => {
+            try {
+                await video.play();
+            } catch (error) {
+                // NotAllowedError: autoplay blocked by browser policy
+                // AbortError: play() interrupted (e.g., by pause or src change)
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn('Video autoplay failed:', error);
+                }
+                setVideoFailed(true);
+            }
+        };
+
+        // If video is ready, attempt play immediately
+        // readyState >= 3 means HAVE_FUTURE_DATA (enough data to play)
+        if (video.readyState >= 3) {
+            attemptPlay();
+        } else {
+            video.addEventListener('canplay', attemptPlay, { once: true });
+        }
+
+        return () => {
+            video.removeEventListener('canplay', attemptPlay);
+        };
+    }, []);
+
     const scrollToHero = () => {
         const heroSection = document.getElementById('hero');
         if (heroSection) {
-            heroSection.scrollIntoView({ 
+            heroSection.scrollIntoView({
                 behavior: 'smooth',
                 block: 'start'
             });
@@ -23,7 +60,9 @@ export default function LandingPage() {
 
             <main className="min-h-screen bg-background">
                 <section className="relative flex min-h-screen items-center justify-center overflow-hidden">
+                    {/* Background video with programmatic autoplay and fallback */}
                     <video
+                        ref={videoRef}
                         className="absolute inset-0 z-0 h-full w-full object-cover"
                         autoPlay
                         muted
@@ -32,15 +71,34 @@ export default function LandingPage() {
                         preload="auto"
                         poster="/Campo_panoramica.jpg"
                         aria-hidden="true"
-                        onError={(e) => {
-                            console.error('Error loading video:', e);
-                            // Fallback to poster image if video fails to load
-                            e.currentTarget.style.display = 'none';
+                        style={{ display: videoFailed ? 'none' : 'block' }}
+                        onError={() => {
+                            if (process.env.NODE_ENV === 'development') {
+                                console.warn('Video source failed to load');
+                            }
+                            setVideoFailed(true);
                         }}
                     >
-                        <source src="/DroneView.webm" type="video/webm" />
-                        <source src="/DroneView.mp4" type="video/mp4" />
+                        {/* 
+                          Using optimized video for web streaming:
+                          - H.264 codec (libx264) with main profile for broad compatibility
+                          - yuv420p pixel format (required for browser playback)
+                          - faststart flag (moov atom at start for streaming)
+                          - No audio track (required for autoplay without user interaction)
+                          - ~15-40MB instead of original 303MB
+                        */}
+                        <source src="/DroneView_web.mp4" type="video/mp4" />
                     </video>
+
+                    {/* Fallback poster image when video cannot autoplay */}
+                    {videoFailed && (
+                        <img
+                            src="/Campo_panoramica.jpg"
+                            alt=""
+                            aria-hidden="true"
+                            className="absolute inset-0 z-0 h-full w-full object-cover"
+                        />
+                    )}
 
                     <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/60 via-black/40 to-black/60" />
 
@@ -75,7 +133,7 @@ export default function LandingPage() {
                             <p className="mt-6 text-base text-white/90 sm:text-lg max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Circular Std, sans-serif' }}>
                                 La plataforma integral que necesitás para administrar tu campo de manera profesional y eficiente.
                             </p>
-                            
+
                             <div className="mt-12 mb-20 flex justify-center">
                                 <button
                                     onClick={scrollToHero}
@@ -106,7 +164,7 @@ export default function LandingPage() {
                                     Centralizá tareas de campo, inventario, empaque y finanzas en una sola plataforma diseñada específicamente para operaciones agropecuarias modernas y eficientes.
                                 </p>
                             </div>
-                            
+
                             <div className="mt-12 flex flex-col sm:flex-row gap-6 justify-center animate-fade-in-up delay-200">
                                 <PrimaryButton href="/register-tenant">
                                     Crear mi campo gratis
@@ -148,7 +206,7 @@ export default function LandingPage() {
                             Herramientas poderosas diseñadas específicamente para la gestión agropecuaria moderna
                         </p>
                     </div>
-                    
+
                     <div className="grid gap-12 md:gap-16 md:grid-cols-3">
                         <FeatureCard
                             icon={<Leaf className="h-12 w-12" style={{ color: '#63bd0a' }} />}
@@ -188,19 +246,19 @@ export default function LandingPage() {
                                     Más que un software, somos tu socio tecnológico para hacer crecer tu operación agropecuaria.
                                 </p>
                                 <div className="mt-8 space-y-6">
-                                    <BenefitItem 
+                                    <BenefitItem
                                         icon={<Users className="h-6 w-6" style={{ color: '#63bd0a' }} />}
                                         title="Equipo especializado"
                                         description="Desarrollado por expertos en agro y tecnología"
                                         color="#63bd0a"
                                     />
-                                    <BenefitItem 
+                                    <BenefitItem
                                         icon={<Shield className="h-6 w-6" style={{ color: '#f3b31a' }} />}
                                         title="Datos seguros"
                                         description="Máxima seguridad y respaldo de tu información"
                                         color="#f3b31a"
                                     />
-                                    <BenefitItem 
+                                    <BenefitItem
                                         icon={<Clock className="h-6 w-6" style={{ color: '#f87163' }} />}
                                         title="Ahorro de tiempo"
                                         description="Hasta 70% menos tiempo en tareas administrativas"
@@ -313,14 +371,14 @@ export default function LandingPage() {
     )
 }
 
-function FeatureCard({ 
-    icon, 
-    title, 
-    description, 
-    features, 
+function FeatureCard({
+    icon,
+    title,
+    description,
+    features,
     className = "",
     color = "#63bd0a"
-}: { 
+}: {
     icon: React.ReactNode
     title: string
     description: string
@@ -356,12 +414,12 @@ function FeatureCard({
     )
 }
 
-function BenefitItem({ 
-    icon, 
-    title, 
+function BenefitItem({
+    icon,
+    title,
     description,
     color = "#63bd0a"
-}: { 
+}: {
     icon: React.ReactNode
     title: string
     description: string
