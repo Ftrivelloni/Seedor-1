@@ -314,20 +314,20 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="border-b bg-card">
-        <div className="flex h-16 items-center justify-between px-6">
-          <div>
-            <h1 className="text-xl font-semibold">Gestión de Trabajadores</h1>
-            <p className="text-sm text-muted-foreground">
+      <header className="border-b bg-card/50 backdrop-blur">
+        <div className="flex h-16 items-center justify-between px-3 md:px-6 gap-2">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base md:text-xl font-semibold truncate">Trabajadores</h1>
+            <p className="text-xs md:text-sm text-muted-foreground truncate">
               Control y administración de los trabajadores y asistencias
             </p>
           </div>
           <Button onClick={() => {
             setSelectedWorker(undefined)
             setIsModalOpen(true)
-          }}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo trabajador
+          }} className="shrink-0">
+            <Plus className="mr-0 md:mr-2 h-4 w-4" />
+            <span className="hidden md:inline">Nuevo trabajador</span>
           </Button>
         </div>
       </header>
@@ -335,10 +335,19 @@ export default function TrabajadoresPage({ user }: TrabajadoresPageProps) {
       <main className="flex-1 p-6 overflow-auto bg-muted/30">
         <div className="max-w-7xl mx-auto">
           <Tabs defaultValue="workers" className="w-full">
-            <TabsList className="mb-6 grid w-full grid-cols-3">
-              <TabsTrigger value="workers">Trabajadores</TabsTrigger>
-              <TabsTrigger value="attendance">Tomar Asistencia</TabsTrigger>
-              <TabsTrigger value="history">Historial</TabsTrigger>
+            <TabsList className="mb-6 grid w-full grid-cols-3 h-auto">
+              <TabsTrigger value="workers" className="text-xs sm:text-sm px-2 py-2">
+                <span className="hidden sm:inline">Trabajadores</span>
+                <span className="sm:hidden">Trabajadores</span>
+              </TabsTrigger>
+              <TabsTrigger value="attendance" className="text-xs sm:text-sm px-2 py-2">
+                <span className="hidden sm:inline">Tomar Asistencia</span>
+                <span className="sm:hidden">Asistencia</span>
+              </TabsTrigger>
+              <TabsTrigger value="history" className="text-xs sm:text-sm px-2 py-2">
+                <span className="hidden sm:inline">Historial</span>
+                <span className="sm:hidden">Historial</span>
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="workers">

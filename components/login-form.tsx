@@ -61,13 +61,13 @@ export default function LoginForm() {
   }
 
   return (
-    <Card className="mx-auto w-full max-w-md rounded-2xl border bg-card/90 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80">
-      <CardHeader className="pb-4 text-center">
-        <CardTitle className="text-2xl">Iniciar sesión</CardTitle>
-        <CardDescription>Accedé con tu email y contraseña</CardDescription>
+    <Card className="mx-auto w-full max-w-md rounded-2xl border bg-card/90 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:mx-4">
+      <CardHeader className="pb-4 text-center px-4 sm:px-6">
+        <CardTitle className="text-xl sm:text-2xl">Iniciar sesión</CardTitle>
+        <CardDescription className="text-sm">Accedé con tu email y contraseña</CardDescription>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="px-4 sm:px-6">
         <form onSubmit={onSubmit} className="space-y-4" aria-describedby={error ? "login-error" : undefined}>
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
@@ -136,7 +136,7 @@ export default function LoginForm() {
         </form>
       </CardContent>
 
-      <CardFooter className="justify-center text-sm text-muted-foreground">
+      <CardFooter className="justify-center text-sm text-muted-foreground px-4 sm:px-6">
         ¿No tenés cuenta?{" "}
         <a className="ml-1 text-primary hover:underline" href="/register-tenant">
           Creá tu cuenta

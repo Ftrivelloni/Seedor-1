@@ -229,15 +229,15 @@ export function AjustesPage() {
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="border-b bg-card">
-        <div className="flex h-16 items-center justify-between px-6">
-          <div>
-            <h1 className="text-xl font-semibold">Configuración</h1>
-            <p className="text-sm text-muted-foreground">
+      <header className="border-b bg-card/50 backdrop-blur">
+        <div className="flex h-16 items-center justify-between px-3 md:px-6">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base md:text-xl font-semibold truncate">Configuración</h1>
+            <p className="text-xs md:text-sm text-muted-foreground truncate">
               Gestiona tu perfil, configuración personal y {isAdmin ? 'plan de suscripción' : 'permisos'} - {user?.tenant?.name || 'Tu Empresa'}
             </p>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="hidden md:flex items-center space-x-4 ml-4">
             <div className="text-right">
               <p className="text-sm font-medium">{user?.nombre || user?.email}</p>
               <p className="text-xs text-muted-foreground">{user?.rol || 'Usuario'}</p>
@@ -389,11 +389,11 @@ export function AjustesPage() {
                           Si necesitas ayuda o tienes alguna pregunta sobre el sistema, contacta al administrador de tu
                           organización.
                         </p>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button variant="outline" size="sm" className="w-full sm:w-auto">
                             Manual de Usuario
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="w-full sm:w-auto">
                             Contactar Soporte
                           </Button>
                         </div>

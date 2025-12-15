@@ -325,3 +325,10 @@ a[href],
 .clickable {
   cursor: pointer;
 }
+
+/* Mobile navigation safe area */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

@@ -193,13 +193,13 @@ export function EmpaquePage() {
 
     return (
         <div className="flex-1 flex flex-col">
-            <header className="border-b bg-card">
-                <div className="flex h-16 items-center justify-between px-6">
-                    <div>
-                        <h1 className="text-xl font-semibold">Gestión de Empaque</h1>
-                        <p className="text-sm text-muted-foreground">Registros de procesamiento de fruta - {user?.tenant?.name || 'Tu Empresa'}</p>
+            <header className="border-b bg-card/50 backdrop-blur">
+                <div className="flex h-16 items-center justify-between px-3 md:px-6">
+                    <div className="min-w-0 flex-1">
+                        <h1 className="text-base md:text-xl font-semibold truncate">Gestión de Empaque</h1>
+                        <p className="text-xs md:text-sm text-muted-foreground truncate">Registros de procesamiento de fruta - {user?.tenant?.name || 'Tu Empresa'}</p>
                     </div>
-                    <div className="flex items-center space-x-4">
+                    <div className="hidden md:flex items-center space-x-4 ml-4">
                         <div className="text-right">
                             <p className="text-sm font-medium">{user?.nombre || user?.email}</p>
                             <p className="text-xs text-muted-foreground">{user?.rol || 'Usuario'}</p>

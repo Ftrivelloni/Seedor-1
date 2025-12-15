@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { Sidebar } from "../../components/sidebar"
 import ContactosPage from "../../components/contactos/contactos-page"
 import { useAuth } from "../../hooks/use-auth";
+import { useIsMobile } from "../../hooks/use-mobile";
 import { FeatureProvider } from "../../lib/features-context"
 
 export default function ContactosRoutePage() {
@@ -12,6 +13,7 @@ export default function ContactosRoutePage() {
     requireRoles: ["Admin", "Contactos"]
   });
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   if (loading) {
     return (
@@ -31,7 +33,7 @@ export default function ContactosRoutePage() {
 
   return (
     <FeatureProvider user={user}>
-      <div className="min-h-screen bg-background flex">
+      <div className="min-h-screen bg-background flex flex-col md:flex-row">
         <Sidebar 
           user={user} 
           onLogout={handleLogout}
@@ -53,7 +55,7 @@ export default function ContactosRoutePage() {
           }} 
           currentPage="contactos" 
         />
-        <div className="flex-1 flex flex-col">
+        <div className={isMobile ? "flex-1 flex flex-col pt-14 pb-20" : "flex-1 flex flex-col"}>
           <ContactosPage />
         </div>
       </div>

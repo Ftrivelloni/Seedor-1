@@ -2,16 +2,13 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
 import { Badge } from "../ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { Sidebar } from "../sidebar"
 import { useAuth } from "../../hooks/use-auth"
-import { FeatureProvider } from "../../lib/features-context"
 import { Search, Package, AlertTriangle, Plus, Edit, Trash2, Eye } from "lucide-react"
 import { ItemFormModal } from "./item-form-modal"
 import { MovementFormModal } from "./movement-form-modal"
@@ -27,11 +24,10 @@ import {
 import { useToast } from "../../hooks/use-toast"
 
 export function InventarioPage() {
-  const { user, loading, handleLogout } = useAuth({
+  const { user, loading } = useAuth({
     redirectToLogin: true,
     requireRoles: ["admin", "campo", "empaque"]
   })
-  const router = useRouter()
   const { toast } = useToast()
 
   // Estado principal
@@ -278,7 +274,7 @@ export function InventarioPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     )
@@ -289,57 +285,35 @@ export function InventarioPage() {
   }
 
   return (
-    <FeatureProvider user={user}>
-      <div className="min-h-screen bg-background flex">
-        <Sidebar 
-          user={user} 
-          onLogout={handleLogout}
-          onNavigate={(page) => {
-            const pageRoutes: Record<string, string> = {
-              dashboard: "/home",
-              campo: "/campo",
-              empaque: "/empaque",
-              inventario: "/inventario",
-              finanzas: "/finanzas",
-              ajustes: "/ajustes",
-              trabajadores: "/trabajadores",
-              contactos: "/contactos",
-              usuarios: "/usuarios"
-            }
-            const targetRoute = pageRoutes[page] || "/home"
-            router.push(targetRoute)
-          }} 
-          currentPage="inventario" 
-        />
-        
-        <div className="flex-1 flex flex-col">
-          <header className="border-b bg-card">
-            <div className="flex h-16 items-center justify-between px-6">
-              <div>
-                <h1 className="text-xl font-semibold">Gestión de Inventario</h1>
-                <p className="text-sm text-muted-foreground">Control de insumos y stock - {user?.tenant?.name || 'Tu Empresa'}</p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <Button onClick={() => setShowItemModal(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Nuevo ítem
-                </Button>
-                <Button 
-                  onClick={() => setShowMovementModal(true)} 
-                  variant="outline" 
-                  className="gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Nuevo movimiento
-                </Button>
-                <div className="text-right">
-                  <p className="text-sm font-medium">{user?.nombre || user?.email}</p>
-                  <p className="text-xs text-muted-foreground">{user?.rol || 'Usuario'}</p>
-                </div>
-              </div>
+    <>
+      <header className="border-b bg-card/50 backdrop-blur">
+        <div className="flex h-16 items-center justify-between px-3 md:px-6 gap-2">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base md:text-xl font-semibold truncate">Inventario</h1>
+            <p className="text-xs md:text-sm text-muted-foreground truncate">Control de insumos y stock - {user?.tenant?.name || 'Finca'}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setShowItemModal(true)} size="sm" className="shrink-0">
+              <Plus className="h-4 w-4" />
+              <span className="hidden md:inline ml-2">Nuevo ítem</span>
+            </Button>
+            <Button 
+              onClick={() => setShowMovementModal(true)} 
+              variant="outline"
+              size="sm"
+              className="shrink-0 hidden sm:flex"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden md:inline ml-2">Movimiento</span>
+            </Button>
+            <div className="text-right hidden md:block">
+              <p className="text-sm font-medium">{user?.nombre || user?.email}</p>
+              <p className="text-xs text-muted-foreground">{user?.rol || 'Usuario'}</p>
             </div>
-          </header>
-          <main className="flex-1 p-6 space-y-6">
+          </div>
+        </div>
+      </header>
+      <main className="flex-1 p-6 space-y-6 overflow-auto">
 
             {/* Resumen Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -591,8 +565,6 @@ export function InventarioPage() {
                 )}
               </CardContent>
             </Card>
-          </main>
-        </div>
 
         {/* Modales */}
         <ItemFormModal
@@ -626,7 +598,7 @@ export function InventarioPage() {
           tenantId={user.tenantId || ''}
           onDelete={loadData}
         />
-      </div>
-    </FeatureProvider>
+      </main>
+    </>
   )
 }

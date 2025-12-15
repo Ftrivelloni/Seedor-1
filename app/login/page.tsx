@@ -22,7 +22,7 @@ export default function LoginPage() {
                   <div className="absolute -bottom-20 right-[10%] h-[28rem] w-[28rem] rounded-full bg-primary/10 blur-3xl" />
               </div>
 
-              <section className="relative mx-auto grid max-w-7xl grid-cols-1 place-items-center px-6 py-16 md:grid-cols-2 md:gap-12 md:py-24">
+              <section className="relative mx-auto flex min-h-[calc(100vh-64px)] items-center justify-center px-4 py-8 md:grid md:max-w-7xl md:grid-cols-2 md:gap-12 md:py-24">
                   <div className="hidden w-full md:block">
 
                       <h2 className="mt-6 text-4xl font-extrabold tracking-tight sm:text-5xl">

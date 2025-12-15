@@ -132,51 +132,51 @@ const ValidatedInput = ({
 
 const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, onSelect: () => void }) => (
     <div
-        className={`relative cursor-pointer rounded-2xl border-3 p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl ${selected
+        className={`relative cursor-pointer rounded-lg md:rounded-2xl border-2 md:border-3 p-2 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl ${selected
                 ? `${plan.borderColor} bg-gradient-to-br ${plan.color} shadow-lg transform scale-[1.02]`
                 : 'border-slate-200 bg-white hover:border-[#81C101]/40 shadow-md hover:shadow-lg'
             }`}
         onClick={onSelect}
     >
         {plan.popular && (
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-                <div className={`${plan.badgeColor} px-4 py-2 rounded-full text-xs font-bold shadow-md flex items-center gap-1`}>
-                    <CheckCircle className="size-3" />
-                    Más Popular
+            <div className="absolute -top-2 md:-top-4 left-1/2 -translate-x-1/2 z-10">
+                <div className={`${plan.badgeColor} px-1.5 md:px-4 py-0.5 md:py-2 rounded-full text-[9px] md:text-xs font-bold shadow-md flex items-center gap-0.5 md:gap-1`}>
+                    <CheckCircle className="size-2 md:size-3" />
+                    <span className="hidden xs:inline">Más </span>Popular
                 </div>
             </div>
         )}
 
         {selected && (
-            <div className="absolute -top-2 -right-2">
-                <div className="bg-[#81C101] text-white rounded-full p-2 shadow-lg">
-                    <Check className="size-4" />
+            <div className="absolute -top-1 -right-1 md:-top-2 md:-right-2">
+                <div className="bg-[#81C101] text-white rounded-full p-1.5 md:p-2 shadow-lg">
+                    <Check className="size-3 md:size-4" />
                 </div>
             </div>
         )}
 
-        <div className="space-y-5">
-            <div className="text-center pt-2">
-                <h3 className={`text-xl font-bold ${selected ? plan.textColor : 'text-slate-900'}`}>
+        <div className="space-y-2 md:space-y-5">
+            <div className="text-center pt-0.5 md:pt-2">
+                <h3 className={`text-sm md:text-xl font-bold ${selected ? plan.textColor : 'text-slate-900'}`}>
                     {plan.label}
                 </h3>
-                <p className="text-sm mt-1 text-slate-600"> {/* Gris más oscuro siempre */}
+                <p className="text-[10px] md:text-sm mt-0.5 md:mt-1 text-slate-600"> {/* Gris más oscuro siempre */}
                     {plan.description}
                 </p>
             </div>
 
             <div className="text-center">
-                <div className="flex items-baseline justify-center gap-1">
-                    <span className={`text-4xl font-bold ${selected ? plan.textColor : 'text-slate-900'}`}>
+                <div className="flex items-baseline justify-center gap-0.5 md:gap-1">
+                    <span className={`text-lg md:text-4xl font-bold ${selected ? plan.textColor : 'text-slate-900'}`}>
                         {plan.price}
                     </span>
-                    <span className="text-lg text-slate-600"> {/* Gris más oscuro siempre */}
+                    <span className="text-[10px] md:text-lg text-slate-600"> {/* Gris más oscuro siempre */}
                         {plan.period}
                     </span>
                 </div>
                 {plan.originalPrice && (
                     <div className="flex items-center justify-center gap-2 mt-1">
-                        <span className="text-sm line-through text-slate-500"> {/* Gris más oscuro */}
+                        <span className="text-xs md:text-sm line-through text-slate-500"> {/* Gris más oscuro */}
                             {plan.originalPrice}
                         </span>
                         <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-semibold">
@@ -189,37 +189,37 @@ const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, 
                 </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-                <div className={`text-center p-4 rounded-xl ${selected ? 'bg-white/20' : 'bg-slate-50'}`}>
-                    <Users className={`size-6 mx-auto mb-2 ${selected ? plan.textColor : 'text-[#81C101]'}`} />
-                    <div className={`text-sm font-bold ${selected ? plan.textColor : 'text-slate-700'}`}>
+            <div className="grid grid-cols-2 gap-1.5 md:gap-3">
+                <div className={`text-center p-2 md:p-4 rounded-lg md:rounded-xl ${selected ? 'bg-white/20' : 'bg-slate-50'}`}>
+                    <Users className={`size-5 md:size-6 mx-auto mb-1 md:mb-2 ${selected ? plan.textColor : 'text-[#81C101]'}`} />
+                    <div className={`text-xs md:text-sm font-bold ${selected ? plan.textColor : 'text-slate-700'}`}>
                         {plan.maxUsers}
                     </div>
-                    <div className="text-xs text-slate-600"> {/* Gris más oscuro siempre */}
+                    <div className="text-[10px] md:text-xs text-slate-600"> {/* Gris más oscuro siempre */}
                         usuarios
                     </div>
                 </div>
-                <div className={`text-center p-4 rounded-xl ${selected ? 'bg-white/20' : 'bg-slate-50'}`}>
-                    <MapPin className={`size-6 mx-auto mb-2 ${selected ? plan.textColor : 'text-[#81C101]'}`} />
-                    <div className={`text-sm font-bold ${selected ? plan.textColor : 'text-slate-700'}`}>
+                <div className={`text-center p-2 md:p-4 rounded-lg md:rounded-xl ${selected ? 'bg-white/20' : 'bg-slate-50'}`}>
+                    <MapPin className={`size-5 md:size-6 mx-auto mb-1 md:mb-2 ${selected ? plan.textColor : 'text-[#81C101]'}`} />
+                    <div className={`text-xs md:text-sm font-bold ${selected ? plan.textColor : 'text-slate-700'}`}>
                         {plan.maxFields}
                     </div>
-                    <div className="text-xs text-slate-600"> {/* Gris más oscuro siempre */}
+                    <div className="text-[10px] md:text-xs text-slate-600"> {/* Gris más oscuro siempre */}
                         campos
                     </div>
                 </div>
             </div>
 
             <div>
-                <h4 className={`text-sm font-bold mb-3 ${selected ? plan.textColor : 'text-slate-700'}`}>
+                <h4 className={`text-xs md:text-sm font-bold mb-2 md:mb-3 ${selected ? plan.textColor : 'text-slate-700'}`}>
                     Módulos incluidos:
                 </h4>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1 md:gap-2">
                     {plan.modules.map((module: string) => (
-                        <span key={module} className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full bg-[#81C101]/10 text-[#81C101]"> {/* Color fijo siempre */}
-                            {module === 'Campo' && <MapPin className="size-3" />}
-                            {module === 'Empaque' && <Package className="size-3" />}
-                            {module === 'Finanzas' && <DollarSign className="size-3" />}
+                        <span key={module} className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-3 py-0.5 md:py-1 text-[10px] md:text-xs font-semibold rounded-full bg-[#81C101]/10 text-[#81C101]"> {/* Color fijo siempre */}
+                            {module === 'Campo' && <MapPin className="size-2.5 md:size-3" />}
+                            {module === 'Empaque' && <Package className="size-2.5 md:size-3" />}
+                            {module === 'Finanzas' && <DollarSign className="size-2.5 md:size-3" />}
                             {module}
                         </span>
                     ))}
@@ -227,13 +227,13 @@ const PlanCard = ({ plan, selected, onSelect }: { plan: any, selected: boolean, 
             </div>
 
             <div>
-                <h4 className={`text-sm font-bold mb-3 ${selected ? plan.textColor : 'text-slate-700'}`}>
+                <h4 className={`text-xs md:text-sm font-bold mb-2 md:mb-3 ${selected ? plan.textColor : 'text-slate-700'}`}>
                     Características:
                 </h4>
-                <ul className="space-y-2">
+                <ul className="space-y-1 md:space-y-2">
                     {plan.features.map((feature: string, index: number) => (
-                        <li key={index} className="flex items-start gap-2 text-sm">
-                            <Check className={`size-4 flex-shrink-0 mt-0.5 ${selected ? plan.textColor : 'text-[#81C101]'}`} />
+                        <li key={index} className="flex items-start gap-1 md:gap-2 text-[11px] md:text-sm">
+                            <Check className={`size-3 md:size-4 flex-shrink-0 mt-0.5 ${selected ? plan.textColor : 'text-[#81C101]'}`} />
                             <span className="text-slate-700"> {/* Gris más oscuro siempre */}
                                 {feature}
                             </span>
@@ -987,7 +987,7 @@ export default function RegisterTenantForm() {
                                 </div>
                             </div>
 
-                            <div className="grid gap-8 lg:grid-cols-2">
+                            <div className="grid gap-2 md:gap-6 lg:gap-8 grid-cols-2">
                                 {PLANS.map((plan) => (
                                     <PlanCard
                                         key={plan.value}
@@ -1014,7 +1014,7 @@ export default function RegisterTenantForm() {
                                                 </p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-3xl font-bold text-[#81C101]">{plan?.price}<span className="text-lg">{plan?.period}</span></p>
+                                                <p className="text-2xl font-bold text-[#81C101]">{plan?.price}<span className="text-lg">{plan?.period}</span></p>
                                             </div>
                                         </div>
                                     );

@@ -240,14 +240,14 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
   if (loading) {
     return (
       <div className="flex-1 flex flex-col">
-        <header className="border-b bg-card">
-          <div className="flex h-16 items-center justify-between px-6">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => router.push(`/campo/${farmId}`)}>
+        <header className="border-b bg-card/50 backdrop-blur">
+          <div className="flex h-16 items-center justify-between px-3 md:px-6 gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Button variant="ghost" size="icon" onClick={() => router.push(`/campo/${farmId}`)} className="shrink-0">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div>
-                <h1 className="text-xl font-semibold">Cargando...</h1>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-base md:text-xl font-semibold truncate">Cargando...</h1>
               </div>
             </div>
           </div>
@@ -264,10 +264,10 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
   if (!lot) {
     return (
       <div className="flex-1 flex flex-col">
-        <header className="border-b bg-card">
-          <div className="flex h-16 items-center justify-between px-6">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => router.push(`/campo/${farmId}`)}>
+        <header className="border-b bg-card/50 backdrop-blur">
+          <div className="flex h-16 items-center justify-between px-3 md:px-6 gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Button variant="ghost" size="icon" onClick={() => router.push(`/campo/${farmId}`)} className="shrink-0">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
@@ -289,15 +289,15 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="border-b bg-card">
-        <div className="flex h-16 items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => router.push(`/campo/${farmId}`)}>
+      <header className="border-b bg-card/50 backdrop-blur">
+        <div className="flex h-16 items-center justify-between px-3 md:px-6 gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Button variant="ghost" size="icon" onClick={() => router.push(`/campo/${farmId}`)} className="shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div>
-              <h1 className="text-xl font-semibold">{lot.code}</h1>
-              <p className="text-sm text-muted-foreground capitalize">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base md:text-xl font-semibold truncate">{lot.code}</h1>
+              <p className="text-xs md:text-sm text-muted-foreground capitalize truncate">
                 {lot.crop}
                 {lot.variety && ` • ${lot.variety}`}
                 {lot.area_ha && ` • ${lot.area_ha} ha`}
@@ -307,9 +307,9 @@ export function LotTasksPage({ farmId, lotId, user }: LotTasksPageProps) {
           <Button onClick={() => {
             setSelectedTask(undefined)
             setIsModalOpen(true)
-          }}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva tarea
+          }} size="sm" className="shrink-0">
+            <Plus className="h-4 w-4" />
+            <span className="hidden md:inline ml-2">Nueva tarea</span>
           </Button>
         </div>
       </header>

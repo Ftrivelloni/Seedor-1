@@ -486,11 +486,11 @@ export function UserManagement({ currentUser }: UserManagementProps) {
   if (loading) {
     return (
       <div className="flex-1 flex flex-col">
-        <header className="border-b bg-card">
-          <div className="flex h-16 items-center justify-between px-6">
-            <div>
-              <h1 className="text-xl font-semibold">Gestión de Usuarios</h1>
-              <p className="text-sm text-muted-foreground">Cargando información de usuarios...</p>
+        <header className="border-b bg-card/50 backdrop-blur">
+          <div className="flex h-16 items-center justify-between px-3 md:px-6">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base md:text-xl font-semibold truncate">Usuarios</h1>
+              <p className="text-xs md:text-sm text-muted-foreground truncate">Cargando información de usuarios...</p>
             </div>
           </div>
         </header>
@@ -512,15 +512,15 @@ export function UserManagement({ currentUser }: UserManagementProps) {
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="border-b bg-card">
-        <div className="flex h-16 items-center justify-between px-6">
-          <div>
-            <h1 className="text-xl font-semibold">Gestión de Usuarios</h1>
-            <p className="text-sm text-muted-foreground">
-              Gestiona los usuarios que tienen acceso a tu sistema - {currentUser?.tenant?.name || 'Tu Empresa'}
+      <header className="border-b bg-card/50 backdrop-blur">
+        <div className="flex h-16 items-center justify-between px-3 md:px-6">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base md:text-xl font-semibold truncate">Usuarios</h1>
+            <p className="text-xs md:text-sm text-muted-foreground truncate">
+              Gestiona los usuarios que tienen acceso a tu sistema - {currentUser?.tenant?.name || 'Finca'}
             </p>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="hidden md:flex items-center space-x-4">
             <div className="text-right">
               <p className="text-sm font-medium">{currentUser?.nombre || currentUser?.email}</p>
               <p className="text-xs text-muted-foreground">{currentUser?.rol || 'Usuario'}</p>

@@ -146,23 +146,23 @@ export function FarmsList({ user }: FarmsListProps) {
   return (
     <div className="flex-1 flex flex-col">
       {/* Header */}
-      <header className="border-b bg-card">
-        <div className="flex h-16 items-center justify-between px-6">
-          <div>
-            <h1 className="text-xl font-semibold">Campo</h1>
-            <p className="text-sm text-muted-foreground">
-              Gestión de campos y lotes - {user?.tenant?.name || 'Tu Empresa'}
+      <header className="border-b bg-card/50 backdrop-blur">
+        <div className="flex h-16 items-center justify-between px-3 md:px-6 gap-2">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base md:text-xl font-semibold truncate">Campo</h1>
+            <p className="text-xs md:text-sm text-muted-foreground truncate">
+              Gestión de campos y lotes - {user?.tenant?.name || 'Finca'}
             </p>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-2">
             <Button onClick={() => {
               setEditingFarm(undefined)
               setIsModalOpen(true)
-            }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Crear Campo
+            }} size="sm" className="shrink-0">
+              <Plus className="h-4 w-4" />
+              <span className="hidden md:inline ml-2">Crear Campo</span>
             </Button>
-            <div className="text-right">
+            <div className="text-right hidden md:block">
               <p className="text-sm font-medium">{user?.nombre || user?.email}</p>
               <p className="text-xs text-muted-foreground">{user?.rol || 'Usuario'}</p>
             </div>

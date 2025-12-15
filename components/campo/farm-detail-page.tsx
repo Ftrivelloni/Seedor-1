@@ -128,14 +128,14 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
   if (loading) {
     return (
       <div className="flex-1 flex flex-col">
-        <header className="border-b bg-card">
-          <div className="flex h-16 items-center justify-between px-6">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => router.push("/campo")}>
+        <header className="border-b bg-card/50 backdrop-blur">
+          <div className="flex h-16 items-center justify-between px-3 md:px-6 gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Button variant="ghost" size="icon" onClick={() => router.push("/campo")} className="shrink-0">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div>
-                <h1 className="text-xl font-semibold">Cargando...</h1>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-base md:text-xl font-semibold truncate">Cargando...</h1>
               </div>
             </div>
           </div>
@@ -152,10 +152,10 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
   if (!farm) {
     return (
       <div className="flex-1 flex flex-col">
-        <header className="border-b bg-card">
-          <div className="flex h-16 items-center justify-between px-6">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => router.push("/campo")}>
+        <header className="border-b bg-card/50 backdrop-blur">
+          <div className="flex h-16 items-center justify-between px-3 md:px-6 gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Button variant="ghost" size="icon" onClick={() => router.push("/campo")} className="shrink-0">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
@@ -175,23 +175,23 @@ export function FarmDetailPage({ farmId, user }: FarmDetailPageProps) {
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="border-b bg-card">
-        <div className="flex h-16 items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => router.push("/campo")}>
+      <header className="border-b bg-card/50 backdrop-blur">
+        <div className="flex h-16 items-center justify-between px-3 md:px-6 gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Button variant="ghost" size="icon" onClick={() => router.push("/campo")} className="shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div>
-              <h1 className="text-xl font-semibold">{farm.name}</h1>
-              <p className="text-sm text-muted-foreground">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base md:text-xl font-semibold truncate">{farm.name}</h1>
+              <p className="text-xs md:text-sm text-muted-foreground truncate">
                 {farm.location && `${farm.location} • `}
                 {farm.area_ha && `${farm.area_ha} ha`}
                 {farm.default_crop && ` • ${farm.default_crop}`}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex border rounded-lg">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="hidden sm:flex border rounded-lg">
               <Button
                 variant={viewMode === "grid" ? "default" : "ghost"}
                 size="sm"

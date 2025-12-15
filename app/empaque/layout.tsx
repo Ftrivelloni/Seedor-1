@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation"
 import { Sidebar } from "../../components/sidebar"
 import { useAuth } from "../../hooks/use-auth"
+import { useIsMobile } from "../../hooks/use-mobile"
 import { FeatureProvider } from "../../lib/features-context"
 import { EmpaqueAuthProvider, useEmpaqueAuth } from "../../components/empaque/EmpaqueAuthContext"
 import { useEffect } from "react"
@@ -68,6 +69,7 @@ function EmpaqueLayoutContent({
 }) {
   const router = useRouter();
   const { setEmpaqueUser } = useEmpaqueAuth();
+  const isMobile = useIsMobile();
   
   useEffect(() => {
     if (user) {
@@ -85,7 +87,7 @@ function EmpaqueLayoutContent({
 
   return (
     <FeatureProvider user={user}>
-      <div className="min-h-screen bg-background flex">
+      <div className="min-h-screen bg-background flex flex-col md:flex-row">
         <Sidebar 
           user={user} 
           onLogout={handleLogoutClick}
@@ -107,7 +109,7 @@ function EmpaqueLayoutContent({
           }} 
           currentPage="empaque" 
         />
-        <div className="flex-1 flex flex-col">
+        <div className={isMobile ? "flex-1 flex flex-col pt-14 pb-20" : "flex-1 flex flex-col"}>
           {children}
         </div>
       </div>

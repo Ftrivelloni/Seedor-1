@@ -4,6 +4,7 @@ import { Sidebar } from "../../components/sidebar"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "../../hooks/use-auth"
+import { useIsMobile } from "../../hooks/use-mobile"
 import { FeatureProvider } from "../../lib/features-context"
 import { EmpaquePage } from "../../components/empaque/empaque-page"
 import { InventarioPage } from "../../components/inventario/inventario-page"
@@ -19,6 +20,7 @@ const HomePage = () => {
   });
   const [currentPage, setCurrentPage] = useState("dashboard")
   const router = useRouter()
+  const isMobile = useIsMobile()
 
   if (loading) {
     return (
@@ -59,7 +61,7 @@ const HomePage = () => {
 
   return (
     <FeatureProvider user={user}>
-      <div className="min-h-screen bg-background flex">
+      <div className="min-h-screen bg-background flex flex-col md:flex-row">
         <Sidebar 
           user={user} 
           onLogout={handleLogout}
@@ -85,7 +87,9 @@ const HomePage = () => {
           }}
           currentPage={currentPage}
         />
-        {renderPageContent()}
+        <main className={isMobile ? "flex-1 pt-14 pb-20 overflow-auto" : "flex-1 overflow-auto"}>
+          {renderPageContent()}
+        </main>
       </div>
     </FeatureProvider>
   )

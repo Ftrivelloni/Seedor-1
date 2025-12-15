@@ -8,6 +8,7 @@ import { cn } from "../lib/utils"
 import type { AuthUser } from "../lib/types"
 import { useFeatures, ModuleGate } from "../lib/features-context"
 import TenantSelector from './tenant-selector'
+import { useIsMobile } from "../hooks/use-mobile"
 import {
   LayoutDashboard,
   Sprout,
@@ -22,6 +23,8 @@ import {
   Contact2,
   UserPlus,
   Crown,
+  Menu,
+  X,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -100,7 +103,9 @@ const navItems: NavItem[] = [
 
 export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const { canAccessModule, planInfo } = useFeatures()
+  const isMobile = useIsMobile()
 
   let filteredNavItems = navItems
 
@@ -121,6 +126,116 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
     })
   }
 
+  // Mobile Bottom Navigation
+  if (isMobile) {
+    // Main navigation items for bottom bar (limit to 5 most important)
+    const mainNavItems = filteredNavItems.filter(item => 
+      ['dashboard', 'empaque', 'inventario', 'trabajadores', 'ajustes'].includes(item.page)
+    ).slice(0, 5)
+
+    return (
+      <>
+        {/* Mobile Top Header */}
+        <div className="fixed top-0 left-0 right-0 z-40 bg-sidebar border-b border-sidebar-border">
+          <div className="flex items-center justify-between p-3">
+            <div className="flex items-center gap-2">
+              <img src="/logo-seedor.png" alt="Seedor" className="h-8 w-auto" />
+              <div>
+                <TenantSelector />
+                <p className="text-xs text-sidebar-foreground/70">{user.nombre}</p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="text-sidebar-foreground"
+            >
+              {showMobileMenu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+          </div>
+        </div>
+
+        {/* Mobile Menu Overlay */}
+        {showMobileMenu && (
+          <div 
+            className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowMobileMenu(false)}
+          >
+            <div 
+              className="absolute top-14 right-0 left-0 mx-4 bg-sidebar border border-sidebar-border rounded-lg shadow-xl max-h-[70vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 space-y-2">
+                {filteredNavItems.map((item) => {
+                  const Icon = item.icon
+                  const isActive = currentPage === item.page
+                  return (
+                    <Button
+                      key={item.page}
+                      variant={isActive ? "default" : "ghost"}
+                      className={cn(
+                        "w-full justify-start",
+                        isActive
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent"
+                      )}
+                      onClick={() => {
+                        onNavigate(item.page)
+                        setShowMobileMenu(false)
+                      }}
+                    >
+                      <Icon className="h-4 w-4 mr-3" />
+                      <span>{item.title}</span>
+                    </Button>
+                  )
+                })}
+                <div className="pt-2 border-t border-sidebar-border">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
+                    onClick={onLogout}
+                  >
+                    <LogOut className="h-4 w-4 mr-3" />
+                    <span>Cerrar Sesión</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Bottom Navigation */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border safe-area-inset-bottom">
+          <nav className="flex items-center justify-around px-2 py-2">
+            {mainNavItems.map((item) => {
+              const Icon = item.icon
+              const isActive = currentPage === item.page
+              return (
+                <button
+                  key={item.page}
+                  onClick={() => onNavigate(item.page)}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-0 flex-1",
+                    isActive
+                      ? "text-sidebar-primary-foreground bg-sidebar-primary"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent"
+                  )}
+                >
+                  <Icon className="h-5 w-5 flex-shrink-0" />
+                  <span className="text-[10px] font-medium truncate w-full text-center">
+                    {item.title}
+                  </span>
+                </button>
+              )
+            })}
+          </nav>
+        </div>
+      </>
+    )
+  }
+
+  // Desktop Sidebar
   return (
     <div
       className={cn(
@@ -164,7 +279,7 @@ export function Sidebar({ user, onLogout, onNavigate, currentPage }: SidebarProp
         </Button>
       </div>
 
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {filteredNavItems.map((item) => {
           const Icon = item.icon
           const isActive = currentPage === item.page
