@@ -33,7 +33,7 @@ export default function LandingPage() {
                         poster="/Campo_panoramica.jpg"
                         aria-hidden="true"
                     >
-                        <source src="/video_home.mp4" type="video/mp4" />
+                        <source src="/DroneView_h264.mp4" type="video/mp4" />
                     </video>
 
 
