@@ -27,9 +27,9 @@
 
   /* Variables de tema */
   --background: oklch(1 0 0); /* Pure white background */
-  --foreground: oklch(0.3 0 0); /* Dark gray text */
+  --foreground: oklch(0.15 0 0); /* Very dark gray text */
   --card: oklch(0.98 0 0); /* Off-white card background */
-  --card-foreground: oklch(0.3 0 0); /* Dark gray card text */
+  --card-foreground: oklch(0.15 0 0); /* Very dark gray card text */
   --popover: oklch(1 0 0); /* White popover background */
   --popover-foreground: oklch(0.3 0 0); /* Dark gray popover text */
   --primary: oklch(0.72 0.15 95); /* Verde lima como primary */
@@ -43,7 +43,7 @@
   --destructive: oklch(0.73 0.18 15); /* Rosa como destructive */
   --destructive-foreground: oklch(1 0 0); /* White text on destructive */
   --border: oklch(0.9 0 0); /* Light gray borders */
-  --input: oklch(1 0 0); /* White input background */
+  --input: oklch(1 0 0); /* Pure white input background */
   --ring: oklch(0.72 0.15 95 / 0.4); /* Verde lima focus ring */
   --chart-1: oklch(0.72 0.15 95); /* Verde lima */
   --chart-2: oklch(0.82 0.15 75); /* Amarillo */

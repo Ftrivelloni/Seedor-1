@@ -61,7 +61,7 @@ export default function LoginForm() {
   }
 
   return (
-    <Card className="mx-auto w-full max-w-md rounded-2xl border bg-card/90 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:mx-4">
+    <Card className="mx-auto w-full max-w-md rounded-2xl border shadow-2xl sm:mx-4" style={{background: '#ffffff'}}>
       <CardHeader className="pb-4 text-center px-4 sm:px-6">
         <CardTitle className="text-xl sm:text-2xl">Iniciar sesión</CardTitle>
         <CardDescription className="text-sm">Accedé con tu email y contraseña</CardDescription>
@@ -81,7 +81,8 @@ export default function LoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
-                className="h-11 pl-10 focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="h-11 pl-10 focus-visible:ring-2"
+                style={{'--tw-ring-color': '#f8716350', background: '#f8f8f8'} as React.CSSProperties}
               />
               <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             </div>
@@ -98,7 +99,8 @@ export default function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
-                className="h-11 pl-10 pr-10 focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="h-11 pl-10 pr-10 focus-visible:ring-2"
+                style={{'--tw-ring-color': '#f8716350', background: '#f8f8f8'} as React.CSSProperties}
               />
               <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <button
@@ -117,7 +119,7 @@ export default function LoginForm() {
               <Checkbox checked={remember} onCheckedChange={(v) => setRemember(Boolean(v))} />
               Recordarme
             </label>
-            <a href="/forgot-password" className="text-sm text-primary hover:underline">
+            <a href="/forgot-password" className="text-sm hover:underline" style={{color: '#f87163'}}>
   ¿Olvidaste tu contraseña?
 </a>
 
@@ -129,7 +131,14 @@ export default function LoginForm() {
             </div>
           )}
 
-          <Button type="submit" className="h-11 w-full text-base" disabled={loading}>
+          <Button 
+            type="submit" 
+            className="h-11 w-full text-base text-white transition-colors" 
+            disabled={loading}
+            style={{background: '#f87163'}}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#fa9387'}
+            onMouseLeave={(e) => e.currentTarget.style.background = '#f87163'}
+          >
             {loading && <Loader2 className="mr-2 size-4 animate-spin" />} 
             {loading ? "Ingresando..." : "Ingresar"}
           </Button>
@@ -138,7 +147,7 @@ export default function LoginForm() {
 
       <CardFooter className="justify-center text-sm text-muted-foreground px-4 sm:px-6">
         ¿No tenés cuenta?{" "}
-        <a className="ml-1 text-primary hover:underline" href="/register-tenant">
+        <a className="ml-1 hover:underline" style={{color: '#f87163'}} href="/register-tenant">
           Creá tu cuenta
         </a>
       </CardFooter>
