@@ -23,7 +23,7 @@ module.exports = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#73AC01", // Nuevo verde Seedor
+          DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
@@ -50,11 +50,32 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        seedor: {
-          DEFAULT: "#73AC01",
-          light: "#8BC34A",
-          dark: "#5D8B00",
-        }
+        // Nueva paleta de colores vibrante
+        lime: {
+          DEFAULT: "var(--color-lime)",
+          light: "var(--color-lime-light)",
+          dark: "var(--color-lime-dark)",
+        },
+        yellow: {
+          DEFAULT: "var(--color-yellow)",
+          light: "var(--color-yellow-light)",
+          dark: "var(--color-yellow-dark)",
+        },
+        coral: {
+          DEFAULT: "var(--color-coral)",
+          light: "var(--color-coral-light)",
+          dark: "var(--color-coral-dark)",
+        },
+        pink: {
+          DEFAULT: "var(--color-pink)",
+          light: "var(--color-pink-light)",
+          dark: "var(--color-pink-dark)",
+        },
+        orange: {
+          DEFAULT: "var(--color-orange)",
+          light: "var(--color-orange-light)",
+          dark: "var(--color-orange-dark)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

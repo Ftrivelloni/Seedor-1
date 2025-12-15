@@ -4,75 +4,97 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Paleta de colores principal */
+  --color-lime: #63bd0a; /* Verde lima */
+  --color-lime-light: #8bc34a; /* Verde lima claro para hover */
+  --color-lime-dark: #4f9108; /* Verde lima oscuro */
+  
+  --color-yellow: #f3b31a; /* Amarillo/naranja */
+  --color-yellow-light: #f7c850; /* Amarillo claro para hover */
+  --color-yellow-dark: #d99a0e; /* Amarillo oscuro */
+  
+  --color-coral: #f87163; /* Coral */
+  --color-coral-light: #fa9387; /* Coral claro para hover */
+  --color-coral-dark: #d6503f; /* Coral oscuro */
+  
+  --color-pink: #f56b8b; /* Rosa */
+  --color-pink-light: #f88da7; /* Rosa claro para hover */
+  --color-pink-dark: #d14a6e; /* Rosa oscuro */
+  
+  --color-orange: #f96c57; /* Naranja coral */
+  --color-orange-light: #fb8e7c; /* Naranja claro para hover */
+  --color-orange-dark: #d54c37; /* Naranja oscuro */
+
+  /* Variables de tema */
   --background: oklch(1 0 0); /* Pure white background */
   --foreground: oklch(0.3 0 0); /* Dark gray text */
   --card: oklch(0.98 0 0); /* Off-white card background */
   --card-foreground: oklch(0.3 0 0); /* Dark gray card text */
   --popover: oklch(1 0 0); /* White popover background */
   --popover-foreground: oklch(0.3 0 0); /* Dark gray popover text */
-  --primary: oklch(0.76 0.15 122); /* Verde #81C101 para Seedor branding */
+  --primary: oklch(0.72 0.15 95); /* Verde lima como primary */
   --primary-foreground: oklch(1 0 0); /* White text on primary */
-  --secondary: oklch(0.55 0.15 140); /* Green secondary color for agricultural theme */
-  --secondary-foreground: oklch(1 0 0); /* White text on secondary */
+  --secondary: oklch(0.82 0.15 75); /* Amarillo como secondary */
+  --secondary-foreground: oklch(0.2 0 0); /* Dark text on secondary */
   --muted: oklch(0.96 0 0); /* Light muted background */
   --muted-foreground: oklch(0.5 0 0); /* Medium gray muted text */
-  --accent: oklch(0.76 0.15 122); /* Verde accent matching primary */
+  --accent: oklch(0.75 0.15 25); /* Coral como accent */
   --accent-foreground: oklch(1 0 0); /* White text on accent */
-  --destructive: oklch(0.6 0.2 25); /* Red for destructive actions */
+  --destructive: oklch(0.73 0.18 15); /* Rosa como destructive */
   --destructive-foreground: oklch(1 0 0); /* White text on destructive */
   --border: oklch(0.9 0 0); /* Light gray borders */
   --input: oklch(1 0 0); /* White input background */
-  --ring: oklch(0.76 0.15 122 / 0.4); /* Verde focus ring */
-  --chart-1: oklch(0.76 0.15 122); /* Verde for charts */
-  --chart-2: oklch(0.55 0.15 140); /* Green for charts */
-  --chart-3: oklch(0.4 0 0); /* Dark gray for charts */
-  --chart-4: oklch(0.8 0.1 50); /* Light orange for charts */
-  --chart-5: oklch(0.6 0.1 160); /* Light green for charts */
+  --ring: oklch(0.72 0.15 95 / 0.4); /* Verde lima focus ring */
+  --chart-1: oklch(0.72 0.15 95); /* Verde lima */
+  --chart-2: oklch(0.82 0.15 75); /* Amarillo */
+  --chart-3: oklch(0.75 0.15 25); /* Coral */
+  --chart-4: oklch(0.73 0.18 15); /* Rosa */
+  --chart-5: oklch(0.74 0.16 20); /* Naranja coral */
   --radius: 0.5rem;
   --sidebar: oklch(1 0 0); /* White sidebar background */
   --sidebar-foreground: oklch(0.3 0 0); /* Dark gray sidebar text */
-  --sidebar-primary: oklch(0.76 0.15 122); /* Verde sidebar primary */
+  --sidebar-primary: oklch(0.72 0.15 95); /* Verde lima sidebar primary */
   --sidebar-primary-foreground: oklch(1 0 0); /* White text on sidebar primary */
-  --sidebar-accent: oklch(0.55 0.15 140); /* Green sidebar accent */
-  --sidebar-accent-foreground: oklch(1 0 0); /* White text on sidebar accent */
+  --sidebar-accent: oklch(0.82 0.15 75); /* Amarillo sidebar accent */
+  --sidebar-accent-foreground: oklch(0.2 0 0); /* Dark text on sidebar accent */
   --sidebar-border: oklch(0.9 0 0); /* Light gray sidebar border */
-  --sidebar-ring: oklch(0.76 0.15 122 / 0.4); /* Verde sidebar focus ring */
+  --sidebar-ring: oklch(0.72 0.15 95 / 0.4); /* Verde lima sidebar focus ring */
 }
 
 .dark {
-  /* Updated dark mode colors to maintain agricultural theme */
+  /* Paleta para modo oscuro */
   --background: oklch(0.1 0 0); /* Dark background */
   --foreground: oklch(0.95 0 0); /* Light text */
   --card: oklch(0.15 0 0); /* Dark card background */
   --card-foreground: oklch(0.95 0 0); /* Light card text */
   --popover: oklch(0.15 0 0); /* Dark popover background */
   --popover-foreground: oklch(0.95 0 0); /* Light popover text */
-  --primary: oklch(0.76 0.15 122); /* Verde #81C101 */
+  --primary: oklch(0.75 0.15 95); /* Verde lima más brillante */
   --primary-foreground: oklch(0.1 0 0); /* Dark text on primary */
-  --secondary: oklch(0.6 0.15 140); /* Brighter green for dark mode */
+  --secondary: oklch(0.85 0.15 75); /* Amarillo más brillante */
   --secondary-foreground: oklch(0.1 0 0); /* Dark text on secondary */
   --muted: oklch(0.2 0 0); /* Dark muted background */
   --muted-foreground: oklch(0.7 0 0); /* Light muted text */
-  --accent: oklch(0.76 0.15 122); /* Verde accent */
+  --accent: oklch(0.78 0.15 25); /* Coral más brillante */
   --accent-foreground: oklch(0.1 0 0); /* Dark text on accent */
-  --destructive: oklch(0.65 0.2 25); /* Brighter red for dark mode */
-  --destructive-foreground: oklch(0.95 0 0); /* Light text on destructive */
+  --destructive: oklch(0.76 0.18 15); /* Rosa más brillante */
+  --destructive-foreground: oklch(0.1 0 0); /* Dark text on destructive */
   --border: oklch(0.25 0 0); /* Dark border */
   --input: oklch(0.2 0 0); /* Dark input background */
-  --ring: oklch(0.76 0.15 122 / 0.4); /* Verde focus ring */
-  --chart-1: oklch(0.76 0.15 122); /* Verde for charts */
-  --chart-2: oklch(0.6 0.15 140); /* Bright green for charts */
-  --chart-3: oklch(0.8 0 0); /* Light gray for charts */
-  --chart-4: oklch(0.85 0.1 50); /* Light orange for charts */
-  --chart-5: oklch(0.65 0.1 160); /* Light green for charts */
+  --ring: oklch(0.75 0.15 95 / 0.4); /* Verde lima focus ring */
+  --chart-1: oklch(0.75 0.15 95); /* Verde lima */
+  --chart-2: oklch(0.85 0.15 75); /* Amarillo */
+  --chart-3: oklch(0.78 0.15 25); /* Coral */
+  --chart-4: oklch(0.76 0.18 15); /* Rosa */
+  --chart-5: oklch(0.77 0.16 20); /* Naranja coral */
   --sidebar: oklch(0.12 0 0); /* Dark sidebar background */
   --sidebar-foreground: oklch(0.95 0 0); /* Light sidebar text */
-  --sidebar-primary: oklch(0.76 0.15 122); /* Verde sidebar primary */
+  --sidebar-primary: oklch(0.75 0.15 95); /* Verde lima sidebar primary */
   --sidebar-primary-foreground: oklch(0.1 0 0); /* Dark text on sidebar primary */
-  --sidebar-accent: oklch(0.6 0.15 140); /* Green sidebar accent */
+  --sidebar-accent: oklch(0.85 0.15 75); /* Amarillo sidebar accent */
   --sidebar-accent-foreground: oklch(0.1 0 0); /* Dark text on sidebar accent */
   --sidebar-border: oklch(0.25 0 0); /* Dark sidebar border */
-  --sidebar-ring: oklch(0.76 0.15 122 / 0.4); /* Verde sidebar focus ring */
+  --sidebar-ring: oklch(0.75 0.15 95 / 0.4); /* Verde lima sidebar focus ring */
 }
 
 @theme inline {
